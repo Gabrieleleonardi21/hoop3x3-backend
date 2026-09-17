@@ -24,6 +24,22 @@ Il frontend in sviluppo inoltra `/api` verso `http://localhost:3001` tramite il 
 
 Proxy verso [Groq](https://console.groq.com/) (`POST /api/coach/chat`, autenticato): la chiave resta sul server. Modello di default `openai/gpt-oss-120b`, sovrascrivibile con `GROQ_MODEL` in `env.properties`. Senza chiave il Coach è disattivato e il resto dell'app funziona.
 
+## Struttura
+
+```
+db/schema.sql                   # tabelle PostgreSQL (da eseguire in pgAdmin)
+env.properties.example          # segreti: copiare in env.properties
+src/main/java/com/hoop3x3/backend/
+├── controllers/  # REST (auth, utenti, leghe, tappe, anagrafe, archivio, coach)
+├── dto/          # record con validazione Bean Validation
+├── entities/     # JPA: Utente, Lega, Tappa (+Regole), AnagrafeGiocatore/Squadra, ArchivioTappa
+├── exceptions/   # eccezioni tipizzate + ExceptionsHandler (corpo uniforme {message, timestamp})
+├── repositories/ # Spring Data JPA
+├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/estathe25.json)
+├── security/     # SecurityConfig, JwtFilter, JWTtools, CorsConfig, JsonAuthEntryPoint
+└── services/     # logica: proprietà (AccessGuard), JSON delle tappe, proxy Groq
+```
+
 ## Dati di prova
 
 Con `SEED_DEMO=true` il primo avvio carica il circuito Estathé 2025 (`resources/seed/estathe25.json`) intestandolo all'admin; gli avvii successivi non lo duplicano.
