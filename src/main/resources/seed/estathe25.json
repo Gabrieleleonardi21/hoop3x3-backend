@@ -1,0 +1,4335 @@
+{
+  "lega": "Estathé 3x3 Italia Streetbasket Circuit 2025",
+  "giocatori": [
+    {
+      "id": "p01",
+      "nome": "Flavio",
+      "cognome": "Gay",
+      "soprannome": "",
+      "nascita": "1998-03-15",
+      "citta": "Ravenna",
+      "nazionalita": "ITA",
+      "altezza": "192",
+      "peso": "88",
+      "ruolo": "Guardia",
+      "numero": "",
+      "squadra": "Team Rome",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Orasì Ravenna"
+    },
+    {
+      "id": "p02",
+      "nome": "Giacomo",
+      "cognome": "Leardini",
+      "soprannome": "",
+      "nascita": "1999-07-20",
+      "citta": "Vigevano",
+      "nazionalita": "ITA",
+      "altezza": "194",
+      "peso": "90",
+      "ruolo": "Ala",
+      "numero": "",
+      "squadra": "Team Rome",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Elachem Vigevano"
+    },
+    {
+      "id": "p03",
+      "nome": "Lorenzo",
+      "cognome": "Lovato",
+      "soprannome": "",
+      "nascita": "2001-02-08",
+      "citta": "Varese",
+      "nazionalita": "ITA",
+      "altezza": "191",
+      "peso": "85",
+      "ruolo": "Playmaker",
+      "numero": "",
+      "squadra": "Team Rome",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Coelsanus Basket 7 Laghi"
+    },
+    {
+      "id": "p04",
+      "nome": "Andrea",
+      "cognome": "Valentini",
+      "soprannome": "",
+      "nascita": "1998-11-03",
+      "citta": "Roma",
+      "nazionalita": "ITA",
+      "altezza": "193",
+      "peso": "89",
+      "ruolo": "Ala",
+      "numero": "",
+      "squadra": "Team Rome",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Virtus Gvm Roma 1960"
+    },
+    {
+      "id": "p05",
+      "nome": "Matteo",
+      "cognome": "Airaghi",
+      "soprannome": "",
+      "nascita": "1996-05-12",
+      "citta": "Matera",
+      "nazionalita": "ITA",
+      "altezza": "196",
+      "peso": "93",
+      "ruolo": "Ala",
+      "numero": "",
+      "squadra": "Concrete",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Virtus Matera"
+    },
+    {
+      "id": "p06",
+      "nome": "Michele",
+      "cognome": "D'Ambrosio",
+      "soprannome": "Angelillo",
+      "nascita": "1998-09-14",
+      "citta": "Ozzano dell'Emilia",
+      "nazionalita": "ITA",
+      "altezza": "200",
+      "peso": "98",
+      "ruolo": "Centro",
+      "numero": "",
+      "squadra": "Concrete",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Vifermeca Olimpia Castello"
+    },
+    {
+      "id": "p07",
+      "nome": "Carlo",
+      "cognome": "Fumagalli",
+      "soprannome": "",
+      "nascita": "1996-01-22",
+      "citta": "Desio",
+      "nazionalita": "ITA",
+      "altezza": "188",
+      "peso": "84",
+      "ruolo": "Playmaker",
+      "numero": "",
+      "squadra": "Concrete",
+      "esperienza": "",
+      "note": "Naz. 3x3 / MVP Finals 2024 [P]; club 5v5: Rimadesio Desio"
+    },
+    {
+      "id": "p08",
+      "nome": "Morgan",
+      "cognome": "Rashed",
+      "soprannome": "",
+      "nascita": "2002-04-30",
+      "citta": "",
+      "nazionalita": "ITA",
+      "altezza": "190",
+      "peso": "86",
+      "ruolo": "Guardia",
+      "numero": "",
+      "squadra": "Concrete",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Young Harris Basketball"
+    },
+    {
+      "id": "p09",
+      "nome": "Federico",
+      "cognome": "Frisari",
+      "soprannome": "Friso",
+      "nascita": "1994-06-07",
+      "citta": "Roma",
+      "nazionalita": "ITA",
+      "altezza": "190",
+      "peso": "86",
+      "ruolo": "Guardia",
+      "numero": "",
+      "squadra": "All Star 3×3",
+      "esperienza": "",
+      "note": "Capitano All Star 3x3, #1 Elite 2025 [R/W]"
+    },
+    {
+      "id": "p10",
+      "nome": "Dario",
+      "cognome": "Masciarelli",
+      "soprannome": "",
+      "nascita": "1998-02-19",
+      "citta": "Imola",
+      "nazionalita": "ITA",
+      "altezza": "195",
+      "peso": "91",
+      "ruolo": "Ala",
+      "numero": "",
+      "squadra": "All Star 3×3",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Virtus Pallacanestro Imola"
+    },
+    {
+      "id": "p11",
+      "nome": "Matteo",
+      "cognome": "Santucci",
+      "soprannome": "",
+      "nascita": "1996-10-25",
+      "citta": "Roma",
+      "nazionalita": "ITA",
+      "altezza": "193",
+      "peso": "88",
+      "ruolo": "Ala",
+      "numero": "",
+      "squadra": "All Star 3×3",
+      "esperienza": "",
+      "note": "Scudetto 2023 con All Star 3x3 [W]"
+    },
+    {
+      "id": "p12",
+      "nome": "Michele",
+      "cognome": "Serpilli",
+      "soprannome": "",
+      "nascita": "1999-03-11",
+      "citta": "Casalpusterlengo",
+      "nazionalita": "ITA",
+      "altezza": "196",
+      "peso": "92",
+      "ruolo": "Playmaker",
+      "numero": "",
+      "squadra": "All Star 3×3",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Assigeco Casalpusterlengo"
+    },
+    {
+      "id": "p13",
+      "nome": "Matteo",
+      "cognome": "Corgnati",
+      "soprannome": "",
+      "nascita": "1997-08-04",
+      "citta": "Torino",
+      "nazionalita": "ITA",
+      "altezza": "193",
+      "peso": "89",
+      "ruolo": "Guardia",
+      "numero": "",
+      "squadra": "The Goat Torino",
+      "esperienza": "",
+      "note": "MVP Opening Tournament 2025 [R]"
+    },
+    {
+      "id": "p14",
+      "nome": "Diego",
+      "cognome": "Calzavara",
+      "soprannome": "",
+      "nascita": "1996-12-18",
+      "citta": "Torino",
+      "nazionalita": "ITA",
+      "altezza": "196",
+      "peso": "92",
+      "ruolo": "Ala",
+      "numero": "",
+      "squadra": "The Goat Torino",
+      "esperienza": "",
+      "note": "Opening Tournament 2025 [R]"
+    },
+    {
+      "id": "p15",
+      "nome": "Matteo",
+      "cognome": "Gherardini",
+      "soprannome": "",
+      "nascita": "1998-05-27",
+      "citta": "Torino",
+      "nazionalita": "ITA",
+      "altezza": "190",
+      "peso": "85",
+      "ruolo": "Playmaker",
+      "numero": "",
+      "squadra": "The Goat Torino",
+      "esperienza": "",
+      "note": "Opening Tournament 2025 [R]"
+    },
+    {
+      "id": "p16",
+      "nome": "Alberto",
+      "cognome": "Puccioni",
+      "soprannome": "",
+      "nascita": "1995-09-02",
+      "citta": "Torino",
+      "nazionalita": "ITA",
+      "altezza": "202",
+      "peso": "100",
+      "ruolo": "Centro",
+      "numero": "",
+      "squadra": "The Goat Torino",
+      "esperienza": "",
+      "note": "Opening Tournament 2025 [R]"
+    },
+    {
+      "id": "p17",
+      "nome": "Pietro",
+      "cognome": "Agostini",
+      "soprannome": "",
+      "nascita": "1999-01-17",
+      "citta": "Legnano",
+      "nazionalita": "ITA",
+      "altezza": "194",
+      "peso": "89",
+      "ruolo": "Ala",
+      "numero": "",
+      "squadra": "FDC Tunes 2.0",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Sae Scientifica Legnano"
+    },
+    {
+      "id": "p18",
+      "nome": "Alberto",
+      "cognome": "Bedina",
+      "soprannome": "",
+      "nascita": "1997-06-23",
+      "citta": "Pordenone",
+      "nazionalita": "ITA",
+      "altezza": "190",
+      "peso": "85",
+      "ruolo": "Guardia",
+      "numero": "",
+      "squadra": "FDC Tunes 2.0",
+      "esperienza": "",
+      "note": "Scudetto 2022 con FDC Pro Team [W]"
+    },
+    {
+      "id": "p19",
+      "nome": "Nicolò",
+      "cognome": "Menardi",
+      "soprannome": "",
+      "nascita": "1998-04-09",
+      "citta": "Pordenone",
+      "nazionalita": "ITA",
+      "altezza": "192",
+      "peso": "87",
+      "ruolo": "Playmaker",
+      "numero": "",
+      "squadra": "FDC Tunes 2.0",
+      "esperienza": "",
+      "note": "Scudetto 2022 con FDC Pro Team [W]"
+    },
+    {
+      "id": "p20",
+      "nome": "Leonardo",
+      "cognome": "Clark",
+      "soprannome": "",
+      "nascita": "1996-08-14",
+      "citta": "Venezia",
+      "nazionalita": "ITA",
+      "altezza": "198",
+      "peso": "95",
+      "ruolo": "Centro",
+      "numero": "",
+      "squadra": "FDC Tunes 2.0",
+      "esperienza": "",
+      "note": "Scudetto 2022 con FDC Pro Team [W]"
+    },
+    {
+      "id": "p21",
+      "nome": "Giacomo",
+      "cognome": "Dell'Agnello",
+      "soprannome": "",
+      "nascita": "1994-10-31",
+      "citta": "Cividale del Friuli",
+      "nazionalita": "ITA",
+      "altezza": "192",
+      "peso": "87",
+      "ruolo": "Guardia",
+      "numero": "",
+      "squadra": "FVG 3×3",
+      "esperienza": "",
+      "note": "A disposizione naz. 3x3 [P]; club 5v5: Gesteco Cividale"
+    },
+    {
+      "id": "p22",
+      "nome": "Michele",
+      "cognome": "Peroni",
+      "soprannome": "",
+      "nascita": "1994-07-15",
+      "citta": "Vigevano",
+      "nazionalita": "ITA",
+      "altezza": "195",
+      "peso": "90",
+      "ruolo": "Ala",
+      "numero": "",
+      "squadra": "FVG 3×3",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Elachem Vigevano"
+    },
+    {
+      "id": "p23",
+      "nome": "Bruno",
+      "cognome": "Mascolo",
+      "soprannome": "",
+      "nascita": "1996-03-22",
+      "citta": "Treviso",
+      "nazionalita": "ITA",
+      "altezza": "190",
+      "peso": "85",
+      "ruolo": "Playmaker",
+      "numero": "",
+      "squadra": "FVG 3×3",
+      "esperienza": "",
+      "note": "A disposizione naz. 3x3 [P]; club 5v5: Nutribullet Treviso"
+    },
+    {
+      "id": "p24",
+      "nome": "Dario",
+      "cognome": "Zucca",
+      "soprannome": "",
+      "nascita": "1996-01-05",
+      "citta": "Jesi",
+      "nazionalita": "ITA",
+      "altezza": "198",
+      "peso": "96",
+      "ruolo": "Centro",
+      "numero": "",
+      "squadra": "FVG 3×3",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Basket Jesi Academy"
+    },
+    {
+      "id": "p25",
+      "nome": "Andrea",
+      "cognome": "Tassinari",
+      "soprannome": "",
+      "nascita": "1993-05-16",
+      "citta": "Bologna",
+      "nazionalita": "ITA",
+      "altezza": "188",
+      "peso": "84",
+      "ruolo": "Playmaker",
+      "numero": "",
+      "squadra": "UB Kings of Kings",
+      "esperienza": "",
+      "note": "Scudetto 2021 con Kings of Kings [W]"
+    },
+    {
+      "id": "p26",
+      "nome": "Carlos",
+      "cognome": "Rivera",
+      "soprannome": "",
+      "nascita": "1991-11-29",
+      "citta": "",
+      "nazionalita": "DOM",
+      "altezza": "192",
+      "peso": "88",
+      "ruolo": "Guardia",
+      "numero": "",
+      "squadra": "UB Kings of Kings",
+      "esperienza": "",
+      "note": "Scudetto 2021 con Kings of Kings [W]"
+    },
+    {
+      "id": "p27",
+      "nome": "Mohamed",
+      "cognome": "Touré",
+      "soprannome": "",
+      "nascita": "1995-08-03",
+      "citta": "",
+      "nazionalita": "GUI",
+      "altezza": "202",
+      "peso": "102",
+      "ruolo": "Centro",
+      "numero": "",
+      "squadra": "UB Kings of Kings",
+      "esperienza": "",
+      "note": "Scudetto 2021 con Kings of Kings [W]"
+    },
+    {
+      "id": "p28",
+      "nome": "Bryant",
+      "cognome": "Inoa Piantini",
+      "soprannome": "",
+      "nascita": "1994-02-17",
+      "citta": "",
+      "nazionalita": "DOM",
+      "altezza": "196",
+      "peso": "92",
+      "ruolo": "Ala",
+      "numero": "",
+      "squadra": "UB Kings of Kings",
+      "esperienza": "",
+      "note": "Scudetto 2021 con Kings of Kings [W]"
+    },
+    {
+      "id": "p29",
+      "nome": "Giacomo",
+      "cognome": "Bonavida",
+      "soprannome": "",
+      "nascita": "2001-09-14",
+      "citta": "Iseo",
+      "nazionalita": "ITA",
+      "altezza": "192",
+      "peso": "86",
+      "ruolo": "Guardia",
+      "numero": "",
+      "squadra": "Tortona Evolution",
+      "esperienza": "",
+      "note": "Nazionale 3x3 [P]; club 5v5: Syneto Basket Iseo"
+    },
+    {
+      "id": "p30",
+      "nome": "Lorenzo",
+      "cognome": "Donadio",
+      "soprannome": "",
+      "nascita": "2001-04-22",
+      "citta": "Nardò",
+      "nazionalita": "ITA",
+      "altezza": "190",
+      "peso": "83",
+      "ruolo": "Playmaker",
+      "numero": "",
+      "squadra": "Tortona Evolution",
+      "esperienza": "",
+      "note": "A disposizione naz. 3x3 [P]; club 5v5: HDL Nardò"
+    },
+    {
+      "id": "p31",
+      "nome": "Luca",
+      "cognome": "Carrea",
+      "soprannome": "",
+      "nascita": "2002-06-18",
+      "citta": "Alessandria",
+      "nazionalita": "ITA",
+      "altezza": "194",
+      "peso": "88",
+      "ruolo": "Ala",
+      "numero": "",
+      "squadra": "Tortona Evolution",
+      "esperienza": "",
+      "note": "Circuito Classic; club 5v5: sistema Bertram Derthona [E]"
+    },
+    {
+      "id": "p32",
+      "nome": "Matteo",
+      "cognome": "Repetti",
+      "soprannome": "",
+      "nascita": "2001-11-30",
+      "citta": "Tortona",
+      "nazionalita": "ITA",
+      "altezza": "196",
+      "peso": "93",
+      "ruolo": "Centro",
+      "numero": "",
+      "squadra": "Tortona Evolution",
+      "esperienza": "",
+      "note": "Circuito Classic, area Alessandria-Tortona [E]"
+    }
+  ],
+  "squadre": [
+    {
+      "id": "s01",
+      "nome": "Team Rome",
+      "citta": "Roma",
+      "anno": "2020",
+      "rank": "220",
+      "referente": "Andrea Valentini",
+      "roster": [
+        "p01",
+        "p02",
+        "p03",
+        "p04"
+      ],
+      "logo": "/logos/team-rome.svg",
+      "website": "",
+      "instagram": "",
+      "note": "Circuito Elite — Campioni 2025. Fonte: fip.it"
+    },
+    {
+      "id": "s02",
+      "nome": "All Star 3×3",
+      "citta": "Roma",
+      "anno": "2019",
+      "rank": "200",
+      "referente": "Francesco Santucci",
+      "roster": [
+        "p09",
+        "p10",
+        "p11",
+        "p12"
+      ],
+      "logo": "https://www.allstar3x3.it/wp-content/uploads/2024/12/allstar-logo-png_Tavola-disegno-1.png",
+      "website": "https://www.allstar3x3.it",
+      "instagram": "https://www.instagram.com/allstar3x3",
+      "note": "Circuito Elite — Campioni 2023, #1 ranking Elite 2025. Fonte: Wikipedia/allstar3x3.it"
+    },
+    {
+      "id": "s03",
+      "nome": "Concrete",
+      "citta": "Milano",
+      "anno": "2021",
+      "rank": "185",
+      "referente": "Carlo Fumagalli",
+      "roster": [
+        "p05",
+        "p06",
+        "p07",
+        "p08"
+      ],
+      "logo": "/logos/concrete.svg",
+      "website": "",
+      "instagram": "https://www.instagram.com/milano.3x3/",
+      "note": "Circuito Elite — Campioni 2024. Fonte: fip.it"
+    },
+    {
+      "id": "s04",
+      "nome": "The Goat Torino",
+      "citta": "Rivalta di Torino",
+      "anno": "2022",
+      "rank": "165",
+      "referente": "Matteo Corgnati",
+      "roster": [
+        "p13",
+        "p14",
+        "p15",
+        "p16"
+      ],
+      "logo": "https://thegoatstreetball.it/wp-content/uploads/2021/01/LOGO-THE-GOAT-2020-08.11.png",
+      "website": "https://thegoatstreetball.it",
+      "instagram": "https://www.instagram.com/thegoatstreetball",
+      "note": "Circuito Elite — Finalisti 2025. Fonte: thegoatstreetball.it"
+    },
+    {
+      "id": "s05",
+      "nome": "FDC Tunes 2.0",
+      "citta": "Pordenone",
+      "anno": "2017",
+      "rank": "150",
+      "referente": "Nicolò Menardi",
+      "roster": [
+        "p17",
+        "p18",
+        "p19",
+        "p20"
+      ],
+      "logo": "/logos/fdc-tunes.svg",
+      "website": "",
+      "instagram": "",
+      "note": "Circuito Elite — Campioni 2022 (ex FDC Pro Team). Fonte: Wikipedia"
+    },
+    {
+      "id": "s06",
+      "nome": "FVG 3×3",
+      "citta": "Udine",
+      "anno": "2018",
+      "rank": "130",
+      "referente": "Giacomo Dell'Agnello",
+      "roster": [
+        "p21",
+        "p22",
+        "p23",
+        "p24"
+      ],
+      "logo": "/logos/fvg-3x3.svg",
+      "website": "",
+      "instagram": "",
+      "note": "Circuito Elite — #1 ranking 2023 (2560 pt). Fonte: 3x3italia.fip.it"
+    },
+    {
+      "id": "s07",
+      "nome": "UB Kings of Kings",
+      "citta": "Bologna",
+      "anno": "2014",
+      "rank": "110",
+      "referente": "Andrea Tassinari",
+      "roster": [
+        "p25",
+        "p26",
+        "p27",
+        "p28"
+      ],
+      "logo": "/logos/ub-kings.svg",
+      "website": "",
+      "instagram": "",
+      "note": "Circuito Elite — Campioni 2021; Finals 2025 Girone A. Fonte: Wikipedia"
+    },
+    {
+      "id": "s08",
+      "nome": "Tortona Evolution 3×3",
+      "citta": "Tortona",
+      "anno": "2022",
+      "rank": "90",
+      "referente": "Giacomo Bonavida",
+      "roster": [
+        "p29",
+        "p30",
+        "p31",
+        "p32"
+      ],
+      "logo": "https://www.evolution3x3.it/wp-content/uploads/2025/12/Logo_Tortona_Evolution_3x3.svg",
+      "website": "https://www.evolution3x3.it",
+      "instagram": "",
+      "note": "Circuito Classic→Elite; Finals 2025 Girone C. Fonte: evolution3x3.it"
+    }
+  ],
+  "tappe": [
+    {
+      "id": "t01",
+      "nome": "1ª Tappa – Cesenatico",
+      "luogo": "Cesenatico",
+      "data": "2025-06-14",
+      "nGironi": 2,
+      "regole": {
+        "target": 21,
+        "durata": 10,
+        "ot": 2,
+        "shot": 12
+      },
+      "conclusa": true,
+      "video": [],
+      "squadre": [
+        {
+          "id": "s01",
+          "nome": "Team Rome",
+          "rank": 220,
+          "logo": "/logos/team-rome.svg",
+          "giocatori": [
+            {
+              "id": "p01",
+              "nome": "Flavio Gay"
+            },
+            {
+              "id": "p02",
+              "nome": "Giacomo Leardini"
+            },
+            {
+              "id": "p03",
+              "nome": "Lorenzo Lovato"
+            },
+            {
+              "id": "p04",
+              "nome": "Andrea Valentini"
+            }
+          ]
+        },
+        {
+          "id": "s02",
+          "nome": "All Star 3×3",
+          "rank": 200,
+          "logo": "https://www.allstar3x3.it/wp-content/uploads/2024/12/allstar-logo-png_Tavola-disegno-1.png",
+          "website": "https://www.allstar3x3.it",
+          "instagram": "https://www.instagram.com/allstar3x3",
+          "giocatori": [
+            {
+              "id": "p09",
+              "nome": "Federico Frisari"
+            },
+            {
+              "id": "p10",
+              "nome": "Dario Masciarelli"
+            },
+            {
+              "id": "p11",
+              "nome": "Matteo Santucci"
+            },
+            {
+              "id": "p12",
+              "nome": "Michele Serpilli"
+            }
+          ]
+        },
+        {
+          "id": "s03",
+          "nome": "Concrete",
+          "rank": 185,
+          "logo": "/logos/concrete.svg",
+          "instagram": "https://www.instagram.com/milano.3x3/",
+          "giocatori": [
+            {
+              "id": "p05",
+              "nome": "Matteo Airaghi"
+            },
+            {
+              "id": "p06",
+              "nome": "Michele D'Ambrosio"
+            },
+            {
+              "id": "p07",
+              "nome": "Carlo Fumagalli"
+            },
+            {
+              "id": "p08",
+              "nome": "Morgan Rashed"
+            }
+          ]
+        },
+        {
+          "id": "s04",
+          "nome": "The Goat Torino",
+          "rank": 165,
+          "logo": "https://thegoatstreetball.it/wp-content/uploads/2021/01/LOGO-THE-GOAT-2020-08.11.png",
+          "website": "https://thegoatstreetball.it",
+          "instagram": "https://www.instagram.com/thegoatstreetball",
+          "giocatori": [
+            {
+              "id": "p13",
+              "nome": "Matteo Corgnati"
+            },
+            {
+              "id": "p14",
+              "nome": "Diego Calzavara"
+            },
+            {
+              "id": "p15",
+              "nome": "Matteo Gherardini"
+            },
+            {
+              "id": "p16",
+              "nome": "Alberto Puccioni"
+            }
+          ]
+        },
+        {
+          "id": "s05",
+          "nome": "FDC Tunes 2.0",
+          "rank": 150,
+          "logo": "/logos/fdc-tunes.svg",
+          "giocatori": [
+            {
+              "id": "p17",
+              "nome": "Pietro Agostini"
+            },
+            {
+              "id": "p18",
+              "nome": "Alberto Bedina"
+            },
+            {
+              "id": "p19",
+              "nome": "Nicolò Menardi"
+            },
+            {
+              "id": "p20",
+              "nome": "Leonardo Clark"
+            }
+          ]
+        },
+        {
+          "id": "s06",
+          "nome": "FVG 3×3",
+          "rank": 130,
+          "logo": "/logos/fvg-3x3.svg",
+          "giocatori": [
+            {
+              "id": "p21",
+              "nome": "Giacomo Dell'Agnello"
+            },
+            {
+              "id": "p22",
+              "nome": "Michele Peroni"
+            },
+            {
+              "id": "p23",
+              "nome": "Bruno Mascolo"
+            },
+            {
+              "id": "p24",
+              "nome": "Dario Zucca"
+            }
+          ]
+        },
+        {
+          "id": "s07",
+          "nome": "UB Kings of Kings",
+          "rank": 110,
+          "logo": "/logos/ub-kings.svg",
+          "giocatori": [
+            {
+              "id": "p25",
+              "nome": "Andrea Tassinari"
+            },
+            {
+              "id": "p26",
+              "nome": "Carlos Rivera"
+            },
+            {
+              "id": "p27",
+              "nome": "Mohamed Touré"
+            },
+            {
+              "id": "p28",
+              "nome": "Bryant Inoa Piantini"
+            }
+          ]
+        },
+        {
+          "id": "s08",
+          "nome": "Tortona Evolution 3×3",
+          "rank": 90,
+          "logo": "https://www.evolution3x3.it/wp-content/uploads/2025/12/Logo_Tortona_Evolution_3x3.svg",
+          "website": "https://www.evolution3x3.it",
+          "giocatori": [
+            {
+              "id": "p29",
+              "nome": "Giacomo Bonavida"
+            },
+            {
+              "id": "p30",
+              "nome": "Lorenzo Donadio"
+            },
+            {
+              "id": "p31",
+              "nome": "Luca Carrea"
+            },
+            {
+              "id": "p32",
+              "nome": "Matteo Repetti"
+            }
+          ]
+        }
+      ],
+      "gironi": [
+        [
+          "s01",
+          "s02",
+          "s03",
+          "s04"
+        ],
+        [
+          "s05",
+          "s06",
+          "s07",
+          "s08"
+        ]
+      ],
+      "partite": [
+        {
+          "id": "m01",
+          "g": 0,
+          "a": "s01",
+          "b": "s02",
+          "sa": 21,
+          "sb": 17,
+          "done": true,
+          "pa": {
+            "p01": {
+              "pt": 8,
+              "rb": 2,
+              "as": 4,
+              "ru": 1,
+              "fa": 1
+            },
+            "p02": {
+              "pt": 7,
+              "rb": 3,
+              "as": 1
+            },
+            "p03": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p04": {
+              "pt": 2,
+              "rb": 5,
+              "st": 1,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p09": {
+              "pt": 7,
+              "rb": 1,
+              "as": 3
+            },
+            "p10": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1,
+              "fa": 2
+            },
+            "p11": {
+              "pt": 3,
+              "rb": 3
+            },
+            "p12": {
+              "pt": 2,
+              "rb": 4,
+              "st": 1
+            }
+          }
+        },
+        {
+          "id": "m02",
+          "g": 0,
+          "a": "s01",
+          "b": "s03",
+          "sa": 21,
+          "sb": 20,
+          "done": true,
+          "pa": {
+            "p01": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "ru": 1
+            },
+            "p02": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1
+            },
+            "p03": {
+              "pt": 4,
+              "rb": 2,
+              "st": 1
+            },
+            "p04": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p05": {
+              "pt": 8,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p06": {
+              "pt": 5,
+              "rb": 3,
+              "as": 1,
+              "fa": 2
+            },
+            "p07": {
+              "pt": 5,
+              "rb": 1,
+              "as": 2
+            },
+            "p08": {
+              "pt": 2,
+              "rb": 6,
+              "st": 1
+            }
+          }
+        },
+        {
+          "id": "m03",
+          "g": 0,
+          "a": "s01",
+          "b": "s04",
+          "sa": 19,
+          "sb": 21,
+          "done": true,
+          "pa": {
+            "p01": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3,
+              "fa": 1
+            },
+            "p02": {
+              "pt": 5,
+              "rb": 3
+            },
+            "p03": {
+              "pt": 4,
+              "rb": 2,
+              "ru": 1
+            },
+            "p04": {
+              "pt": 2,
+              "rb": 5,
+              "st": 1,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p13": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "ru": 1
+            },
+            "p14": {
+              "pt": 6,
+              "rb": 2,
+              "as": 1
+            },
+            "p15": {
+              "pt": 4,
+              "rb": 3,
+              "st": 1
+            },
+            "p16": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m04",
+          "g": 0,
+          "a": "s02",
+          "b": "s03",
+          "sa": 21,
+          "sb": 18,
+          "done": true,
+          "pa": {
+            "p09": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3,
+              "st": 1
+            },
+            "p10": {
+              "pt": 7,
+              "rb": 3,
+              "as": 1,
+              "ru": 1
+            },
+            "p11": {
+              "pt": 4,
+              "rb": 3,
+              "fa": 1
+            },
+            "p12": {
+              "pt": 2,
+              "rb": 5
+            }
+          },
+          "pb": {
+            "p05": {
+              "pt": 7,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p06": {
+              "pt": 5,
+              "rb": 3,
+              "as": 1,
+              "fa": 2
+            },
+            "p07": {
+              "pt": 4,
+              "rb": 1,
+              "as": 2
+            },
+            "p08": {
+              "pt": 2,
+              "rb": 6
+            }
+          }
+        },
+        {
+          "id": "m05",
+          "g": 0,
+          "a": "s02",
+          "b": "s04",
+          "sa": 17,
+          "sb": 21,
+          "done": true,
+          "pa": {
+            "p09": {
+              "pt": 7,
+              "rb": 1,
+              "as": 3,
+              "fa": 1
+            },
+            "p10": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1
+            },
+            "p11": {
+              "pt": 3,
+              "rb": 3
+            },
+            "p12": {
+              "pt": 2,
+              "rb": 4,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p13": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3
+            },
+            "p14": {
+              "pt": 6,
+              "rb": 2,
+              "as": 2,
+              "st": 1
+            },
+            "p15": {
+              "pt": 4,
+              "rb": 3,
+              "ru": 1
+            },
+            "p16": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m06",
+          "g": 0,
+          "a": "s03",
+          "b": "s04",
+          "sa": 21,
+          "sb": 16,
+          "done": true,
+          "pa": {
+            "p05": {
+              "pt": 8,
+              "rb": 2,
+              "as": 3,
+              "ru": 1,
+              "st": 1
+            },
+            "p06": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1,
+              "fa": 2
+            },
+            "p07": {
+              "pt": 5,
+              "rb": 1,
+              "as": 2
+            },
+            "p08": {
+              "pt": 2,
+              "rb": 6
+            }
+          },
+          "pb": {
+            "p13": {
+              "pt": 6,
+              "rb": 1,
+              "as": 2,
+              "fa": 1
+            },
+            "p14": {
+              "pt": 5,
+              "rb": 2,
+              "fa": 1
+            },
+            "p15": {
+              "pt": 3,
+              "rb": 3
+            },
+            "p16": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m07",
+          "g": 1,
+          "a": "s05",
+          "b": "s06",
+          "sa": 21,
+          "sb": 15,
+          "done": true,
+          "pa": {
+            "p17": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3,
+              "st": 1
+            },
+            "p18": {
+              "pt": 7,
+              "rb": 2,
+              "as": 1,
+              "ru": 1
+            },
+            "p19": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p20": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p21": {
+              "pt": 6,
+              "rb": 1,
+              "as": 2,
+              "fa": 1
+            },
+            "p22": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p23": {
+              "pt": 3,
+              "rb": 3,
+              "st": 1
+            },
+            "p24": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m08",
+          "g": 1,
+          "a": "s05",
+          "b": "s07",
+          "sa": 21,
+          "sb": 14,
+          "done": true,
+          "pa": {
+            "p17": {
+              "pt": 9,
+              "rb": 1,
+              "as": 2,
+              "ru": 1
+            },
+            "p18": {
+              "pt": 6,
+              "rb": 2,
+              "as": 2,
+              "st": 1
+            },
+            "p19": {
+              "pt": 4,
+              "rb": 3
+            },
+            "p20": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p25": {
+              "pt": 6,
+              "rb": 1,
+              "as": 3,
+              "fa": 1
+            },
+            "p26": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p27": {
+              "pt": 2,
+              "rb": 5,
+              "st": 1,
+              "fa": 2
+            },
+            "p28": {
+              "pt": 2,
+              "rb": 5
+            }
+          }
+        },
+        {
+          "id": "m09",
+          "g": 1,
+          "a": "s05",
+          "b": "s08",
+          "sa": 21,
+          "sb": 9,
+          "done": true,
+          "pa": {
+            "p17": {
+              "pt": 10,
+              "rb": 1,
+              "as": 2,
+              "ru": 1,
+              "st": 1
+            },
+            "p18": {
+              "pt": 5,
+              "rb": 2,
+              "as": 2
+            },
+            "p19": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p20": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p29": {
+              "pt": 4,
+              "rb": 1,
+              "as": 1,
+              "fa": 1
+            },
+            "p30": {
+              "pt": 2,
+              "rb": 2
+            },
+            "p31": {
+              "pt": 2,
+              "rb": 3
+            },
+            "p32": {
+              "pt": 1,
+              "rb": 5,
+              "fa": 1
+            }
+          }
+        },
+        {
+          "id": "m10",
+          "g": 1,
+          "a": "s06",
+          "b": "s07",
+          "sa": 21,
+          "sb": 19,
+          "done": true,
+          "pa": {
+            "p21": {
+              "pt": 8,
+              "rb": 2,
+              "as": 3,
+              "st": 1
+            },
+            "p22": {
+              "pt": 7,
+              "rb": 2,
+              "as": 1,
+              "ru": 1
+            },
+            "p23": {
+              "pt": 4,
+              "rb": 3,
+              "as": 1
+            },
+            "p24": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p25": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3
+            },
+            "p26": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1,
+              "fa": 1
+            },
+            "p27": {
+              "pt": 4,
+              "rb": 5,
+              "st": 1,
+              "fa": 2
+            },
+            "p28": {
+              "pt": 2,
+              "rb": 5
+            }
+          }
+        },
+        {
+          "id": "m11",
+          "g": 1,
+          "a": "s06",
+          "b": "s08",
+          "sa": 21,
+          "sb": 13,
+          "done": true,
+          "pa": {
+            "p21": {
+              "pt": 8,
+              "rb": 2,
+              "as": 3,
+              "ru": 1,
+              "st": 1
+            },
+            "p22": {
+              "pt": 7,
+              "rb": 2,
+              "as": 1
+            },
+            "p23": {
+              "pt": 4,
+              "rb": 3
+            },
+            "p24": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p29": {
+              "pt": 5,
+              "rb": 1,
+              "as": 2
+            },
+            "p30": {
+              "pt": 4,
+              "rb": 2,
+              "fa": 1
+            },
+            "p31": {
+              "pt": 3,
+              "rb": 3
+            },
+            "p32": {
+              "pt": 1,
+              "rb": 6,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m12",
+          "g": 1,
+          "a": "s07",
+          "b": "s08",
+          "sa": 21,
+          "sb": 12,
+          "done": true,
+          "pa": {
+            "p25": {
+              "pt": 8,
+              "rb": 1,
+              "as": 4,
+              "ru": 1
+            },
+            "p26": {
+              "pt": 6,
+              "rb": 2,
+              "as": 1,
+              "st": 1
+            },
+            "p27": {
+              "pt": 5,
+              "rb": 5,
+              "fa": 2
+            },
+            "p28": {
+              "pt": 2,
+              "rb": 5
+            }
+          },
+          "pb": {
+            "p29": {
+              "pt": 5,
+              "rb": 1,
+              "as": 1,
+              "fa": 1
+            },
+            "p30": {
+              "pt": 3,
+              "rb": 2,
+              "as": 1
+            },
+            "p31": {
+              "pt": 3,
+              "rb": 3
+            },
+            "p32": {
+              "pt": 1,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        }
+      ],
+      "bracket": [
+        {
+          "id": "t1b1",
+          "label": "Semifinale 1",
+          "squadraA": "s01",
+          "squadraB": "s06",
+          "pA": 21,
+          "pB": 15,
+          "done": true
+        },
+        {
+          "id": "t1b2",
+          "label": "Semifinale 2",
+          "squadraA": "s04",
+          "squadraB": "s05",
+          "pA": 21,
+          "pB": 18,
+          "done": true
+        },
+        {
+          "id": "t1b3",
+          "label": "Finale",
+          "squadraA": "s01",
+          "squadraB": "s04",
+          "pA": 21,
+          "pB": 17,
+          "done": true
+        }
+      ]
+    },
+    {
+      "id": "t02",
+      "nome": "2ª Tappa – Riccione",
+      "luogo": "Riccione",
+      "data": "2025-07-30",
+      "nGironi": 2,
+      "regole": {
+        "target": 21,
+        "durata": 10,
+        "ot": 2,
+        "shot": 12
+      },
+      "conclusa": true,
+      "video": [],
+      "squadre": [
+        {
+          "id": "s01",
+          "nome": "Team Rome",
+          "rank": 220,
+          "logo": "/logos/team-rome.svg",
+          "giocatori": [
+            {
+              "id": "p01",
+              "nome": "Flavio Gay"
+            },
+            {
+              "id": "p02",
+              "nome": "Giacomo Leardini"
+            },
+            {
+              "id": "p03",
+              "nome": "Lorenzo Lovato"
+            },
+            {
+              "id": "p04",
+              "nome": "Andrea Valentini"
+            }
+          ]
+        },
+        {
+          "id": "s04",
+          "nome": "The Goat Torino",
+          "rank": 165,
+          "logo": "https://thegoatstreetball.it/wp-content/uploads/2021/01/LOGO-THE-GOAT-2020-08.11.png",
+          "website": "https://thegoatstreetball.it",
+          "instagram": "https://www.instagram.com/thegoatstreetball",
+          "giocatori": [
+            {
+              "id": "p13",
+              "nome": "Matteo Corgnati"
+            },
+            {
+              "id": "p14",
+              "nome": "Diego Calzavara"
+            },
+            {
+              "id": "p15",
+              "nome": "Matteo Gherardini"
+            },
+            {
+              "id": "p16",
+              "nome": "Alberto Puccioni"
+            }
+          ]
+        },
+        {
+          "id": "s06",
+          "nome": "FVG 3×3",
+          "rank": 130,
+          "logo": "/logos/fvg-3x3.svg",
+          "giocatori": [
+            {
+              "id": "p21",
+              "nome": "Giacomo Dell'Agnello"
+            },
+            {
+              "id": "p22",
+              "nome": "Michele Peroni"
+            },
+            {
+              "id": "p23",
+              "nome": "Bruno Mascolo"
+            },
+            {
+              "id": "p24",
+              "nome": "Dario Zucca"
+            }
+          ]
+        },
+        {
+          "id": "s08",
+          "nome": "Tortona Evolution 3×3",
+          "rank": 90,
+          "logo": "https://www.evolution3x3.it/wp-content/uploads/2025/12/Logo_Tortona_Evolution_3x3.svg",
+          "website": "https://www.evolution3x3.it",
+          "giocatori": [
+            {
+              "id": "p29",
+              "nome": "Giacomo Bonavida"
+            },
+            {
+              "id": "p30",
+              "nome": "Lorenzo Donadio"
+            },
+            {
+              "id": "p31",
+              "nome": "Luca Carrea"
+            },
+            {
+              "id": "p32",
+              "nome": "Matteo Repetti"
+            }
+          ]
+        },
+        {
+          "id": "s02",
+          "nome": "All Star 3×3",
+          "rank": 200,
+          "logo": "https://www.allstar3x3.it/wp-content/uploads/2024/12/allstar-logo-png_Tavola-disegno-1.png",
+          "website": "https://www.allstar3x3.it",
+          "instagram": "https://www.instagram.com/allstar3x3",
+          "giocatori": [
+            {
+              "id": "p09",
+              "nome": "Federico Frisari"
+            },
+            {
+              "id": "p10",
+              "nome": "Dario Masciarelli"
+            },
+            {
+              "id": "p11",
+              "nome": "Matteo Santucci"
+            },
+            {
+              "id": "p12",
+              "nome": "Michele Serpilli"
+            }
+          ]
+        },
+        {
+          "id": "s03",
+          "nome": "Concrete",
+          "rank": 185,
+          "logo": "/logos/concrete.svg",
+          "instagram": "https://www.instagram.com/milano.3x3/",
+          "giocatori": [
+            {
+              "id": "p05",
+              "nome": "Matteo Airaghi"
+            },
+            {
+              "id": "p06",
+              "nome": "Michele D'Ambrosio"
+            },
+            {
+              "id": "p07",
+              "nome": "Carlo Fumagalli"
+            },
+            {
+              "id": "p08",
+              "nome": "Morgan Rashed"
+            }
+          ]
+        },
+        {
+          "id": "s05",
+          "nome": "FDC Tunes 2.0",
+          "rank": 150,
+          "logo": "/logos/fdc-tunes.svg",
+          "giocatori": [
+            {
+              "id": "p17",
+              "nome": "Pietro Agostini"
+            },
+            {
+              "id": "p18",
+              "nome": "Alberto Bedina"
+            },
+            {
+              "id": "p19",
+              "nome": "Nicolò Menardi"
+            },
+            {
+              "id": "p20",
+              "nome": "Leonardo Clark"
+            }
+          ]
+        },
+        {
+          "id": "s07",
+          "nome": "UB Kings of Kings",
+          "rank": 110,
+          "logo": "/logos/ub-kings.svg",
+          "giocatori": [
+            {
+              "id": "p25",
+              "nome": "Andrea Tassinari"
+            },
+            {
+              "id": "p26",
+              "nome": "Carlos Rivera"
+            },
+            {
+              "id": "p27",
+              "nome": "Mohamed Touré"
+            },
+            {
+              "id": "p28",
+              "nome": "Bryant Inoa Piantini"
+            }
+          ]
+        }
+      ],
+      "gironi": [
+        [
+          "s01",
+          "s04",
+          "s06",
+          "s08"
+        ],
+        [
+          "s02",
+          "s03",
+          "s05",
+          "s07"
+        ]
+      ],
+      "partite": [
+        {
+          "id": "m13",
+          "g": 0,
+          "a": "s01",
+          "b": "s04",
+          "sa": 21,
+          "sb": 18,
+          "done": true,
+          "pa": {
+            "p01": {
+              "pt": 9,
+              "rb": 2,
+              "as": 4,
+              "ru": 1
+            },
+            "p02": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1,
+              "st": 1
+            },
+            "p03": {
+              "pt": 4,
+              "rb": 2
+            },
+            "p04": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p13": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3,
+              "fa": 1
+            },
+            "p14": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1
+            },
+            "p15": {
+              "pt": 4,
+              "rb": 3,
+              "ru": 1,
+              "st": 1
+            },
+            "p16": {
+              "pt": 1,
+              "rb": 7,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m14",
+          "g": 0,
+          "a": "s01",
+          "b": "s06",
+          "sa": 21,
+          "sb": 12,
+          "done": true,
+          "pa": {
+            "p01": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "ru": 1,
+              "st": 1
+            },
+            "p02": {
+              "pt": 6,
+              "rb": 3,
+              "as": 2
+            },
+            "p03": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p04": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p21": {
+              "pt": 5,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p22": {
+              "pt": 3,
+              "rb": 2,
+              "fa": 1
+            },
+            "p23": {
+              "pt": 2,
+              "rb": 3,
+              "st": 1
+            },
+            "p24": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m15",
+          "g": 0,
+          "a": "s01",
+          "b": "s08",
+          "sa": 21,
+          "sb": 8,
+          "done": true,
+          "pa": {
+            "p01": {
+              "pt": 10,
+              "rb": 1,
+              "as": 3,
+              "ru": 1,
+              "st": 1
+            },
+            "p02": {
+              "pt": 5,
+              "rb": 3,
+              "as": 2
+            },
+            "p03": {
+              "pt": 4,
+              "rb": 2
+            },
+            "p04": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p29": {
+              "pt": 3,
+              "rb": 1,
+              "as": 1,
+              "fa": 1
+            },
+            "p30": {
+              "pt": 2,
+              "rb": 2
+            },
+            "p31": {
+              "pt": 2,
+              "rb": 3
+            },
+            "p32": {
+              "pt": 1,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m16",
+          "g": 0,
+          "a": "s04",
+          "b": "s06",
+          "sa": 21,
+          "sb": 16,
+          "done": true,
+          "pa": {
+            "p13": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "st": 1
+            },
+            "p14": {
+              "pt": 6,
+              "rb": 2,
+              "as": 2
+            },
+            "p15": {
+              "pt": 4,
+              "rb": 3,
+              "ru": 1
+            },
+            "p16": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 2
+            }
+          },
+          "pb": {
+            "p21": {
+              "pt": 6,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p22": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1
+            },
+            "p23": {
+              "pt": 3,
+              "rb": 3
+            },
+            "p24": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 1
+            }
+          }
+        },
+        {
+          "id": "m17",
+          "g": 0,
+          "a": "s04",
+          "b": "s08",
+          "sa": 21,
+          "sb": 11,
+          "done": true,
+          "pa": {
+            "p13": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "ru": 1
+            },
+            "p14": {
+              "pt": 6,
+              "rb": 2,
+              "as": 1,
+              "st": 1
+            },
+            "p15": {
+              "pt": 4,
+              "rb": 3
+            },
+            "p16": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 2
+            }
+          },
+          "pb": {
+            "p29": {
+              "pt": 4,
+              "rb": 1,
+              "as": 1,
+              "fa": 1
+            },
+            "p30": {
+              "pt": 3,
+              "rb": 2,
+              "as": 1
+            },
+            "p31": {
+              "pt": 2,
+              "rb": 3,
+              "st": 1
+            },
+            "p32": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m18",
+          "g": 0,
+          "a": "s06",
+          "b": "s08",
+          "sa": 21,
+          "sb": 14,
+          "done": true,
+          "pa": {
+            "p21": {
+              "pt": 8,
+              "rb": 2,
+              "as": 3,
+              "st": 1
+            },
+            "p22": {
+              "pt": 7,
+              "rb": 2,
+              "as": 1,
+              "ru": 1,
+              "fa": 1
+            },
+            "p23": {
+              "pt": 4,
+              "rb": 3
+            },
+            "p24": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p29": {
+              "pt": 5,
+              "rb": 1,
+              "as": 2,
+              "fa": 1
+            },
+            "p30": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p31": {
+              "pt": 3,
+              "rb": 3
+            },
+            "p32": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m19",
+          "g": 1,
+          "a": "s02",
+          "b": "s03",
+          "sa": 21,
+          "sb": 20,
+          "done": true,
+          "pa": {
+            "p09": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3,
+              "ru": 1,
+              "st": 1
+            },
+            "p10": {
+              "pt": 7,
+              "rb": 3,
+              "as": 1,
+              "fa": 1
+            },
+            "p11": {
+              "pt": 4,
+              "rb": 3
+            },
+            "p12": {
+              "pt": 2,
+              "rb": 5
+            }
+          },
+          "pb": {
+            "p05": {
+              "pt": 8,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p06": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1,
+              "fa": 2
+            },
+            "p07": {
+              "pt": 4,
+              "rb": 1,
+              "as": 2,
+              "st": 1
+            },
+            "p08": {
+              "pt": 2,
+              "rb": 6
+            }
+          }
+        },
+        {
+          "id": "m20",
+          "g": 1,
+          "a": "s02",
+          "b": "s05",
+          "sa": 21,
+          "sb": 15,
+          "done": true,
+          "pa": {
+            "p09": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3,
+              "st": 1
+            },
+            "p10": {
+              "pt": 7,
+              "rb": 2,
+              "as": 1,
+              "ru": 1
+            },
+            "p11": {
+              "pt": 4,
+              "rb": 3,
+              "fa": 1
+            },
+            "p12": {
+              "pt": 2,
+              "rb": 5
+            }
+          },
+          "pb": {
+            "p17": {
+              "pt": 7,
+              "rb": 1,
+              "as": 2,
+              "fa": 1
+            },
+            "p18": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1
+            },
+            "p19": {
+              "pt": 2,
+              "rb": 3
+            },
+            "p20": {
+              "pt": 1,
+              "rb": 6,
+              "fa": 1
+            }
+          }
+        },
+        {
+          "id": "m21",
+          "g": 1,
+          "a": "s02",
+          "b": "s07",
+          "sa": 21,
+          "sb": 14,
+          "done": true,
+          "pa": {
+            "p09": {
+              "pt": 8,
+              "rb": 2,
+              "as": 3,
+              "st": 1
+            },
+            "p10": {
+              "pt": 7,
+              "rb": 3,
+              "as": 1
+            },
+            "p11": {
+              "pt": 4,
+              "rb": 3,
+              "fa": 1
+            },
+            "p12": {
+              "pt": 2,
+              "rb": 5
+            }
+          },
+          "pb": {
+            "p25": {
+              "pt": 6,
+              "rb": 1,
+              "as": 3,
+              "fa": 1
+            },
+            "p26": {
+              "pt": 4,
+              "rb": 2,
+              "st": 1
+            },
+            "p27": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 2
+            },
+            "p28": {
+              "pt": 2,
+              "rb": 5
+            }
+          }
+        },
+        {
+          "id": "m22",
+          "g": 1,
+          "a": "s03",
+          "b": "s05",
+          "sa": 21,
+          "sb": 17,
+          "done": true,
+          "pa": {
+            "p05": {
+              "pt": 7,
+              "rb": 2,
+              "as": 2,
+              "ru": 1,
+              "fa": 1
+            },
+            "p06": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1,
+              "fa": 2
+            },
+            "p07": {
+              "pt": 6,
+              "rb": 1,
+              "as": 2,
+              "st": 1
+            },
+            "p08": {
+              "pt": 2,
+              "rb": 6
+            }
+          },
+          "pb": {
+            "p17": {
+              "pt": 8,
+              "rb": 1,
+              "as": 2
+            },
+            "p18": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1,
+              "fa": 1
+            },
+            "p19": {
+              "pt": 3,
+              "rb": 2,
+              "st": 1
+            },
+            "p20": {
+              "pt": 1,
+              "rb": 7,
+              "fa": 1
+            }
+          }
+        },
+        {
+          "id": "m23",
+          "g": 1,
+          "a": "s03",
+          "b": "s07",
+          "sa": 21,
+          "sb": 16,
+          "done": true,
+          "pa": {
+            "p05": {
+              "pt": 8,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p06": {
+              "pt": 7,
+              "rb": 3,
+              "as": 1,
+              "fa": 2
+            },
+            "p07": {
+              "pt": 4,
+              "rb": 1,
+              "as": 2,
+              "st": 1
+            },
+            "p08": {
+              "pt": 2,
+              "rb": 6
+            }
+          },
+          "pb": {
+            "p25": {
+              "pt": 7,
+              "rb": 1,
+              "as": 3,
+              "fa": 1
+            },
+            "p26": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1
+            },
+            "p27": {
+              "pt": 3,
+              "rb": 5,
+              "fa": 2
+            },
+            "p28": {
+              "pt": 1,
+              "rb": 5
+            }
+          }
+        },
+        {
+          "id": "m24",
+          "g": 1,
+          "a": "s05",
+          "b": "s07",
+          "sa": 21,
+          "sb": 18,
+          "done": true,
+          "pa": {
+            "p17": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "ru": 1
+            },
+            "p18": {
+              "pt": 6,
+              "rb": 2,
+              "as": 1,
+              "st": 1
+            },
+            "p19": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p20": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p25": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3
+            },
+            "p26": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1,
+              "st": 1
+            },
+            "p27": {
+              "pt": 3,
+              "rb": 5,
+              "fa": 2
+            },
+            "p28": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 1
+            }
+          }
+        }
+      ],
+      "bracket": [
+        {
+          "id": "t2b1",
+          "label": "Semifinale 1",
+          "squadraA": "s01",
+          "squadraB": "s03",
+          "pA": 21,
+          "pB": 16,
+          "done": true
+        },
+        {
+          "id": "t2b2",
+          "label": "Semifinale 2",
+          "squadraA": "s04",
+          "squadraB": "s02",
+          "pA": 19,
+          "pB": 21,
+          "done": true
+        },
+        {
+          "id": "t2b3",
+          "label": "Finale",
+          "squadraA": "s02",
+          "squadraB": "s01",
+          "pA": 21,
+          "pB": 18,
+          "done": true
+        }
+      ]
+    },
+    {
+      "id": "t03",
+      "nome": "3ª Tappa – Firenze",
+      "luogo": "Firenze",
+      "data": "2025-08-09",
+      "nGironi": 2,
+      "regole": {
+        "target": 21,
+        "durata": 10,
+        "ot": 2,
+        "shot": 12
+      },
+      "conclusa": true,
+      "video": [],
+      "squadre": [
+        {
+          "id": "s02",
+          "nome": "All Star 3×3",
+          "rank": 200,
+          "logo": "https://www.allstar3x3.it/wp-content/uploads/2024/12/allstar-logo-png_Tavola-disegno-1.png",
+          "website": "https://www.allstar3x3.it",
+          "instagram": "https://www.instagram.com/allstar3x3",
+          "giocatori": [
+            {
+              "id": "p09",
+              "nome": "Federico Frisari"
+            },
+            {
+              "id": "p10",
+              "nome": "Dario Masciarelli"
+            },
+            {
+              "id": "p11",
+              "nome": "Matteo Santucci"
+            },
+            {
+              "id": "p12",
+              "nome": "Michele Serpilli"
+            }
+          ]
+        },
+        {
+          "id": "s03",
+          "nome": "Concrete",
+          "rank": 185,
+          "logo": "/logos/concrete.svg",
+          "instagram": "https://www.instagram.com/milano.3x3/",
+          "giocatori": [
+            {
+              "id": "p05",
+              "nome": "Matteo Airaghi"
+            },
+            {
+              "id": "p06",
+              "nome": "Michele D'Ambrosio"
+            },
+            {
+              "id": "p07",
+              "nome": "Carlo Fumagalli"
+            },
+            {
+              "id": "p08",
+              "nome": "Morgan Rashed"
+            }
+          ]
+        },
+        {
+          "id": "s05",
+          "nome": "FDC Tunes 2.0",
+          "rank": 150,
+          "logo": "/logos/fdc-tunes.svg",
+          "giocatori": [
+            {
+              "id": "p17",
+              "nome": "Pietro Agostini"
+            },
+            {
+              "id": "p18",
+              "nome": "Alberto Bedina"
+            },
+            {
+              "id": "p19",
+              "nome": "Nicolò Menardi"
+            },
+            {
+              "id": "p20",
+              "nome": "Leonardo Clark"
+            }
+          ]
+        },
+        {
+          "id": "s08",
+          "nome": "Tortona Evolution 3×3",
+          "rank": 90,
+          "logo": "https://www.evolution3x3.it/wp-content/uploads/2025/12/Logo_Tortona_Evolution_3x3.svg",
+          "website": "https://www.evolution3x3.it",
+          "giocatori": [
+            {
+              "id": "p29",
+              "nome": "Giacomo Bonavida"
+            },
+            {
+              "id": "p30",
+              "nome": "Lorenzo Donadio"
+            },
+            {
+              "id": "p31",
+              "nome": "Luca Carrea"
+            },
+            {
+              "id": "p32",
+              "nome": "Matteo Repetti"
+            }
+          ]
+        },
+        {
+          "id": "s01",
+          "nome": "Team Rome",
+          "rank": 220,
+          "logo": "/logos/team-rome.svg",
+          "giocatori": [
+            {
+              "id": "p01",
+              "nome": "Flavio Gay"
+            },
+            {
+              "id": "p02",
+              "nome": "Giacomo Leardini"
+            },
+            {
+              "id": "p03",
+              "nome": "Lorenzo Lovato"
+            },
+            {
+              "id": "p04",
+              "nome": "Andrea Valentini"
+            }
+          ]
+        },
+        {
+          "id": "s04",
+          "nome": "The Goat Torino",
+          "rank": 165,
+          "logo": "https://thegoatstreetball.it/wp-content/uploads/2021/01/LOGO-THE-GOAT-2020-08.11.png",
+          "website": "https://thegoatstreetball.it",
+          "instagram": "https://www.instagram.com/thegoatstreetball",
+          "giocatori": [
+            {
+              "id": "p13",
+              "nome": "Matteo Corgnati"
+            },
+            {
+              "id": "p14",
+              "nome": "Diego Calzavara"
+            },
+            {
+              "id": "p15",
+              "nome": "Matteo Gherardini"
+            },
+            {
+              "id": "p16",
+              "nome": "Alberto Puccioni"
+            }
+          ]
+        },
+        {
+          "id": "s06",
+          "nome": "FVG 3×3",
+          "rank": 130,
+          "logo": "/logos/fvg-3x3.svg",
+          "giocatori": [
+            {
+              "id": "p21",
+              "nome": "Giacomo Dell'Agnello"
+            },
+            {
+              "id": "p22",
+              "nome": "Michele Peroni"
+            },
+            {
+              "id": "p23",
+              "nome": "Bruno Mascolo"
+            },
+            {
+              "id": "p24",
+              "nome": "Dario Zucca"
+            }
+          ]
+        },
+        {
+          "id": "s07",
+          "nome": "UB Kings of Kings",
+          "rank": 110,
+          "logo": "/logos/ub-kings.svg",
+          "giocatori": [
+            {
+              "id": "p25",
+              "nome": "Andrea Tassinari"
+            },
+            {
+              "id": "p26",
+              "nome": "Carlos Rivera"
+            },
+            {
+              "id": "p27",
+              "nome": "Mohamed Touré"
+            },
+            {
+              "id": "p28",
+              "nome": "Bryant Inoa Piantini"
+            }
+          ]
+        }
+      ],
+      "gironi": [
+        [
+          "s02",
+          "s03",
+          "s05",
+          "s08"
+        ],
+        [
+          "s01",
+          "s04",
+          "s06",
+          "s07"
+        ]
+      ],
+      "partite": [
+        {
+          "id": "m25",
+          "g": 0,
+          "a": "s02",
+          "b": "s03",
+          "sa": 21,
+          "sb": 19,
+          "done": true,
+          "pa": {
+            "p09": {
+              "pt": 9,
+              "rb": 2,
+              "as": 3,
+              "st": 1
+            },
+            "p10": {
+              "pt": 7,
+              "rb": 3,
+              "as": 1,
+              "ru": 1
+            },
+            "p11": {
+              "pt": 3,
+              "rb": 3
+            },
+            "p12": {
+              "pt": 2,
+              "rb": 5
+            }
+          },
+          "pb": {
+            "p05": {
+              "pt": 8,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p06": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1,
+              "fa": 2
+            },
+            "p07": {
+              "pt": 4,
+              "rb": 1,
+              "as": 2,
+              "st": 1
+            },
+            "p08": {
+              "pt": 1,
+              "rb": 6
+            }
+          }
+        },
+        {
+          "id": "m26",
+          "g": 0,
+          "a": "s02",
+          "b": "s05",
+          "sa": 21,
+          "sb": 15,
+          "done": true,
+          "pa": {
+            "p09": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3,
+              "ru": 1
+            },
+            "p10": {
+              "pt": 7,
+              "rb": 3,
+              "as": 1
+            },
+            "p11": {
+              "pt": 4,
+              "rb": 3,
+              "fa": 1
+            },
+            "p12": {
+              "pt": 2,
+              "rb": 5
+            }
+          },
+          "pb": {
+            "p17": {
+              "pt": 6,
+              "rb": 1,
+              "as": 2,
+              "fa": 1
+            },
+            "p18": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1
+            },
+            "p19": {
+              "pt": 2,
+              "rb": 3,
+              "st": 1
+            },
+            "p20": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          }
+        },
+        {
+          "id": "m27",
+          "g": 0,
+          "a": "s02",
+          "b": "s08",
+          "sa": 21,
+          "sb": 11,
+          "done": true,
+          "pa": {
+            "p09": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "st": 1
+            },
+            "p10": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1,
+              "ru": 1
+            },
+            "p11": {
+              "pt": 4,
+              "rb": 3
+            },
+            "p12": {
+              "pt": 2,
+              "rb": 5
+            }
+          },
+          "pb": {
+            "p29": {
+              "pt": 5,
+              "rb": 1,
+              "as": 2,
+              "fa": 1
+            },
+            "p30": {
+              "pt": 3,
+              "rb": 2,
+              "as": 1
+            },
+            "p31": {
+              "pt": 2,
+              "rb": 3
+            },
+            "p32": {
+              "pt": 1,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m28",
+          "g": 0,
+          "a": "s03",
+          "b": "s05",
+          "sa": 21,
+          "sb": 17,
+          "done": true,
+          "pa": {
+            "p05": {
+              "pt": 9,
+              "rb": 2,
+              "as": 2,
+              "ru": 1
+            },
+            "p06": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1,
+              "fa": 2
+            },
+            "p07": {
+              "pt": 5,
+              "rb": 1,
+              "as": 2,
+              "st": 1
+            },
+            "p08": {
+              "pt": 1,
+              "rb": 6
+            }
+          },
+          "pb": {
+            "p17": {
+              "pt": 7,
+              "rb": 1,
+              "as": 2,
+              "fa": 1
+            },
+            "p18": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1
+            },
+            "p19": {
+              "pt": 3,
+              "rb": 2,
+              "st": 1
+            },
+            "p20": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          }
+        },
+        {
+          "id": "m29",
+          "g": 0,
+          "a": "s03",
+          "b": "s08",
+          "sa": 21,
+          "sb": 10,
+          "done": true,
+          "pa": {
+            "p05": {
+              "pt": 9,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p06": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1,
+              "fa": 1
+            },
+            "p07": {
+              "pt": 5,
+              "rb": 1,
+              "as": 2
+            },
+            "p08": {
+              "pt": 1,
+              "rb": 7
+            }
+          },
+          "pb": {
+            "p29": {
+              "pt": 4,
+              "rb": 1,
+              "as": 1,
+              "fa": 1
+            },
+            "p30": {
+              "pt": 3,
+              "rb": 2
+            },
+            "p31": {
+              "pt": 2,
+              "rb": 3
+            },
+            "p32": {
+              "pt": 1,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m30",
+          "g": 0,
+          "a": "s05",
+          "b": "s08",
+          "sa": 21,
+          "sb": 13,
+          "done": true,
+          "pa": {
+            "p17": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "ru": 1
+            },
+            "p18": {
+              "pt": 6,
+              "rb": 2,
+              "as": 1
+            },
+            "p19": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1,
+              "st": 1
+            },
+            "p20": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p29": {
+              "pt": 5,
+              "rb": 1,
+              "as": 2,
+              "fa": 1
+            },
+            "p30": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p31": {
+              "pt": 3,
+              "rb": 3
+            },
+            "p32": {
+              "pt": 1,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m31",
+          "g": 1,
+          "a": "s01",
+          "b": "s04",
+          "sa": 21,
+          "sb": 18,
+          "done": true,
+          "pa": {
+            "p01": {
+              "pt": 9,
+              "rb": 2,
+              "as": 4,
+              "ru": 1
+            },
+            "p02": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1,
+              "st": 1
+            },
+            "p03": {
+              "pt": 4,
+              "rb": 2
+            },
+            "p04": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p13": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3,
+              "fa": 1
+            },
+            "p14": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1,
+              "st": 1
+            },
+            "p15": {
+              "pt": 4,
+              "rb": 3,
+              "ru": 1
+            },
+            "p16": {
+              "pt": 1,
+              "rb": 7,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m32",
+          "g": 1,
+          "a": "s01",
+          "b": "s06",
+          "sa": 21,
+          "sb": 13,
+          "done": true,
+          "pa": {
+            "p01": {
+              "pt": 9,
+              "rb": 1,
+              "as": 4,
+              "ru": 1,
+              "st": 1
+            },
+            "p02": {
+              "pt": 6,
+              "rb": 3,
+              "as": 2
+            },
+            "p03": {
+              "pt": 4,
+              "rb": 2
+            },
+            "p04": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p21": {
+              "pt": 5,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p22": {
+              "pt": 4,
+              "rb": 2
+            },
+            "p23": {
+              "pt": 2,
+              "rb": 3,
+              "st": 1
+            },
+            "p24": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m33",
+          "g": 1,
+          "a": "s01",
+          "b": "s07",
+          "sa": 21,
+          "sb": 11,
+          "done": true,
+          "pa": {
+            "p01": {
+              "pt": 10,
+              "rb": 1,
+              "as": 3,
+              "ru": 1,
+              "st": 1
+            },
+            "p02": {
+              "pt": 5,
+              "rb": 3,
+              "as": 2
+            },
+            "p03": {
+              "pt": 4,
+              "rb": 2
+            },
+            "p04": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p25": {
+              "pt": 5,
+              "rb": 1,
+              "as": 2,
+              "fa": 1
+            },
+            "p26": {
+              "pt": 3,
+              "rb": 2,
+              "st": 1
+            },
+            "p27": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 2
+            },
+            "p28": {
+              "pt": 1,
+              "rb": 5
+            }
+          }
+        },
+        {
+          "id": "m34",
+          "g": 1,
+          "a": "s04",
+          "b": "s06",
+          "sa": 21,
+          "sb": 17,
+          "done": true,
+          "pa": {
+            "p13": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "st": 1
+            },
+            "p14": {
+              "pt": 6,
+              "rb": 2,
+              "as": 2
+            },
+            "p15": {
+              "pt": 4,
+              "rb": 3,
+              "ru": 1
+            },
+            "p16": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 2
+            }
+          },
+          "pb": {
+            "p21": {
+              "pt": 7,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p22": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1,
+              "ru": 1
+            },
+            "p23": {
+              "pt": 3,
+              "rb": 3,
+              "st": 1
+            },
+            "p24": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 1
+            }
+          }
+        },
+        {
+          "id": "m35",
+          "g": 1,
+          "a": "s04",
+          "b": "s07",
+          "sa": 21,
+          "sb": 15,
+          "done": true,
+          "pa": {
+            "p13": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "ru": 1
+            },
+            "p14": {
+              "pt": 6,
+              "rb": 2,
+              "as": 1,
+              "st": 1
+            },
+            "p15": {
+              "pt": 4,
+              "rb": 3
+            },
+            "p16": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 2
+            }
+          },
+          "pb": {
+            "p25": {
+              "pt": 7,
+              "rb": 1,
+              "as": 2,
+              "fa": 1
+            },
+            "p26": {
+              "pt": 4,
+              "rb": 2
+            },
+            "p27": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 2
+            },
+            "p28": {
+              "pt": 2,
+              "rb": 5
+            }
+          }
+        },
+        {
+          "id": "m36",
+          "g": 1,
+          "a": "s06",
+          "b": "s07",
+          "sa": 21,
+          "sb": 16,
+          "done": true,
+          "pa": {
+            "p21": {
+              "pt": 8,
+              "rb": 2,
+              "as": 3,
+              "ru": 1
+            },
+            "p22": {
+              "pt": 7,
+              "rb": 2,
+              "as": 1
+            },
+            "p23": {
+              "pt": 4,
+              "rb": 3,
+              "st": 1
+            },
+            "p24": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p25": {
+              "pt": 7,
+              "rb": 1,
+              "as": 3,
+              "fa": 1
+            },
+            "p26": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1
+            },
+            "p27": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 2
+            },
+            "p28": {
+              "pt": 2,
+              "rb": 5
+            }
+          }
+        }
+      ],
+      "bracket": [
+        {
+          "id": "t3b1",
+          "label": "Semifinale 1",
+          "squadraA": "s02",
+          "squadraB": "s04",
+          "pA": 19,
+          "pB": 21,
+          "done": true
+        },
+        {
+          "id": "t3b2",
+          "label": "Semifinale 2",
+          "squadraA": "s03",
+          "squadraB": "s01",
+          "pA": 15,
+          "pB": 21,
+          "done": true
+        },
+        {
+          "id": "t3b3",
+          "label": "Finale",
+          "squadraA": "s04",
+          "squadraB": "s01",
+          "pA": 17,
+          "pB": 21,
+          "done": true
+        }
+      ]
+    },
+    {
+      "id": "t04",
+      "nome": "Finals – Roma",
+      "luogo": "Roma",
+      "data": "2025-09-13",
+      "nGironi": 2,
+      "regole": {
+        "target": 21,
+        "durata": 10,
+        "ot": 2,
+        "shot": 12
+      },
+      "conclusa": true,
+      "video": [],
+      "squadre": [
+        {
+          "id": "s01",
+          "nome": "Team Rome",
+          "rank": 220,
+          "logo": "/logos/team-rome.svg",
+          "giocatori": [
+            {
+              "id": "p01",
+              "nome": "Flavio Gay"
+            },
+            {
+              "id": "p02",
+              "nome": "Giacomo Leardini"
+            },
+            {
+              "id": "p03",
+              "nome": "Lorenzo Lovato"
+            },
+            {
+              "id": "p04",
+              "nome": "Andrea Valentini"
+            }
+          ]
+        },
+        {
+          "id": "s04",
+          "nome": "The Goat Torino",
+          "rank": 165,
+          "logo": "https://thegoatstreetball.it/wp-content/uploads/2021/01/LOGO-THE-GOAT-2020-08.11.png",
+          "website": "https://thegoatstreetball.it",
+          "instagram": "https://www.instagram.com/thegoatstreetball",
+          "giocatori": [
+            {
+              "id": "p13",
+              "nome": "Matteo Corgnati"
+            },
+            {
+              "id": "p14",
+              "nome": "Diego Calzavara"
+            },
+            {
+              "id": "p15",
+              "nome": "Matteo Gherardini"
+            },
+            {
+              "id": "p16",
+              "nome": "Alberto Puccioni"
+            }
+          ]
+        },
+        {
+          "id": "s02",
+          "nome": "All Star 3×3",
+          "rank": 200,
+          "logo": "https://www.allstar3x3.it/wp-content/uploads/2024/12/allstar-logo-png_Tavola-disegno-1.png",
+          "website": "https://www.allstar3x3.it",
+          "instagram": "https://www.instagram.com/allstar3x3",
+          "giocatori": [
+            {
+              "id": "p09",
+              "nome": "Federico Frisari"
+            },
+            {
+              "id": "p10",
+              "nome": "Dario Masciarelli"
+            },
+            {
+              "id": "p11",
+              "nome": "Matteo Santucci"
+            },
+            {
+              "id": "p12",
+              "nome": "Michele Serpilli"
+            }
+          ]
+        },
+        {
+          "id": "s03",
+          "nome": "Concrete",
+          "rank": 185,
+          "logo": "/logos/concrete.svg",
+          "instagram": "https://www.instagram.com/milano.3x3/",
+          "giocatori": [
+            {
+              "id": "p05",
+              "nome": "Matteo Airaghi"
+            },
+            {
+              "id": "p06",
+              "nome": "Michele D'Ambrosio"
+            },
+            {
+              "id": "p07",
+              "nome": "Carlo Fumagalli"
+            },
+            {
+              "id": "p08",
+              "nome": "Morgan Rashed"
+            }
+          ]
+        },
+        {
+          "id": "s05",
+          "nome": "FDC Tunes 2.0",
+          "rank": 150,
+          "logo": "/logos/fdc-tunes.svg",
+          "giocatori": [
+            {
+              "id": "p17",
+              "nome": "Pietro Agostini"
+            },
+            {
+              "id": "p18",
+              "nome": "Alberto Bedina"
+            },
+            {
+              "id": "p19",
+              "nome": "Nicolò Menardi"
+            },
+            {
+              "id": "p20",
+              "nome": "Leonardo Clark"
+            }
+          ]
+        },
+        {
+          "id": "s06",
+          "nome": "FVG 3×3",
+          "rank": 130,
+          "logo": "/logos/fvg-3x3.svg",
+          "giocatori": [
+            {
+              "id": "p21",
+              "nome": "Giacomo Dell'Agnello"
+            },
+            {
+              "id": "p22",
+              "nome": "Michele Peroni"
+            },
+            {
+              "id": "p23",
+              "nome": "Bruno Mascolo"
+            },
+            {
+              "id": "p24",
+              "nome": "Dario Zucca"
+            }
+          ]
+        },
+        {
+          "id": "s07",
+          "nome": "UB Kings of Kings",
+          "rank": 110,
+          "logo": "/logos/ub-kings.svg",
+          "giocatori": [
+            {
+              "id": "p25",
+              "nome": "Andrea Tassinari"
+            },
+            {
+              "id": "p26",
+              "nome": "Carlos Rivera"
+            },
+            {
+              "id": "p27",
+              "nome": "Mohamed Touré"
+            },
+            {
+              "id": "p28",
+              "nome": "Bryant Inoa Piantini"
+            }
+          ]
+        },
+        {
+          "id": "s08",
+          "nome": "Tortona Evolution 3×3",
+          "rank": 90,
+          "logo": "https://www.evolution3x3.it/wp-content/uploads/2025/12/Logo_Tortona_Evolution_3x3.svg",
+          "website": "https://www.evolution3x3.it",
+          "giocatori": [
+            {
+              "id": "p29",
+              "nome": "Giacomo Bonavida"
+            },
+            {
+              "id": "p30",
+              "nome": "Lorenzo Donadio"
+            },
+            {
+              "id": "p31",
+              "nome": "Luca Carrea"
+            },
+            {
+              "id": "p32",
+              "nome": "Matteo Repetti"
+            }
+          ]
+        }
+      ],
+      "gironi": [
+        [
+          "s01",
+          "s04",
+          "s02",
+          "s03"
+        ],
+        [
+          "s05",
+          "s06",
+          "s07",
+          "s08"
+        ]
+      ],
+      "partite": [
+        {
+          "id": "m37",
+          "g": 0,
+          "a": "s01",
+          "b": "s04",
+          "sa": 21,
+          "sb": 17,
+          "done": true,
+          "pa": {
+            "p01": {
+              "pt": 9,
+              "rb": 2,
+              "as": 4,
+              "ru": 1
+            },
+            "p02": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1,
+              "st": 1
+            },
+            "p03": {
+              "pt": 4,
+              "rb": 2
+            },
+            "p04": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p13": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3,
+              "fa": 1
+            },
+            "p14": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1
+            },
+            "p15": {
+              "pt": 3,
+              "rb": 3,
+              "ru": 1,
+              "st": 1
+            },
+            "p16": {
+              "pt": 1,
+              "rb": 7,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m38",
+          "g": 0,
+          "a": "s01",
+          "b": "s02",
+          "sa": 21,
+          "sb": 18,
+          "done": true,
+          "pa": {
+            "p01": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "ru": 1,
+              "st": 1
+            },
+            "p02": {
+              "pt": 6,
+              "rb": 3,
+              "as": 2
+            },
+            "p03": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p04": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p09": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3,
+              "st": 1
+            },
+            "p10": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1,
+              "ru": 1
+            },
+            "p11": {
+              "pt": 2,
+              "rb": 3
+            },
+            "p12": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 1
+            }
+          }
+        },
+        {
+          "id": "m39",
+          "g": 0,
+          "a": "s01",
+          "b": "s03",
+          "sa": 21,
+          "sb": 16,
+          "done": true,
+          "pa": {
+            "p01": {
+              "pt": 10,
+              "rb": 1,
+              "as": 3,
+              "ru": 1,
+              "st": 1
+            },
+            "p02": {
+              "pt": 5,
+              "rb": 3,
+              "as": 2
+            },
+            "p03": {
+              "pt": 4,
+              "rb": 2
+            },
+            "p04": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p05": {
+              "pt": 7,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p06": {
+              "pt": 5,
+              "rb": 3,
+              "as": 1,
+              "fa": 2
+            },
+            "p07": {
+              "pt": 3,
+              "rb": 1,
+              "as": 2,
+              "st": 1
+            },
+            "p08": {
+              "pt": 1,
+              "rb": 6
+            }
+          }
+        },
+        {
+          "id": "m40",
+          "g": 0,
+          "a": "s04",
+          "b": "s02",
+          "sa": 21,
+          "sb": 19,
+          "done": true,
+          "pa": {
+            "p13": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "ru": 1
+            },
+            "p14": {
+              "pt": 6,
+              "rb": 2,
+              "as": 2,
+              "st": 1
+            },
+            "p15": {
+              "pt": 4,
+              "rb": 3
+            },
+            "p16": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 2
+            }
+          },
+          "pb": {
+            "p09": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3,
+              "st": 1
+            },
+            "p10": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1
+            },
+            "p11": {
+              "pt": 3,
+              "rb": 3,
+              "fa": 1
+            },
+            "p12": {
+              "pt": 2,
+              "rb": 5
+            }
+          }
+        },
+        {
+          "id": "m41",
+          "g": 0,
+          "a": "s04",
+          "b": "s03",
+          "sa": 21,
+          "sb": 15,
+          "done": true,
+          "pa": {
+            "p13": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "st": 1
+            },
+            "p14": {
+              "pt": 6,
+              "rb": 2,
+              "as": 2
+            },
+            "p15": {
+              "pt": 4,
+              "rb": 3,
+              "ru": 1
+            },
+            "p16": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 2
+            }
+          },
+          "pb": {
+            "p05": {
+              "pt": 6,
+              "rb": 2,
+              "as": 1,
+              "fa": 1
+            },
+            "p06": {
+              "pt": 5,
+              "rb": 3,
+              "as": 1,
+              "fa": 2
+            },
+            "p07": {
+              "pt": 3,
+              "rb": 1,
+              "as": 2
+            },
+            "p08": {
+              "pt": 1,
+              "rb": 6,
+              "st": 1
+            }
+          }
+        },
+        {
+          "id": "m42",
+          "g": 0,
+          "a": "s02",
+          "b": "s03",
+          "sa": 21,
+          "sb": 17,
+          "done": true,
+          "pa": {
+            "p09": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "ru": 1
+            },
+            "p10": {
+              "pt": 6,
+              "rb": 3,
+              "as": 1,
+              "st": 1
+            },
+            "p11": {
+              "pt": 4,
+              "rb": 3,
+              "fa": 1
+            },
+            "p12": {
+              "pt": 2,
+              "rb": 5
+            }
+          },
+          "pb": {
+            "p05": {
+              "pt": 7,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p06": {
+              "pt": 5,
+              "rb": 3,
+              "as": 1,
+              "fa": 2
+            },
+            "p07": {
+              "pt": 4,
+              "rb": 1,
+              "as": 2
+            },
+            "p08": {
+              "pt": 1,
+              "rb": 6
+            }
+          }
+        },
+        {
+          "id": "m43",
+          "g": 1,
+          "a": "s05",
+          "b": "s06",
+          "sa": 21,
+          "sb": 16,
+          "done": true,
+          "pa": {
+            "p17": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "ru": 1
+            },
+            "p18": {
+              "pt": 6,
+              "rb": 2,
+              "as": 1,
+              "st": 1
+            },
+            "p19": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p20": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p21": {
+              "pt": 7,
+              "rb": 2,
+              "as": 2,
+              "fa": 1
+            },
+            "p22": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p23": {
+              "pt": 3,
+              "rb": 3,
+              "st": 1
+            },
+            "p24": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m44",
+          "g": 1,
+          "a": "s05",
+          "b": "s07",
+          "sa": 21,
+          "sb": 14,
+          "done": true,
+          "pa": {
+            "p17": {
+              "pt": 9,
+              "rb": 1,
+              "as": 2,
+              "ru": 1,
+              "st": 1
+            },
+            "p18": {
+              "pt": 6,
+              "rb": 2,
+              "as": 2
+            },
+            "p19": {
+              "pt": 4,
+              "rb": 3
+            },
+            "p20": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p25": {
+              "pt": 6,
+              "rb": 1,
+              "as": 3,
+              "fa": 1
+            },
+            "p26": {
+              "pt": 4,
+              "rb": 2
+            },
+            "p27": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 2
+            },
+            "p28": {
+              "pt": 2,
+              "rb": 5
+            }
+          }
+        },
+        {
+          "id": "m45",
+          "g": 1,
+          "a": "s05",
+          "b": "s08",
+          "sa": 21,
+          "sb": 9,
+          "done": true,
+          "pa": {
+            "p17": {
+              "pt": 10,
+              "rb": 1,
+              "as": 2,
+              "ru": 1,
+              "st": 1
+            },
+            "p18": {
+              "pt": 5,
+              "rb": 2,
+              "as": 2
+            },
+            "p19": {
+              "pt": 4,
+              "rb": 2
+            },
+            "p20": {
+              "pt": 2,
+              "rb": 7,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p29": {
+              "pt": 4,
+              "rb": 1,
+              "as": 1,
+              "fa": 1
+            },
+            "p30": {
+              "pt": 2,
+              "rb": 2
+            },
+            "p31": {
+              "pt": 2,
+              "rb": 3
+            },
+            "p32": {
+              "pt": 1,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m46",
+          "g": 1,
+          "a": "s06",
+          "b": "s07",
+          "sa": 21,
+          "sb": 18,
+          "done": true,
+          "pa": {
+            "p21": {
+              "pt": 9,
+              "rb": 2,
+              "as": 3,
+              "ru": 1
+            },
+            "p22": {
+              "pt": 6,
+              "rb": 2,
+              "as": 1,
+              "st": 1
+            },
+            "p23": {
+              "pt": 4,
+              "rb": 3
+            },
+            "p24": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p25": {
+              "pt": 8,
+              "rb": 1,
+              "as": 3,
+              "fa": 1
+            },
+            "p26": {
+              "pt": 5,
+              "rb": 2,
+              "as": 1
+            },
+            "p27": {
+              "pt": 3,
+              "rb": 5,
+              "st": 1,
+              "fa": 2
+            },
+            "p28": {
+              "pt": 2,
+              "rb": 5
+            }
+          }
+        },
+        {
+          "id": "m47",
+          "g": 1,
+          "a": "s06",
+          "b": "s08",
+          "sa": 21,
+          "sb": 12,
+          "done": true,
+          "pa": {
+            "p21": {
+              "pt": 8,
+              "rb": 2,
+              "as": 3,
+              "ru": 1,
+              "st": 1
+            },
+            "p22": {
+              "pt": 7,
+              "rb": 2,
+              "as": 1
+            },
+            "p23": {
+              "pt": 4,
+              "rb": 3
+            },
+            "p24": {
+              "pt": 2,
+              "rb": 6,
+              "fa": 1
+            }
+          },
+          "pb": {
+            "p29": {
+              "pt": 5,
+              "rb": 1,
+              "as": 2,
+              "fa": 1
+            },
+            "p30": {
+              "pt": 3,
+              "rb": 2,
+              "as": 1
+            },
+            "p31": {
+              "pt": 3,
+              "rb": 3
+            },
+            "p32": {
+              "pt": 1,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        },
+        {
+          "id": "m48",
+          "g": 1,
+          "a": "s07",
+          "b": "s08",
+          "sa": 21,
+          "sb": 15,
+          "done": true,
+          "pa": {
+            "p25": {
+              "pt": 9,
+              "rb": 1,
+              "as": 3,
+              "ru": 1
+            },
+            "p26": {
+              "pt": 6,
+              "rb": 2,
+              "as": 1,
+              "st": 1
+            },
+            "p27": {
+              "pt": 4,
+              "rb": 5,
+              "fa": 2
+            },
+            "p28": {
+              "pt": 2,
+              "rb": 5
+            }
+          },
+          "pb": {
+            "p29": {
+              "pt": 6,
+              "rb": 1,
+              "as": 2,
+              "fa": 1
+            },
+            "p30": {
+              "pt": 4,
+              "rb": 2,
+              "as": 1
+            },
+            "p31": {
+              "pt": 3,
+              "rb": 3
+            },
+            "p32": {
+              "pt": 2,
+              "rb": 5,
+              "fa": 2
+            }
+          }
+        }
+      ],
+      "bracket": [
+        {
+          "id": "t4b1",
+          "label": "Semifinale 1",
+          "squadraA": "s01",
+          "squadraB": "s06",
+          "pA": 21,
+          "pB": 14,
+          "done": true
+        },
+        {
+          "id": "t4b2",
+          "label": "Semifinale 2",
+          "squadraA": "s04",
+          "squadraB": "s05",
+          "pA": 18,
+          "pB": 21,
+          "done": true
+        },
+        {
+          "id": "t4b3",
+          "label": "Finale",
+          "squadraA": "s01",
+          "squadraB": "s05",
+          "pA": 21,
+          "pB": 16,
+          "done": true
+        }
+      ]
+    }
+  ]
+}

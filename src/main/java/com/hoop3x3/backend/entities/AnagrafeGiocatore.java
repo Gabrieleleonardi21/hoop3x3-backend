@@ -1,0 +1,62 @@
+package com.hoop3x3.backend.entities;
+
+import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+/** Giocatore dell'anagrafe condivisa del circuito (visibile a tutti, modificabile dall'autore o ADMIN). */
+@Entity
+@Table(name = "anagrafe_giocatori")
+@Getter
+@Setter
+public class AnagrafeGiocatore {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Setter(AccessLevel.NONE)
+    private UUID id;
+
+    @Column(nullable = false)
+    private String nome;
+
+    @Column(nullable = false)
+    private String cognome;
+
+    @Column(nullable = false) private String soprannome = "";
+    @Column(nullable = false) private String nascita = "";
+    @Column(nullable = false) private String citta = "";
+    @Column(nullable = false) private String nazionalita = "";
+    @Column(nullable = false) private String altezza = "";
+    @Column(nullable = false) private String peso = "";
+    @Column(nullable = false) private String ruolo = "";
+    @Column(nullable = false) private String numero = "";
+    /** Nome libero della squadra: non è una FK perché il giocatore può essere svincolato */
+    @Column(nullable = false) private String squadra = "";
+    @Column(nullable = false) private String esperienza = "";
+    @Column(nullable = false) private String note = "";
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "autore_id", nullable = false)
+    private Utente autore;
+
+    @Column(name = "creato_il", nullable = false, updatable = false)
+    private LocalDateTime creatoIl;
+
+    @Column(name = "modificato_il", nullable = false)
+    private LocalDateTime modificatoIl;
+
+    @PrePersist
+    private void onCreazione() {
+        this.creatoIl = LocalDateTime.now();
+        this.modificatoIl = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    private void onModifica() {
+        this.modificatoIl = LocalDateTime.now();
+    }
+}
