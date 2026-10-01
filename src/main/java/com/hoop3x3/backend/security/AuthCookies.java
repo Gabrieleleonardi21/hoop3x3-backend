@@ -8,7 +8,7 @@ import java.time.Duration;
 
 /**
  * Cookie del refresh token: HttpOnly (il JavaScript non lo legge), SameSite=Lax (non parte da siti terzi),
- * Path=/api/auth (viaggia solo verso login, refresh e logout). Secure va acceso in produzione con HTTPS.
+ * Path=/api/auth (viaggia solo verso gli endpoint di autenticazione). Secure va acceso in produzione con HTTPS.
  */
 @Component
 public class AuthCookies {

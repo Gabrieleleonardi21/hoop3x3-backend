@@ -36,7 +36,8 @@ public class SecurityConfig {
         http
                 // usa il bean CorsConfigurationSource di CorsConfig e risponde da solo al preflight OPTIONS
                 .cors(Customizer.withDefaults())
-                // API stateless con JWT: niente sessione né cookie, quindi il CSRF non si applica
+                // API stateless: le richieste autenticate usano il Bearer; l'unico cookie (refresh token) è
+                // SameSite=Lax e lo leggono solo /api/auth/refresh e /api/auth/logout, quindi il CSRF non si applica
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // richiesta anonima su endpoint protetto → 401 JSON (non il 403 di default)
