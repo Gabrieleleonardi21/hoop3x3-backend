@@ -2,6 +2,7 @@ package com.hoop3x3.backend.services;
 
 import com.hoop3x3.backend.entities.RefreshToken;
 import com.hoop3x3.backend.entities.Utente;
+import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.UnauthorizedException;
 import com.hoop3x3.backend.repositories.RefreshTokenRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -51,17 +52,20 @@ public class RefreshTokenService {
     /** Scambia un token valido con uno nuovo: il vecchio viene cancellato, così vale per un solo rinnovo */
     @Transactional
     public Rinnovo ruota(String token) {
-        RefreshToken salvato = repository.findByTokenHash(sha256(token))
+        String hash = sha256(token);
+        RefreshToken salvato = repository.findByTokenHash(hash)
                 .orElseThrow(() -> new UnauthorizedException(SESSIONE_SCADUTA));
         if (salvato.isScaduto()) throw new UnauthorizedException(SESSIONE_SCADUTA);
-        repository.delete(salvato);
+        // Due richieste con lo stesso token (due schede): solo la prima cancella la riga e rinnova;
+        // l'altra riceve 409 e riprova con il nuovo cookie, senza perdere la sessione
+        if (repository.eliminaPerHash(hash) == 0) throw new ConflictException("Sessione già rinnovata da un'altra richiesta: riprova");
         return new Rinnovo(salvato.getUtente(), emetti(salvato.getUtente()));
     }
 
     /** Logout: il token non vale più; un token sconosciuto si ignora */
     @Transactional
     public void revoca(String token) {
-        repository.findByTokenHash(sha256(token)).ifPresent(repository::delete);
+        repository.eliminaPerHash(sha256(token));
     }
 
     /** Hash esadecimale del token: è l'unica forma in cui finisce nel database */

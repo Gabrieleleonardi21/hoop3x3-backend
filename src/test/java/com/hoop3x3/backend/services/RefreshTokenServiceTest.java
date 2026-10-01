@@ -3,6 +3,7 @@ package com.hoop3x3.backend.services;
 import com.hoop3x3.backend.entities.RefreshToken;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
+import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.UnauthorizedException;
 import com.hoop3x3.backend.repositories.RefreshTokenRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -59,13 +61,24 @@ class RefreshTokenServiceTest {
     void ruotaCancellaIlVecchioTokenENeEmetteUnoNuovo() {
         RefreshToken vecchio = new RefreshToken(utente, RefreshTokenService.sha256("vecchio"), LocalDateTime.now().plusDays(1));
         when(repository.findByTokenHash(RefreshTokenService.sha256("vecchio"))).thenReturn(Optional.of(vecchio));
+        when(repository.eliminaPerHash(RefreshTokenService.sha256("vecchio"))).thenReturn(1);   // la riga c'era: la cancella questa richiesta
 
         RefreshTokenService.Rinnovo rinnovo = service.ruota("vecchio");
 
         assertThat(rinnovo.utente()).isSameAs(utente);
         assertThat(rinnovo.nuovoToken()).isNotEqualTo("vecchio").hasSize(43);
-        verify(repository).delete(vecchio);
+        verify(repository).eliminaPerHash(RefreshTokenService.sha256("vecchio"));
         verify(repository).save(any(RefreshToken.class));
+    }
+
+    @Test
+    void ruotaRispondeConflittoSeUnAltraRichiestaHaGiaRuotatoIlToken() {
+        RefreshToken vecchio = new RefreshToken(utente, RefreshTokenService.sha256("vecchio"), LocalDateTime.now().plusDays(1));
+        when(repository.findByTokenHash(RefreshTokenService.sha256("vecchio"))).thenReturn(Optional.of(vecchio));
+        when(repository.eliminaPerHash(RefreshTokenService.sha256("vecchio"))).thenReturn(0);   // un'altra richiesta ha già cancellato la riga
+
+        assertThatThrownBy(() -> service.ruota("vecchio")).isInstanceOf(ConflictException.class);
+        verify(repository, never()).save(any());
     }
 
     @Test
@@ -88,21 +101,16 @@ class RefreshTokenServiceTest {
     }
 
     @Test
-    void revocaCancellaIlTokenSeEsiste() {
-        RefreshToken salvato = new RefreshToken(utente, RefreshTokenService.sha256("vecchio"), LocalDateTime.now().plusDays(1));
-        when(repository.findByTokenHash(RefreshTokenService.sha256("vecchio"))).thenReturn(Optional.of(salvato));
-
+    void revocaCancellaIlTokenPerHash() {
         service.revoca("vecchio");
 
-        verify(repository).delete(salvato);
+        verify(repository).eliminaPerHash(RefreshTokenService.sha256("vecchio"));
     }
 
     @Test
     void revocaIgnoraUnTokenSconosciuto() {
-        when(repository.findByTokenHash(any())).thenReturn(Optional.empty());
+        when(repository.eliminaPerHash(any())).thenReturn(0);   // nessuna riga cancellata: token sconosciuto o già revocato
 
-        service.revoca("inventato");
-
-        verify(repository, never()).delete(any());
+        assertThatCode(() -> service.revoca("inventato")).doesNotThrowAnyException();
     }
 }
