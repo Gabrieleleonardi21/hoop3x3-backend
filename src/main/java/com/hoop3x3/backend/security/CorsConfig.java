@@ -13,9 +13,10 @@ import java.util.List;
  * CORS come bean CorsConfigurationSource: lo usa Spring Security (vedi .cors() in SecurityConfig),
  * che gira prima di Spring MVC e altrimenti bloccherebbe il preflight.
  * Serve anche quando il frontend passa da un proxy (quello di Vite in sviluppo, un reverse proxy in
- * produzione): il backend riceve l'header Origin del browser e, se non coincide con l'host che vede
- * (il proxy di Vite lo riscrive) e l'origine non è tra quelle ammesse, risponde 403 alle richieste
- * che lo portano (POST, PUT, PATCH, DELETE).
+ * produzione): il backend confronta l'header Origin del browser con schema, host e porta che vede lui
+ * (il proxy di Vite riscrive l'host, un reverse proxy che termina HTTPS cambia lo schema) e, se non
+ * coincidono e l'origine non è tra quelle ammesse, risponde 403 alle richieste che lo portano
+ * (POST, PUT, PATCH, DELETE).
  */
 @Configuration
 public class CorsConfig {
