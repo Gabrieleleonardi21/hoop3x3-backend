@@ -17,6 +17,18 @@ CREATE TABLE IF NOT EXISTS utenti (
     modificato_il TIMESTAMP    NOT NULL
 );
 
+-- ── Refresh token: sessioni lunghe senza ripetere il login ──────────────────
+-- In tabella c'è solo l'hash SHA-256: il token in chiaro vive nel cookie httpOnly del browser.
+-- Ogni token vale per un solo rinnovo (rotazione) e scade dopo auth.refresh-giorni.
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id            UUID PRIMARY KEY,
+    utente_id     UUID NOT NULL REFERENCES utenti(id) ON DELETE CASCADE,
+    token_hash    VARCHAR(64) NOT NULL UNIQUE,
+    scade_il      TIMESTAMP NOT NULL,
+    creato_il     TIMESTAMP NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_utente ON refresh_tokens(utente_id);
+
 -- ── Leghe: contenitore di tappe, ogni lega ha un proprietario ───────────────
 CREATE TABLE IF NOT EXISTS leghe (
     id            UUID PRIMARY KEY,
