@@ -18,16 +18,16 @@ public class JWTtools {
     @Value("${jwt.secret}")
     private String secret;
 
-    /** Durata del token in giorni (default 7): scaduto, l'utente rifà il login */
-    @Value("${jwt.durata-giorni:7}")
-    private long durataGiorni;
+    /** Durata del token in minuti (default 30): scaduto, il client lo rinnova con il refresh token */
+    @Value("${jwt.durata-minuti:30}")
+    private long durataMinuti;
 
     public String generateToken(Utente utente) {
         long adesso = System.currentTimeMillis();
         return Jwts.builder()
                 .subject(utente.getId().toString())
                 .issuedAt(new Date(adesso))
-                .expiration(new Date(adesso + 1000L * 60 * 60 * 24 * durataGiorni))
+                .expiration(new Date(adesso + 1000L * 60 * durataMinuti))
                 .signWith(getSecretKey())
                 .compact();
     }

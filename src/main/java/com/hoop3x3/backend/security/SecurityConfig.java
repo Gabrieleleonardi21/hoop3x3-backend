@@ -42,7 +42,9 @@ public class SecurityConfig {
                 // richiesta anonima su endpoint protetto → 401 JSON (non il 403 di default)
                 .exceptionHandling(e -> e.authenticationEntryPoint(entryPoint))
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
+                        // refresh e logout si autenticano con il cookie httpOnly, non con il Bearer
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",
+                                "/api/auth/refresh", "/api/auth/logout").permitAll()
                         // anagrafe e archivio sono pubblici in lettura: l'ospite (senza account) li consulta
                         .requestMatchers(HttpMethod.GET, "/api/anagrafe/**", "/api/archivio/**").permitAll()
                         // il forward interno verso /error dopo un sendError va lasciato passare, altrimenti 403 vuoto
