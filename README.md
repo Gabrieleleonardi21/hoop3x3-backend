@@ -16,7 +16,11 @@ Su un database già esistente basta rieseguire `db/schema.sql` (è tutto `IF NOT
 psql -d hoop3x3 -f db/schema.sql
 ```
 
-**2. Configurazione** — copia `env.properties.example` in `env.properties` (ignorato da git) e compila password DB, `JWT_SECRET` e, facoltativa, `GROQ_API_KEY` per il Coach AI.
+**2. Configurazione** — copia `env.properties.example` in `env.properties` (ignorato da git) e compila i valori. I segreti si controllano all'avvio, perché un esempio lasciato com'è renderebbe nota a tutti la chiave dei token o la password dell'amministratore:
+
+- `JWT_SECRET` (obbligatorio) — almeno 32 caratteri casuali, per esempio generati con `openssl rand -base64 48`. Se manca, è più corto o è ancora il valore d'esempio del vecchio `env.properties.example` (`cambia-questa-stringa-...`), il server non parte e spiega perché; il valore del secret non finisce mai nei log. Cambiarlo invalida i JWT già emessi: gli utenti rifanno il login.
+- `ADMIN_EMAIL` e `ADMIN_PASSWORD` — l'ADMIN creato al primo avvio. La password deve avere almeno 8 caratteri ed essere diversa da `admin123`: altrimenti l'admin non viene creato e nei log compare un avviso (senza admin neanche `SEED_DEMO` carica i dati di prova). Se email o password sono vuote non si crea nessun admin. Un admin già presente nel database non viene toccato, quindi neanche il controllo lo riguarda.
+- `DB_USERNAME`, `DB_PASSWORD` e, facoltativa, `GROQ_API_KEY` per il Coach AI.
 
 **3. Server**
 
@@ -43,7 +47,7 @@ Gli errori di Groq arrivano al client senza dettagli interni: 429 se Groq limita
 
 Il JWT di accesso dura poco e il client lo rinnova con un refresh token tenuto in un cookie httpOnly: chi torna dopo giorni non deve rifare il login, e il logout revoca il refresh token.
 
-- **JWT** — 30 minuti (`jwt.durata-minuti`); il client lo manda nell'header `Authorization: Bearer`.
+- **JWT** — 30 minuti di default, da 5 a 1440 con `jwt.durata-minuti` (fuori da questo intervallo il server non parte: sotto i 5 minuti il client rinnoverebbe a ogni richiesta, perché rinnova in anticipo quando mancano meno di 2 minuti alla scadenza). Il client lo manda nell'header `Authorization: Bearer`; con il token vuoto, scaduto o alterato la risposta è 401.
 - **Cookie** `hoop3x3_refresh` — `HttpOnly`, `SameSite=Lax`, `Path=/api/auth` (il browser lo rimanda solo agli endpoint di autenticazione), 30 giorni (`auth.refresh-giorni`). In produzione con HTTPS va impostato `AUTH_COOKIE_SECURE=true` in `env.properties` o come variabile d'ambiente (di default è `false`).
 - **Database** — la tabella `refresh_tokens` conserva solo l'hash SHA-256 del token, mai il token in chiaro.
 
@@ -75,7 +79,6 @@ Su origini diverse l'origine del frontend deve comunque stare in `CORS_ORIGINS`:
 - Il logout revoca il refresh token del browser da cui parte: un JWT già emesso resta valido fino alla sua scadenza (al massimo 30 minuti) e le sessioni aperte su altri dispositivi non vengono toccate.
 - Non c'è rilevamento del riuso di un refresh token già ruotato né un «esci da tutti i dispositivi»: chi ruba il cookie e lo usa per primo ottiene una sessione che si rinnova finché non scade o non viene revocata.
 - Il vecchio refresh token smette di valere appena il server lo ruota: se la risposta non arriva al browser (pagina chiusa o rete caduta durante il rinnovo), al rinnovo successivo si torna al login. Un periodo di grazia di qualche decina di secondi lo eviterebbe.
-- Con `jwt.durata-minuti` sotto i 3 minuti il client rinnova a ogni richiesta, perché rinnova in anticipo quando mancano meno di 2 minuti alla scadenza.
 
 ## Struttura
 
@@ -89,7 +92,7 @@ src/main/java/com/hoop3x3/backend/
 ├── exceptions/   # eccezioni tipizzate + ExceptionsHandler (corpo uniforme {message, timestamp})
 ├── repositories/ # Spring Data JPA
 ├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/estathe25.json)
-├── security/     # SecurityConfig, JwtFilter, JWTtools, AuthCookies, CorsConfig, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB)
+├── security/     # SecurityConfig, JwtFilter, JWTtools, JwtProperties (secret e durata del JWT, validati all'avvio), AuthCookies, CorsConfig, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB)
 └── services/     # logica: proprietà (AccessGuard), JSON delle tappe, proxy Groq, refresh token (RefreshTokenService)
 ```
 
