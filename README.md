@@ -19,7 +19,7 @@ psql -d hoop3x3 -f db/schema.sql
 **2. Configurazione** — copia `env.properties.example` in `env.properties` (ignorato da git) e compila i valori. I segreti si controllano all'avvio, perché un esempio lasciato com'è renderebbe nota a tutti la chiave dei token o la password dell'amministratore:
 
 - `JWT_SECRET` (obbligatorio) — almeno 32 caratteri casuali, per esempio generati con `openssl rand -base64 48`. Se manca, è più corto o è ancora il valore d'esempio del vecchio `env.properties.example` (`cambia-questa-stringa-...`), il server non parte e spiega perché; il valore del secret non finisce mai nei log. Cambiarlo invalida i JWT già emessi: gli utenti rifanno il login.
-- `ADMIN_EMAIL` e `ADMIN_PASSWORD` — l'ADMIN creato al primo avvio. La password deve avere almeno 8 caratteri ed essere diversa da `admin123`: altrimenti l'admin non viene creato e nei log compare un avviso (senza admin neanche `SEED_DEMO` carica i dati di prova). Se email o password sono vuote non si crea nessun admin. Un admin già presente nel database non viene toccato, quindi neanche il controllo lo riguarda.
+- `ADMIN_EMAIL` e `ADMIN_PASSWORD` — l'ADMIN creato al primo avvio. La password deve avere almeno 8 caratteri ed essere diversa da `admin123`: altrimenti, anche se è vuota, l'admin non viene creato e nei log compare un avviso (senza admin neanche `SEED_DEMO` carica i dati di prova). Con l'email vuota il seeder è spento: nessun admin e nessun avviso. Un admin già presente nel database non viene toccato, quindi neanche il controllo lo riguarda.
 - `DB_USERNAME`, `DB_PASSWORD` e, facoltativa, `GROQ_API_KEY` per il Coach AI.
 
 **3. Server**
