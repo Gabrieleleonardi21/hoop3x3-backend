@@ -125,6 +125,26 @@ class JwtPropertiesTest {
                 .run(JwtPropertiesTest::assertRifiutato);
     }
 
+    // Il vero JWTtools porta con sé @EnableConfigurationProperties(JwtProperties.class): senza nessun'altra configurazione
+    // un secret non valido gli impedisce di partire, come al server intero
+    private final ApplicationContextRunner runnerConJwtTools = new ApplicationContextRunner()
+            .withUserConfiguration(JWTtools.class)
+            .withBean(org.springframework.validation.beanvalidation.LocalValidatorFactoryBean.class);
+
+    @Test
+    void jwtTools_conSecretValido_parte() {
+        runnerConJwtTools.withPropertyValues("jwt.secret=" + SECRET_VALIDO).run(ctx -> {
+            assertThat(ctx).hasNotFailed();
+            assertThat(ctx).hasSingleBean(JWTtools.class);
+        });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"troppo-corto", JwtProperties.SECRET_DI_ESEMPIO})
+    void jwtTools_conSecretNonValido_nonParte(String secret) {
+        runnerConJwtTools.withPropertyValues("jwt.secret=" + secret).run(JwtPropertiesTest::assertRifiutato);
+    }
+
     /** Il contesto non parte per un errore di validazione delle proprietà, non per un'eccezione uscita da un controllo */
     private static void assertRifiutato(AssertableApplicationContext ctx) {
         assertThat(ctx).hasFailed();
