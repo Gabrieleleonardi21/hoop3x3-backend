@@ -10,9 +10,11 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ExceptionsHandler;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.AuthCookies;
+import com.hoop3x3.backend.security.CorsConfig;
 import com.hoop3x3.backend.security.JWTtools;
 import com.hoop3x3.backend.security.JsonAuthEntryPoint;
 import com.hoop3x3.backend.security.JwtFilter;
+import com.hoop3x3.backend.security.LimiteDimensioneFilter;
 import com.hoop3x3.backend.security.SecurityConfig;
 import com.hoop3x3.backend.services.AnagrafeService;
 import com.hoop3x3.backend.services.ArchivioService;
@@ -27,6 +29,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -45,6 +48,7 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -52,7 +56,9 @@ import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.http.HttpMethod.PUT;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -63,8 +69,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = {LegaController.class, TappaController.class, AnagrafeController.class,
         ArchivioController.class, AuthController.class})
-@Import({SecurityConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class, ExceptionsHandler.class,
-        UtenteService.class})
+@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class,
+        ExceptionsHandler.class, LimiteDimensioneFilter.class, UtenteService.class})
 class ValidazioneWebTest {
 
     @Autowired MockMvc mvc;
@@ -164,11 +170,17 @@ class ValidazioneWebTest {
 
     /** Come rifiutata, ma il messaggio d'errore deve soddisfare `messaggio` */
     private void rifiutataConMessaggio(HttpMethod metodo, String url, Object corpo, Matcher<String> messaggio) throws Exception {
-        invia(metodo, url, corpo)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", messaggio))
-                .andExpect(jsonPath("$.timestamp").exists());
+        corpoStandard(invia(metodo, url, corpo).andExpect(status().isBadRequest()))
+                .andExpect(jsonPath("$.message", messaggio));
         verifyNoInteractions(legaService, anagrafeService, archivioService, authenticationManager, refreshTokenService, utenteRepository);
+    }
+
+    /** Il corpo d'errore è solo {message, timestamp}, con il timestamp nel formato ISO di ExceptionsHandler (LocalDateTime) */
+    private static ResultActions corpoStandard(ResultActions esito) throws Exception {
+        return esito
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$.message").isString())
+                .andExpect(jsonPath("$.timestamp", matchesPattern("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?")));
     }
 
     /** La validazione lascia passare la richiesta: arriva al controller e risponde 2xx */
@@ -377,5 +389,55 @@ class ValidazioneWebTest {
         r.put("password", "è".repeat(36)); // 36 lettere accentate = 72 byte
 
         accettata(POST, "/api/auth/register", r);
+    }
+
+    /* ── Corpo oltre 2 MB: 413 dal filtro, prima di Spring MVC e del database ── */
+
+    // JSON valido da 3 MB: senza il filtro attraverserebbe la validazione e arriverebbe al servizio
+    private static final int TRE_MB = 3 * 1024 * 1024;
+
+    // Anche l'endpoint pubblico del login, senza token: è quello che chiunque può raggiungere
+    @Test
+    void corpoDi3MbSuUnEndpointPubblico_risponde413ConIlCorpoStandard() throws Exception {
+        Map<String, Object> accessoConPasswordEnorme = accesso("mario@x.it");
+        accessoConPasswordEnorme.put("password", "x".repeat(TRE_MB));
+
+        corpoStandard(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(accessoConPasswordEnorme)))
+                .andExpect(status().isContentTooLarge()))
+                .andExpect(jsonPath("$.message", containsString("2 MB")));
+
+        verifyNoInteractions(authenticationManager, refreshTokenService, utenteRepository);
+    }
+
+    @Test
+    void importDi3MbDaUtenteAutenticato_risponde413SenzaChiamareIlServizio() throws Exception {
+        Map<String, Object> tappaEnorme = tappa();
+        tappaEnorme.put("partite", List.of("x".repeat(TRE_MB))); // per il DTO è un array come un altro
+        Map<String, Object> lega = nuovaLega();
+        lega.put("tappe", List.of(tappaEnorme));
+
+        corpoStandard(invia(POST, "/api/leghe", lega).andExpect(status().isContentTooLarge()))
+                .andExpect(jsonPath("$.message", containsString("2 MB")));
+
+        verifyNoInteractions(legaService);
+    }
+
+    // Il filtro gira dopo la catena di Spring Security: senza token su un endpoint protetto vince il 401, il corpo non si legge
+    @Test
+    void corpoDi3MbSenzaTokenSuEndpointProtetto_risponde401() throws Exception {
+        mvc.perform(post("/api/leghe").contentType(MediaType.APPLICATION_JSON).content(new byte[TRE_MB]))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(legaService);
+    }
+
+    // ...e dopo il CORS: da un'origine ammessa il 413 porta Access-Control-Allow-Origin, altrimenti il browser non lo leggerebbe
+    @Test
+    void corpoDi3MbDaUnaOrigineAmmessa_il413PortaGliHeaderCors() throws Exception {
+        mvc.perform(post("/api/auth/login").header(HttpHeaders.ORIGIN, "http://localhost:5173")
+                        .contentType(MediaType.APPLICATION_JSON).content(new byte[TRE_MB]))
+                .andExpect(status().isContentTooLarge())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"));
     }
 }

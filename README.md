@@ -85,7 +85,7 @@ src/main/java/com/hoop3x3/backend/
 ├── exceptions/   # eccezioni tipizzate + ExceptionsHandler (corpo uniforme {message, timestamp})
 ├── repositories/ # Spring Data JPA
 ├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/estathe25.json)
-├── security/     # SecurityConfig, JwtFilter, JWTtools, AuthCookies, CorsConfig, JsonAuthEntryPoint
+├── security/     # SecurityConfig, JwtFilter, JWTtools, AuthCookies, CorsConfig, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB)
 └── services/     # logica: proprietà (AccessGuard), JSON delle tappe, proxy Groq, refresh token (RefreshTokenService)
 ```
 
