@@ -19,7 +19,7 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "jwt")
 @Validated
 public record JwtProperties(
-        @NotBlank String secret,
+        @NotBlank(message = "jwt.secret è obbligatorio: imposta JWT_SECRET in env.properties") String secret,
         @DefaultValue("30") @Min(5) @Max(1440) long durataMinuti
 ) {
     /** HS256 vuole una chiave di almeno 256 bit, cioè 32 byte */

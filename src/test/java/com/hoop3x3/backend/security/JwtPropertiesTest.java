@@ -24,6 +24,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class JwtPropertiesTest {
 
     private static final String SECRET_VALIDO = "0123456789abcdef0123456789abcdef";
+    // Il testo deve dire che cosa fare: quello di default di @NotBlank cambia con la lingua del computer
+    // (in italiano è «non deve essere spazio») e non nomina la variabile da impostare
+    private static final String MESSAGGIO_SECRET_OBBLIGATORIO = "jwt.secret è obbligatorio: imposta JWT_SECRET in env.properties";
 
     @Configuration
     @EnableConfigurationProperties(JwtProperties.class)
@@ -76,9 +79,7 @@ class JwtPropertiesTest {
         String secretVero = "segreto-vero-ma-corto";
         runner.withPropertyValues("jwt.secret=" + secretVero, "jwt.durata-minuti=30").run(ctx -> {
             assertRifiutato(ctx);
-            StringWriter errore = new StringWriter();
-            ctx.getStartupFailure().printStackTrace(new PrintWriter(errore));
-            assertThat(errore.toString()).contains("deve avere almeno 32 caratteri").doesNotContain(secretVero);
+            assertThat(testoDellErrore(ctx)).contains("deve avere almeno 32 caratteri").doesNotContain(secretVero);
         });
     }
 
@@ -90,13 +91,19 @@ class JwtPropertiesTest {
 
     @Test
     void secretMancante_nonParte() {
-        runner.withPropertyValues("jwt.durata-minuti=30").run(JwtPropertiesTest::assertRifiutato);
+        runner.withPropertyValues("jwt.durata-minuti=30").run(ctx -> {
+            assertRifiutato(ctx);
+            assertThat(testoDellErrore(ctx)).contains(MESSAGGIO_SECRET_OBBLIGATORIO);
+        });
     }
 
     // È lo stato di un env.properties appena copiato dall'esempio, con «JWT_SECRET=» ancora vuoto
     @Test
     void secretVuoto_nonParte() {
-        runner.withPropertyValues("jwt.secret=", "jwt.durata-minuti=30").run(JwtPropertiesTest::assertRifiutato);
+        runner.withPropertyValues("jwt.secret=", "jwt.durata-minuti=30").run(ctx -> {
+            assertRifiutato(ctx);
+            assertThat(testoDellErrore(ctx)).contains(MESSAGGIO_SECRET_OBBLIGATORIO);
+        });
     }
 
     @Test
@@ -143,6 +150,13 @@ class JwtPropertiesTest {
     @ValueSource(strings = {"troppo-corto", JwtProperties.SECRET_DI_ESEMPIO})
     void jwtTools_conSecretNonValido_nonParte(String secret) {
         runnerConJwtTools.withPropertyValues("jwt.secret=" + secret).run(JwtPropertiesTest::assertRifiutato);
+    }
+
+    /** Tutto quello che l'errore di avvio mostra: messaggi e cause (da qui Spring Boot ricava anche il suo report) */
+    private static String testoDellErrore(AssertableApplicationContext ctx) {
+        StringWriter errore = new StringWriter();
+        ctx.getStartupFailure().printStackTrace(new PrintWriter(errore));
+        return errore.toString();
     }
 
     /** Il contesto non parte per un errore di validazione delle proprietà, non per un'eccezione uscita da un controllo */
