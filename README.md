@@ -26,6 +26,11 @@ psql -d hoop3x3 -f db/schema.sql
 
 Il frontend in sviluppo inoltra `/api` verso `http://localhost:3001` tramite il proxy di Vite.
 
+## Test
+
+- `./mvnw test`: test senza database (web con MockMvc, servizi con Mockito).
+- `./mvnw verify -Pintegrazione`: anche i test di integrazione con PostgreSQL (classi `*IT`). Usano il database di prova `hoop3x3_test` sul PostgreSQL locale, da creare una volta con `createdb hoop3x3_test`: all'avvio dei test lo schema lo crea `db/schema.sql` e prima di ogni test le tabelle vengono svuotate. Per un altro database c'è `TEST_DB_URL`, con `TEST_DB_USERNAME` e `TEST_DB_PASSWORD`; altrimenti valgono `DB_USERNAME` e `DB_PASSWORD` di `env.properties`. Lo script che svuota le tabelle si rifiuta di girare su un database il cui nome non contiene «test».
+
 ## Coach AI
 
 Proxy verso [Groq](https://console.groq.com/) (`POST /api/coach/chat`, autenticato): la chiave resta sul server. Modello di default `openai/gpt-oss-120b`, sovrascrivibile con `GROQ_MODEL` in `env.properties`. Senza chiave il Coach è disattivato e il resto dell'app funziona.
