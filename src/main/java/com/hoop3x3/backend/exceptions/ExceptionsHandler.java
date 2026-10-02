@@ -14,6 +14,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
@@ -35,6 +36,11 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception ex, Object body, HttpHeaders headers,
                                                              HttpStatusCode status, WebRequest request) {
+        // Risposta già partita (client andato via, errore a metà scrittura): non c'è un secondo corpo da scrivere e non è
+        // un errore del server. La superclasse lascia un WARN di una riga e risponde null, invece di un ERROR con lo stack
+        if (rispostaGiaInviata(request)) {
+            return super.handleExceptionInternal(ex, body, headers, status, request);
+        }
         // I 5xx delle eccezioni di Spring MVC (risposta non scrivibile, timeout asincrono...) li prende la superclasse e
         // arrivano qui, non a handleImprevisto: la riga ERROR con lo stack va scritta qui, altrimenti il 500 neutro
         // non lascerebbe nessuna traccia nei log
@@ -131,6 +137,12 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
 
     private static ResponseEntity<ErrorsDTO> risposta(HttpStatus status, String messaggio) {
         return ResponseEntity.status(status).body(errore(messaggio));
+    }
+
+    /** I primi byte della risposta sono già partiti verso il client: non si può più scriverle sopra un corpo d'errore */
+    private static boolean rispostaGiaInviata(WebRequest request) {
+        if (!(request instanceof ServletWebRequest web) || web.getResponse() == null) return false;
+        return web.getResponse().isCommitted();
     }
 
     /** Messaggio in italiano per gli errori standard di Spring MVC, scelto in base allo status */
