@@ -244,6 +244,7 @@ class CoachAiServiceTest {
             assertThat(inviato.path("messages").toString()).isEqualTo(MESSAGGI_VALIDI);
             assertThat(inviato.path("tools").toString()).isEqualTo(TOOL_VALIDI);
         });
+        assertThat(logCatturato.list).as("una richiesta riuscita non scrive nei log").isEmpty();
     }
 
     @ParameterizedTest

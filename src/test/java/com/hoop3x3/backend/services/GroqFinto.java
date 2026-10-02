@@ -4,7 +4,6 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
@@ -25,14 +24,14 @@ final class GroqFinto implements AutoCloseable {
     record Richiesta(String autorizzazione, String corpo) {}
 
     private final HttpServer server;
-    private final ExecutorService thread = Executors.newVirtualThreadPerTaskExecutor();
+    private final ExecutorService esecutore = Executors.newVirtualThreadPerTaskExecutor();
     private final List<Richiesta> richieste = new CopyOnWriteArrayList<>();
     private volatile HttpHandler comportamento;
 
     GroqFinto() throws IOException {
-        server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         // Un thread per richiesta: un gestore che aspetta non blocca gli altri
-        server.setExecutor(thread);
+        server.setExecutor(esecutore);
         server.createContext("/", scambio -> {
             String corpo = new String(scambio.getRequestBody().readAllBytes(), UTF_8);
             richieste.add(new Richiesta(scambio.getRequestHeaders().getFirst("Authorization"), corpo));
@@ -81,7 +80,7 @@ final class GroqFinto implements AutoCloseable {
         };
     }
 
-    /** Fermo il thread del gestore: lo interrompe close(), a fine test */
+    /** Tiene fermo il thread del gestore finché close() non lo interrompe, a fine test */
     private static void aspetta() {
         try {
             Thread.sleep(Duration.ofMinutes(1));
@@ -93,6 +92,6 @@ final class GroqFinto implements AutoCloseable {
     @Override
     public void close() {
         server.stop(0);
-        thread.shutdownNow(); // interrompe i gestori ancora in attesa
+        esecutore.shutdownNow(); // interrompe i gestori ancora in attesa
     }
 }
