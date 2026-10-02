@@ -3,6 +3,7 @@ package com.hoop3x3.backend.controllers;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ConflictException;
+import com.hoop3x3.backend.exceptions.UnauthorizedException;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.AuthCookies;
 import com.hoop3x3.backend.security.JWTtools;
@@ -28,6 +29,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -35,6 +37,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(AuthController.class)
 @Import({SecurityConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class})
 class AuthControllerTest {
+
+    // Il 401 che il filtro dà a un JWT scaduto: lo stesso testo di JWTtools, che qui è simulato
+    private static final String TOKEN_SCADUTO = "Sessione scaduta o token non valido: accedi di nuovo";
 
     @Autowired MockMvc mockMvc;
     @MockitoBean AuthenticationManager authenticationManager;
@@ -108,5 +113,44 @@ class AuthControllerTest {
     @Test
     void logoutSenzaCookieRisponde204() throws Exception {
         mockMvc.perform(post("/api/auth/logout")).andExpect(status().isNoContent());
+    }
+
+    // Rinnovo e uscita si autenticano con il cookie: un JWT scaduto rimasto nell'Authorization non deve fermarli
+    @Test
+    void refreshConBearerScadutoUsaComunqueIlCookie() throws Exception {
+        jwtScaduto();
+        when(refreshTokenService.ruota("vecchio")).thenReturn(new RefreshTokenService.Rinnovo(utente, "nuovo"));
+        when(jwtTools.generateToken(utente)).thenReturn("jwt-nuovo");
+
+        mockMvc.perform(post("/api/auth/refresh").cookie(new Cookie("hoop3x3_refresh", "vecchio"))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer scaduto"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").value("jwt-nuovo"));
+    }
+
+    @Test
+    void logoutConBearerScadutoRevocaComunqueIlToken() throws Exception {
+        jwtScaduto();
+
+        mockMvc.perform(post("/api/auth/logout").cookie(new Cookie("hoop3x3_refresh", "vecchio"))
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer scaduto"))
+                .andExpect(status().isNoContent());
+        verify(refreshTokenService).revoca("vecchio");
+    }
+
+    // Il filtro salta solo i quattro endpoint pubblici di autenticazione: su /me esamina il Bearer e lo respinge con il
+    // messaggio del token scaduto. Se lo saltasse, la richiesta proseguirebbe anonima: sempre 401, ma con un altro messaggio
+    @Test
+    void meConBearerScadutoRisponde401ConIlMessaggioDelToken() throws Exception {
+        jwtScaduto();
+
+        mockMvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer scaduto"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value(TOKEN_SCADUTO));
+    }
+
+    /** Il JWTtools simulato respinge il JWT «scaduto» con la stessa eccezione di quello vero */
+    private void jwtScaduto() {
+        when(jwtTools.verifyToken("scaduto")).thenThrow(new UnauthorizedException(TOKEN_SCADUTO));
     }
 }

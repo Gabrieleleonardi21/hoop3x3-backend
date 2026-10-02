@@ -75,6 +75,35 @@ class JwtFilterTest {
         verifyNoInteractions(catena);
     }
 
+    // Accesso, registrazione, rinnovo e uscita non usano il Bearer: il filtro non lo esamina e la richiesta prosegue.
+    // AuthControllerTest controlla rinnovo e uscita nella catena vera; qui ci sono tutti e quattro i percorsi
+    @ParameterizedTest
+    @ValueSource(strings = {"/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout"})
+    void endpointDiAutenticazione_nonEsaminanoIlBearer(String percorso) throws Exception {
+        MockHttpServletRequest richiesta = richiestaConBearer();
+        richiesta.setRequestURI(percorso);
+        FilterChain catena = mock(FilterChain.class);
+
+        filtro.doFilter(richiesta, new MockHttpServletResponse(), catena);
+
+        verify(catena).doFilter(eq(richiesta), any());
+        verifyNoInteractions(jwtTools, resolver);
+    }
+
+    // Con un context path (l'app pubblicata sotto /hoop) l'URI lo contiene: il percorso si confronta senza
+    @Test
+    void endpointDiAutenticazioneConContextPath_nonEsaminaIlBearer() throws Exception {
+        MockHttpServletRequest richiesta = richiestaConBearer();
+        richiesta.setContextPath("/hoop");
+        richiesta.setRequestURI("/hoop/api/auth/refresh");
+        FilterChain catena = mock(FilterChain.class);
+
+        filtro.doFilter(richiesta, new MockHttpServletResponse(), catena);
+
+        verify(catena).doFilter(eq(richiesta), any());
+        verifyNoInteractions(jwtTools, resolver);
+    }
+
     /** JWTtools simulato: la firma è valida e le claims hanno il subject indicato */
     private void tokenFirmatoConSubject(String subject) {
         Claims claims = mock(Claims.class);

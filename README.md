@@ -57,7 +57,7 @@ Endpoint:
 - `POST /api/auth/refresh` — pubblico, senza Bearer: ruota il refresh token (il vecchio smette di valere), imposta il nuovo cookie e risponde `{token, user}` con un nuovo JWT. Cookie assente, sconosciuto (anche se già ruotato) o scaduto: 401 «Sessione scaduta: accedi di nuovo». Due refresh contemporanei con lo stesso cookie: uno vince (200), l'altro riceve 409 «Sessione già rinnovata da un'altra richiesta: riprova».
 - `POST /api/auth/logout` — 204: cancella il cookie e la riga in tabella.
 
-`refresh` e `logout` si autenticano solo con il cookie: il client non deve mandare `Authorization`, perché un JWT scaduto verrebbe respinto con 401 dal `JwtFilter` prima ancora di leggere il cookie.
+`register`, `login`, `refresh` e `logout` non passano dal `JwtFilter`: un `Authorization` presente nella richiesta, anche scaduto o non valido, viene ignorato e non impedisce di accedere, rinnovare la sessione o uscire. `refresh` e `logout` si autenticano solo con il cookie, il client non ha bisogno di mandare il Bearer.
 
 **Deploy** — cosa serve dipende da dove stanno frontend e API.
 

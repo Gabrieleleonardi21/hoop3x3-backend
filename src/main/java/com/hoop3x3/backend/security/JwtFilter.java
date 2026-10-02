@@ -16,6 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.io.IOException;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -27,6 +28,10 @@ import java.util.UUID;
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
+    /** Endpoint pubblici di autenticazione: non passano dal filtro (vedi shouldNotFilter) */
+    private static final Set<String> ENDPOINT_SENZA_BEARER =
+            Set.of("/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout");
+
     private final JWTtools jwtTools;
     private final UtenteRepository utenteRepository;
     private final HandlerExceptionResolver exceptionResolver;
@@ -36,6 +41,15 @@ public class JwtFilter extends OncePerRequestFilter {
         this.jwtTools = jwtTools;
         this.utenteRepository = utenteRepository;
         this.exceptionResolver = exceptionResolver;
+    }
+
+    /** Login, registrazione, rinnovo e uscita non usano il Bearer: un JWT scaduto rimasto nella richiesta
+     *  non deve impedire di rinnovare la sessione o di uscire. */
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        // getRequestURI e non getServletPath: con MockMvc il servlet path è vuoto e i test non vedrebbero il percorso
+        String percorso = request.getRequestURI().substring(request.getContextPath().length());
+        return ENDPOINT_SENZA_BEARER.contains(percorso);
     }
 
     @Override
