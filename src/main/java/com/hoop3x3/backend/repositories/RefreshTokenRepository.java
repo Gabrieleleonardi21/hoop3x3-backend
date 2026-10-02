@@ -16,8 +16,11 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @EntityGraph(attributePaths = "utente")
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
-    /** Pulizia pigra: via i token scaduti dell'utente ogni volta che se ne emette uno nuovo */
-    void deleteByUtente_IdAndScadeIlBefore(UUID utenteId, LocalDateTime limite);
+    /** Pulizia pigra in un solo DELETE: via i token scaduti dell'utente ogni volta che se ne emette uno nuovo.
+     *  Nessuna entità viene caricata, quindi due richieste contemporanee non si ostacolano. */
+    @Modifying
+    @Query("delete from RefreshToken r where r.utente.id = :utenteId and r.scadeIl < :limite")
+    int eliminaScaduti(@Param("utenteId") UUID utenteId, @Param("limite") LocalDateTime limite);
 
     /** Cancellazione atomica: restituisce 1 solo alla richiesta che arriva per prima sullo stesso token */
     @Modifying

@@ -41,7 +41,7 @@ public class RefreshTokenService {
     /** Genera un token casuale, ne salva l'hash e restituisce il token in chiaro: esiste solo nel cookie */
     @Transactional
     public String emetti(Utente utente) {
-        repository.deleteByUtente_IdAndScadeIlBefore(utente.getId(), LocalDateTime.now());
+        repository.eliminaScaduti(utente.getId(), LocalDateTime.now());
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
