@@ -18,9 +18,18 @@ import java.lang.annotation.Target;
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-@SpringBootTest
+// Il database lo scelgono solo le variabili TEST_DB_*: le proprietà del test prevalgono anche su
+// SPRING_DATASOURCE_* esportate nel terminale, che porterebbero i test su un database non di prova
+@SpringBootTest(properties = {
+        "spring.datasource.url=${TEST_DB_URL:" + TestDiIntegrazione.URL_PREDEFINITO + "}",
+        "spring.datasource.username=${TEST_DB_USERNAME:${DB_USERNAME:postgres}}",
+        "spring.datasource.password=${TEST_DB_PASSWORD:${DB_PASSWORD:}}"})
 @ActiveProfiles("test")
 // svuota.sql contiene un blocco DO con dei «;»: si esegue come un'unica istruzione, senza dividerlo
 @Sql(scripts = "classpath:svuota.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
         config = @SqlConfig(separator = ScriptUtils.EOF_STATEMENT_SEPARATOR))
-public @interface TestDiIntegrazione {}
+public @interface TestDiIntegrazione {
+
+    /** Database di prova usato quando TEST_DB_URL non è impostata (da creare con createdb hoop3x3_test) */
+    String URL_PREDEFINITO = "jdbc:postgresql://localhost:5432/hoop3x3_test";
+}
