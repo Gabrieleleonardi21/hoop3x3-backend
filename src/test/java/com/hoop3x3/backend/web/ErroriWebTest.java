@@ -18,12 +18,16 @@ import com.hoop3x3.backend.services.LegaService;
 import com.hoop3x3.backend.services.UtenteService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
+import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -32,6 +36,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
@@ -43,6 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(controllers = {LegaController.class, TappaController.class, AnagrafeController.class, UtenteController.class})
 @Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JWTtools.class, JsonAuthEntryPoint.class, ExceptionsHandler.class})
 @TestPropertySource(properties = {"jwt.secret=0123456789abcdef0123456789abcdef", "cors.origins=http://localhost:5173"})
+@ExtendWith(OutputCaptureExtension.class) // serve a controllare che gli errori 500 lascino la riga ERROR nei log
 class ErroriWebTest {
 
     @Autowired MockMvc mvc;
@@ -65,7 +71,7 @@ class ErroriWebTest {
     }
 
     @Test
-    void erroreImprevistoConTokenValido_risponde500ConCorpoStandard() throws Exception {
+    void erroreImprevistoConTokenValido_risponde500ConCorpoStandard(CapturedOutput output) throws Exception {
         when(legaService.indice(any())).thenThrow(new IllegalStateException("dettaglio interno [insert into tappe ...]"));
 
         mvc.perform(get("/api/leghe").header("Authorization", bearer))
@@ -73,6 +79,22 @@ class ErroriWebTest {
                 .andExpect(jsonPath("$.message").value("Errore interno del server: riprova più tardi"))
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(content().string(not(containsString("insert into"))));
+
+        assertRigaErrorNeiLog(output, "IllegalStateException");
+    }
+
+    @Test
+    void erroreDiSpringMvcCon5xx_risponde500ConCorpoStandardEScriveLaRigaError(CapturedOutput output) throws Exception {
+        // Eccezioni come questa (risposta non scrivibile) le prende la superclasse di ExceptionsHandler, non il gestore
+        // generico: il 500 deve lasciare comunque una traccia nei log
+        when(legaService.indice(any())).thenThrow(new HttpMessageNotWritableException("x"));
+
+        mvc.perform(get("/api/leghe").header("Authorization", bearer))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value("Errore interno del server: riprova più tardi"))
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        assertRigaErrorNeiLog(output, "HttpMessageNotWritableException");
     }
 
     @Test
@@ -157,5 +179,10 @@ class ErroriWebTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{nome:"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Corpo della richiesta non valido"));
+    }
+
+    /** Nei log c'è una riga ERROR scritta da ExceptionsHandler e, sotto, lo stack con il nome dell'eccezione */
+    private static void assertRigaErrorNeiLog(CapturedOutput output, String eccezione) {
+        assertThat(output.getAll()).containsPattern("(?m)^.*ERROR.*ExceptionsHandler.*$").contains(eccezione);
     }
 }

@@ -35,6 +35,12 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception ex, Object body, HttpHeaders headers,
                                                              HttpStatusCode status, WebRequest request) {
+        // I 5xx delle eccezioni di Spring MVC (risposta non scrivibile, timeout asincrono...) li prende la superclasse e
+        // arrivano qui, non a handleImprevisto: la riga ERROR con lo stack va scritta qui, altrimenti il 500 neutro
+        // non lascerebbe nessuna traccia nei log
+        if (status.is5xxServerError()) {
+            log.error("Errore {} di Spring MVC", status.value(), ex);
+        }
         return ResponseEntity.status(status).headers(headers).body(errore(messaggioPer(status)));
     }
 
@@ -109,7 +115,8 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
         return risposta(HttpStatus.CONFLICT, "Operazione in conflitto con i dati già salvati");
     }
 
-    // Rete di sicurezza: qualsiasi errore non previsto diventa un 500 con messaggio generico, e finisce nei log
+    // Rete di sicurezza per ciò che nessun altro gestore prende: 500 con messaggio generico e riga ERROR nei log
+    // (i 5xx delle eccezioni di Spring MVC passano da handleExceptionInternal, che li scrive nei log)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorsDTO> handleImprevisto(Exception ex) {
         log.error("Errore non gestito", ex);
