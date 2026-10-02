@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 /**
  * Crea l'utente ADMIN iniziale al primo avvio: la registrazione assegna sempre USER,
  * quindi senza seeder nessuno potrebbe amministrare. Credenziali in env.properties;
- * se mancano il seeder non fa nulla; con una password debole non crea l'admin e lo scrive nei log.
+ * senza email il seeder non fa nulla; con la password mancante o debole non crea l'admin e lo scrive nei log.
  */
 @Component
 @Order(1) // prima di DemoSeeder, che intesta i dati di prova all'admin
@@ -41,12 +41,14 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (adminEmail.isBlank() || adminPassword.isBlank()) return;
+        // Senza email il seeder è spento (nessun admin voluto): resta in silenzio, come nei test di integrazione
+        if (adminEmail.isBlank()) return;
         String email = UtenteService.normalizza(adminEmail);
         if (utenteRepository.existsByEmail(email)) return;
-        // L'admin ha pieni poteri: con una password corta o con quella dell'esempio pubblico non lo si crea.
-        // Nel log mai il valore della password, solo la regola
-        if (adminPassword.length() < LUNGHEZZA_MINIMA_PASSWORD || PASSWORD_DI_ESEMPIO.equals(adminPassword)) {
+        // L'admin ha pieni poteri: con una password mancante (è lo stato di env.properties.example appena copiato),
+        // corta o uguale a quella dell'esempio pubblico non lo si crea. Nel log mai il valore della password, solo la regola
+        if (adminPassword.isBlank() || adminPassword.length() < LUNGHEZZA_MINIMA_PASSWORD
+                || PASSWORD_DI_ESEMPIO.equals(adminPassword)) {
             log.warn("Admin non creato: ADMIN_PASSWORD deve avere almeno {} caratteri ed essere diversa dalla password d'esempio",
                     LUNGHEZZA_MINIMA_PASSWORD);
             return;

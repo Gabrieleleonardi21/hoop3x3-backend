@@ -92,17 +92,27 @@ class DataSeederTest {
 
         seeder.run();
 
-        verify(utenteRepository, never()).save(any());
-        assertThat(logCatturato.list).singleElement().satisfies(riga -> {
-            assertThat(riga.getLevel()).isEqualTo(Level.WARN);
-            assertThat(riga.getFormattedMessage()).contains("ADMIN_PASSWORD");
-        });
+        assertAdminNonCreatoConAvviso();
     }
 
-    // Senza email o senza password il seeder è spento, come prima: nessun admin e nessun avviso
+    // Lo stato di un env.properties appena copiato dall'esempio: email presente e «ADMIN_PASSWORD=» vuota. Vale anche una
+    // password di soli spazi, perfino di otto (la lunghezza giusta): non è una password. L'admin non nasce e l'avviso
+    // dice che cosa impostare, invece di lasciare chi ha copiato l'esempio senza admin e senza una riga che lo spieghi
     @ParameterizedTest
-    @CsvSource(delimiter = ';', value = {"'';" + PASSWORD_VALIDA, EMAIL + ";''", "'   ';'   '"})
-    void senzaCredenziali_nonFaNulla(String email, String password) {
+    @ValueSource(strings = {"", "   ", "        "})
+    void emailSenzaPassword_nonCreaLAdminEAvvisaNelLog(String password) {
+        conCredenziali(EMAIL, password);
+
+        seeder.run();
+
+        assertAdminNonCreatoConAvviso();
+    }
+
+    // Senza email il seeder è spento, come prima, con o senza password (è anche la configurazione dei test di
+    // integrazione): nessun admin e nessun avviso
+    @ParameterizedTest
+    @CsvSource(delimiter = ';', value = {"'';''", "'   ';'   '", "'';" + PASSWORD_VALIDA})
+    void senzaEmail_ilSeederESpento(String email, String password) {
         conCredenziali(email, password);
 
         seeder.run();
@@ -111,9 +121,9 @@ class DataSeederTest {
         assertThat(logCatturato.list).isEmpty();
     }
 
-    // Una password debole non conta se l'admin c'è già: non viene usata, quindi niente avviso a ogni riavvio
+    // Una password debole o vuota non conta se l'admin c'è già: non viene usata, quindi niente avviso a ogni riavvio
     @ParameterizedTest
-    @ValueSource(strings = {PASSWORD_VALIDA, "admin123"})
+    @ValueSource(strings = {PASSWORD_VALIDA, "admin123", ""})
     void adminGiaPresente_nonNeCreaUnAltroENonAvvisa(String password) {
         when(utenteRepository.existsByEmail(EMAIL)).thenReturn(true);
         conCredenziali(EMAIL, password);
@@ -129,6 +139,15 @@ class DataSeederTest {
         ReflectionTestUtils.setField(seeder, "adminEmail", email);
         ReflectionTestUtils.setField(seeder, "adminPassword", password);
         passwordInUso = password;
+    }
+
+    /** Nessun admin salvato e un solo avviso (WARN) che nomina ADMIN_PASSWORD */
+    private void assertAdminNonCreatoConAvviso() {
+        verify(utenteRepository, never()).save(any());
+        assertThat(logCatturato.list).singleElement().satisfies(riga -> {
+            assertThat(riga.getLevel()).isEqualTo(Level.WARN);
+            assertThat(riga.getFormattedMessage()).contains("ADMIN_PASSWORD");
+        });
     }
 
     /** L'unico utente salvato dal seeder */
