@@ -14,6 +14,7 @@ import org.springframework.boot.test.context.assertj.AssertableApplicationContex
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -34,7 +35,13 @@ class JwtPropertiesTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
             .withUserConfiguration(Config.class)
-            .withBean(org.springframework.validation.beanvalidation.LocalValidatorFactoryBean.class);
+            .withBean(LocalValidatorFactoryBean.class);
+
+    // Il vero JWTtools porta con sé @EnableConfigurationProperties(JwtProperties.class): senza nessun'altra configurazione
+    // un secret non valido gli impedisce di partire, come al server intero
+    private final ApplicationContextRunner runnerConJwtTools = new ApplicationContextRunner()
+            .withUserConfiguration(JWTtools.class)
+            .withBean(LocalValidatorFactoryBean.class);
 
     // Un contesto che non parte scrive un WARN con tutta l'eccezione: qui è il risultato voluto, quindi si alza la
     // soglia del suo logger per non riempire l'output della build di avvisi
@@ -131,12 +138,6 @@ class JwtPropertiesTest {
         runner.withPropertyValues("jwt.secret=" + SECRET_VALIDO, "jwt.durata-minuti=" + minuti)
                 .run(JwtPropertiesTest::assertRifiutato);
     }
-
-    // Il vero JWTtools porta con sé @EnableConfigurationProperties(JwtProperties.class): senza nessun'altra configurazione
-    // un secret non valido gli impedisce di partire, come al server intero
-    private final ApplicationContextRunner runnerConJwtTools = new ApplicationContextRunner()
-            .withUserConfiguration(JWTtools.class)
-            .withBean(org.springframework.validation.beanvalidation.LocalValidatorFactoryBean.class);
 
     @Test
     void jwtTools_conSecretValido_parte() {
