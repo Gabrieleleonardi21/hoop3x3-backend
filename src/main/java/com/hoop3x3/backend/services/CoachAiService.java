@@ -2,9 +2,11 @@ package com.hoop3x3.backend.services;
 
 import com.hoop3x3.backend.dto.CoachChatRequestDTO;
 import com.hoop3x3.backend.exceptions.UpstreamException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
@@ -12,6 +14,9 @@ import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
+
+import java.net.http.HttpClient;
+import java.time.Duration;
 
 /**
  * Proxy verso Groq per il Coach AI: la chiave resta sul server e non arriva mai al browser.
@@ -22,6 +27,8 @@ import tools.jackson.databind.node.ObjectNode;
 public class CoachAiService {
 
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+    private static final Duration TIMEOUT_CONNESSIONE = Duration.ofSeconds(5);
+    private static final Duration TIMEOUT_RISPOSTA = Duration.ofSeconds(60);
 
     @Value("${groq.api.key:}")
     private String apiKey;
@@ -31,10 +38,23 @@ public class CoachAiService {
     private String model;
 
     private final ObjectMapper mapper;
-    private final RestClient http = RestClient.create();
+    private final String url;
+    private final RestClient http;
 
+    @Autowired // con due costruttori Spring deve sapere quale usare
     public CoachAiService(ObjectMapper mapper) {
+        this(mapper, GROQ_URL, TIMEOUT_CONNESSIONE, TIMEOUT_RISPOSTA);
+    }
+
+    /** Per i test: Groq finto su un indirizzo locale e timeout brevi, per non aspettare 60 secondi */
+    CoachAiService(ObjectMapper mapper, String url, Duration timeoutConnessione, Duration timeoutRisposta) {
         this.mapper = mapper;
+        this.url = url;
+        // Senza timeout una risposta lenta di Groq terrebbe occupato un thread del server a tempo indeterminato
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
+                HttpClient.newBuilder().connectTimeout(timeoutConnessione).build());
+        factory.setReadTimeout(timeoutRisposta);
+        this.http = RestClient.builder().requestFactory(factory).build();
     }
 
     public boolean isConfigurato() {
@@ -58,7 +78,7 @@ public class CoachAiService {
         }
         try {
             String risposta = http.post()
-                    .uri(GROQ_URL)
+                    .uri(url)
                     .header("Authorization", "Bearer " + apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body.toString())
