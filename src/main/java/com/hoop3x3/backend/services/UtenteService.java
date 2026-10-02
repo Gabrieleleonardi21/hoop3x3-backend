@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class UtenteService implements UserDetailsService {
@@ -56,8 +57,12 @@ public class UtenteService implements UserDetailsService {
         return utenteRepository.findAll();
     }
 
-    /** Email sempre minuscola e senza spazi: evita doppioni tipo "Mario@x.it" / "mario@x.it" */
+    /**
+     * Email sempre minuscola e senza spazi: evita doppioni tipo "Mario@x.it" / "mario@x.it".
+     * Locale.ROOT: senza, con la lingua del server impostata sul turco la «I» diventerebbe «ı» e la stessa email
+     * si salverebbe in modo diverso a seconda della macchina.
+     */
     public static String normalizza(String email) {
-        return email.trim().toLowerCase();
+        return email.trim().toLowerCase(Locale.ROOT);
     }
 }

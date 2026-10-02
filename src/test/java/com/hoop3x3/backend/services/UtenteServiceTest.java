@@ -9,6 +9,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.Locale;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,5 +53,19 @@ class UtenteServiceTest {
         Utente utente = service.register(new RegisterRequestDTO("Mario", "mario@x.it", password));
 
         assertThat(utente.getPassword()).isEqualTo("hash");
+    }
+
+    // In turco la «I» maiuscola diventa «ı» (senza puntino): con toLowerCase() senza Locale la stessa email si
+    // normalizzerebbe in modo diverso a seconda della lingua della macchina su cui gira il server
+    @Test
+    void normalizzaNonDipendeDallaLinguaDellaMacchina() {
+        Locale linguaIniziale = Locale.getDefault();
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
+
+            assertThat(UtenteService.normalizza("  INFO@Hoop3x3.IT ")).isEqualTo("info@hoop3x3.it");
+        } finally {
+            Locale.setDefault(linguaIniziale); // la lingua è dell'intera JVM: si rimette com'era per gli altri test
+        }
     }
 }
