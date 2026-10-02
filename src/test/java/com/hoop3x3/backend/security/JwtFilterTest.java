@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -19,6 +20,7 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
@@ -55,7 +57,8 @@ class JwtFilterTest {
         verifyNoInteractions(resolver);
     }
 
-    // Token con la firma valida ma il subject mancante o non UUID: 401, e la richiesta non prosegue
+    // Token con la firma valida ma il subject mancante o non UUID: 401 con lo stesso messaggio di JWTtools per ogni token
+    // non valido, e la richiesta non prosegue
     @ParameterizedTest
     @NullSource
     @ValueSource(strings = {"", "non-un-uuid"})
@@ -66,7 +69,9 @@ class JwtFilterTest {
 
         filtro.doFilter(richiesta, new MockHttpServletResponse(), catena);
 
-        verify(resolver).resolveException(eq(richiesta), any(), isNull(), isA(UnauthorizedException.class));
+        ArgumentCaptor<Exception> errore = ArgumentCaptor.forClass(Exception.class);
+        verify(resolver).resolveException(eq(richiesta), any(), isNull(), errore.capture());
+        assertThat(errore.getValue()).isInstanceOf(UnauthorizedException.class).hasMessage(JWTtools.TOKEN_NON_VALIDO);
         verifyNoInteractions(catena);
     }
 

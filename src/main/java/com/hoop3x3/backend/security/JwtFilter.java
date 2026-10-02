@@ -27,8 +27,6 @@ import java.util.UUID;
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
-    private static final String TOKEN_NON_VALIDO = "Sessione scaduta o token non valido: accedi di nuovo";
-
     private final JWTtools jwtTools;
     private final UtenteRepository utenteRepository;
     private final HandlerExceptionResolver exceptionResolver;
@@ -70,7 +68,7 @@ public class JwtFilter extends OncePerRequestFilter {
         try {
             utenteId = UUID.fromString(claims.getSubject());
         } catch (IllegalArgumentException | NullPointerException _) {
-            throw new UnauthorizedException(TOKEN_NON_VALIDO);
+            throw new UnauthorizedException(JWTtools.TOKEN_NON_VALIDO);
         }
         return utenteRepository.findById(utenteId)
                 .orElseThrow(() -> new UnauthorizedException("L'utente associato al token non esiste più"));
