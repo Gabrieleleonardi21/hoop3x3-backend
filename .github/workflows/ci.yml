@@ -1,0 +1,39 @@
+# Integrazione continua del backend: compilazione e test su Java 25, compresi i test di integrazione con PostgreSQL.
+# Gira a ogni push su main e a ogni pull request, anche quelle che puntano a un altro ramo (pull request in serie).
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      # Database di prova dei test di integrazione (profilo «test»): il nome deve contenere «test»
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: hoop3x3_test
+          POSTGRES_USER: hoop
+          POSTGRES_PASSWORD: hoop
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hoop -d hoop3x3_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+          cache: maven
+      - run: ./mvnw -B verify -Pintegrazione
+        env:
+          TEST_DB_URL: jdbc:postgresql://localhost:5432/hoop3x3_test
+          TEST_DB_USERNAME: hoop
+          TEST_DB_PASSWORD: hoop

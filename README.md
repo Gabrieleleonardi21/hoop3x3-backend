@@ -1,6 +1,6 @@
 # Hoop 3x3 — Backend
 
-API REST del gestionale [Hoop 3x3](https://github.com/Gabrieleleonardi21/Hoops-3x3): Spring Boot 4 (Java 17+), Spring Security + JWT, JPA/Hibernate, PostgreSQL. Porta `3001`.
+API REST del gestionale [Hoop 3x3](https://github.com/Gabrieleleonardi21/Hoops-3x3): Spring Boot 4 (Java 25), Spring Security + JWT, JPA/Hibernate, PostgreSQL. Porta `3001`.
 
 ## Avvio
 
@@ -21,10 +21,15 @@ psql -d hoop3x3 -f db/schema.sql
 **3. Server**
 
 ```bash
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
 Il frontend in sviluppo inoltra `/api` verso `http://localhost:3001` tramite il proxy di Vite.
+
+## Test
+
+- `./mvnw test`: test senza database (web con MockMvc, servizi con Mockito).
+- `./mvnw verify -Pintegrazione`: anche i test di integrazione con PostgreSQL (classi `*IT`). Usano il database di prova `hoop3x3_test` sul PostgreSQL locale, da creare una volta con `createdb hoop3x3_test`: all'avvio dei test lo schema lo crea `db/schema.sql` e prima di ogni test le tabelle vengono svuotate. Per un altro database c'è `TEST_DB_URL`, con `TEST_DB_USERNAME` e `TEST_DB_PASSWORD`; altrimenti valgono `DB_USERNAME` e `DB_PASSWORD` di `env.properties`. Le variabili `SPRING_DATASOURCE_*` non hanno effetto sui test di integrazione. Lo script che svuota le tabelle si rifiuta di girare su un database il cui nome non contiene «test».
 
 ## Coach AI
 
