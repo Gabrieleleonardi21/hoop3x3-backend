@@ -19,6 +19,7 @@ import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.LegaService;
 import com.hoop3x3.backend.services.RefreshTokenService;
 import com.hoop3x3.backend.services.UtenteService;
+import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -42,7 +43,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -156,9 +159,14 @@ class ValidazioneWebTest {
 
     /** 400 con il nome del campo nel messaggio, e nessun servizio (quindi nessun database) chiamato */
     private void rifiutata(HttpMethod metodo, String url, Object corpo, String campo) throws Exception {
+        rifiutataConMessaggio(metodo, url, corpo, containsString(campo + ":"));
+    }
+
+    /** Come rifiutata, ma il messaggio d'errore deve soddisfare `messaggio` */
+    private void rifiutataConMessaggio(HttpMethod metodo, String url, Object corpo, Matcher<String> messaggio) throws Exception {
         invia(metodo, url, corpo)
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString(campo + ":")))
+                .andExpect(jsonPath("$.message", messaggio))
                 .andExpect(jsonPath("$.timestamp").exists());
         verifyNoInteractions(legaService, anagrafeService, archivioService, authenticationManager, refreshTokenService, utenteRepository);
     }
@@ -332,5 +340,42 @@ class ValidazioneWebTest {
         s.put("roster", idDiversi(12));
 
         accettata(POST, "/api/anagrafe/squadre", s);
+    }
+
+    /* ── Password: messaggi separati per minimo e massimo; i byte li controlla UtenteService.register ── */
+
+    @Test
+    void passwordDi7Caratteri_risponde400ConIlMessaggioDelMinimo() throws Exception {
+        Map<String, Object> r = registrazione("mario@x.it");
+        r.put("password", "x".repeat(7));
+
+        rifiutataConMessaggio(POST, "/api/auth/register", r,
+                allOf(containsString("password:"), containsString("almeno 8 caratteri"), not(containsString("al massimo"))));
+    }
+
+    @Test
+    void passwordDi73Caratteri_risponde400ConIlMessaggioDelMassimo() throws Exception {
+        Map<String, Object> r = registrazione("mario@x.it");
+        r.put("password", "x".repeat(73));
+
+        rifiutataConMessaggio(POST, "/api/auth/register", r,
+                allOf(containsString("password:"), containsString("al massimo 72 caratteri"), not(containsString("almeno"))));
+    }
+
+    // 40 lettere accentate sono 40 caratteri per il DTO ma 80 byte per BCrypt: senza il controllo la registrazione dava 500
+    @Test
+    void passwordDi40LettereAccentate_risponde400ConIlMessaggioDeiByteSenzaArrivareAlDatabase() throws Exception {
+        Map<String, Object> r = registrazione("mario@x.it");
+        r.put("password", "è".repeat(40));
+
+        rifiutataConMessaggio(POST, "/api/auth/register", r, containsString("72 byte"));
+    }
+
+    @Test
+    void passwordDi72ByteEsatti_siAccetta() throws Exception {
+        Map<String, Object> r = registrazione("mario@x.it");
+        r.put("password", "è".repeat(36)); // 36 lettere accentate = 72 byte
+
+        accettata(POST, "/api/auth/register", r);
     }
 }
