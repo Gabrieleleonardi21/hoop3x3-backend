@@ -37,4 +37,10 @@ public record JwtProperties(
     public boolean isSecretPersonalizzato() {
         return !SECRET_DI_ESEMPIO.equals(secret);
     }
+
+    /** Il toString() automatico di un record scrive tutti i campi, secret compreso: chi stampa le proprietà non lo porta nei log */
+    @Override
+    public String toString() {
+        return "JwtProperties[durataMinuti=" + durataMinuti + "]";
+    }
 }

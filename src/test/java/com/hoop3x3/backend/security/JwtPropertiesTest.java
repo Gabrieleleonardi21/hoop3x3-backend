@@ -153,6 +153,15 @@ class JwtPropertiesTest {
         runnerConJwtTools.withPropertyValues("jwt.secret=" + secret).run(JwtPropertiesTest::assertRifiutato);
     }
 
+    // Il toString() automatico di un record scrive tutti i campi, secret compreso: chi stampa le proprietà (un log di
+    // debug, un messaggio d'errore) lo porterebbe nei log. Deve comparire solo la durata
+    @Test
+    void toString_nonScriveIlSecret() {
+        String testo = new JwtProperties(SECRET_VALIDO, 30).toString();
+
+        assertThat(testo).doesNotContain(SECRET_VALIDO).contains("30");
+    }
+
     /** Tutto quello che l'errore di avvio mostra: messaggi e cause (da qui Spring Boot ricava anche il suo report) */
     private static String testoDellErrore(AssertableApplicationContext ctx) {
         StringWriter errore = new StringWriter();
