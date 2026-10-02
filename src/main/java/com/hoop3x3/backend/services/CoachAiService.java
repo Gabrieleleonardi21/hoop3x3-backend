@@ -1,6 +1,7 @@
 package com.hoop3x3.backend.services;
 
 import com.hoop3x3.backend.dto.CoachChatRequestDTO;
+import com.hoop3x3.backend.exceptions.BadRequestException;
 import com.hoop3x3.backend.exceptions.UpstreamException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,11 +18,12 @@ import tools.jackson.databind.node.ObjectNode;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.Set;
 
 /**
  * Proxy verso Groq per il Coach AI: la chiave resta sul server e non arriva mai al browser.
- * Il corpo (messages + tools nel formato OpenAI) è inoltrato così com'è; modello e limite
- * di token li fissa il server.
+ * Il corpo (messages + tools nel formato OpenAI) è inoltrato dopo un controllo di forma e dimensione;
+ * modello e limite di token li fissa il server.
  */
 @Service
 public class CoachAiService {
@@ -29,6 +31,12 @@ public class CoachAiService {
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
     private static final Duration TIMEOUT_CONNESSIONE = Duration.ofSeconds(5);
     private static final Duration TIMEOUT_RISPOSTA = Duration.ofSeconds(60);
+    /* Limiti della richiesta: bastano largamente al Coach dell'app e impediscono l'uso come proxy generico */
+    private static final int MAX_MESSAGGI = 60;
+    private static final int MAX_CARATTERI_MESSAGGI = 100_000;
+    private static final int MAX_TOOL = 20;
+    private static final int MAX_CARATTERI_TOOL = 50_000;
+    private static final Set<String> RUOLI = Set.of("system", "user", "assistant", "tool");
 
     @Value("${groq.api.key:}")
     private String apiKey;
@@ -65,6 +73,7 @@ public class CoachAiService {
         if (!isConfigurato()) {
             throw new UpstreamException(HttpStatus.SERVICE_UNAVAILABLE, "Coach AI non configurato sul server (groq.api.key mancante)");
         }
+        valida(req);
         ObjectNode body = mapper.createObjectNode();
         body.put("model", model);
         // gpt-oss ragiona prima di rispondere e i token di reasoning contano nel budget:
@@ -72,7 +81,7 @@ public class CoachAiService {
         body.put("max_tokens", 1200);
         body.put("reasoning_effort", "low");
         body.set("messages", req.messages());
-        if (req.tools() != null && req.tools().isArray() && !req.tools().isEmpty()) {
+        if (req.tools() != null && !req.tools().isEmpty()) {
             body.set("tools", req.tools());
             body.put("tool_choice", "auto");
         }
@@ -92,6 +101,27 @@ public class CoachAiService {
             throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Errore del servizio AI: " + e.getStatusCode().value());
         } catch (ResourceAccessException _) {
             throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Servizio AI non raggiungibile");
+        }
+    }
+
+    /** Forma e dimensione di messages/tools: il proxy serve solo al Coach dell'app */
+    private void valida(CoachChatRequestDTO req) {
+        JsonNode messaggi = req.messages();
+        if (!messaggi.isArray() || messaggi.isEmpty() || messaggi.size() > MAX_MESSAGGI) {
+            throw new BadRequestException("messages deve essere un elenco da 1 a " + MAX_MESSAGGI + " messaggi");
+        }
+        for (JsonNode m : messaggi) {
+            if (!m.isObject() || !RUOLI.contains(m.path("role").asString(""))) {
+                throw new BadRequestException("Ogni messaggio deve avere un ruolo valido");
+            }
+        }
+        if (messaggi.toString().length() > MAX_CARATTERI_MESSAGGI) {
+            throw new BadRequestException("Conversazione troppo lunga: cancella la chat e riprova");
+        }
+        JsonNode tool = req.tools();
+        if (tool == null || tool.isNull()) return;
+        if (!tool.isArray() || tool.size() > MAX_TOOL || tool.toString().length() > MAX_CARATTERI_TOOL) {
+            throw new BadRequestException("tools deve essere un elenco di al massimo " + MAX_TOOL + " strumenti");
         }
     }
 }
