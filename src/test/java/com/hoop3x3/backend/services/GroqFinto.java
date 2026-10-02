@@ -70,6 +70,17 @@ final class GroqFinto implements AutoCloseable {
         comportamento = scambio -> aspetta();
     }
 
+    /** Da ora manda le intestazioni e l'inizio del corpo, poi tace: la risposta resta a metà */
+    void fermaLaRispostaAMeta() {
+        comportamento = scambio -> {
+            scambio.getResponseHeaders().set("Content-Type", "application/json");
+            scambio.sendResponseHeaders(200, 1000); // dichiara più byte di quanti ne manderà
+            scambio.getResponseBody().write("{\"choices\":".getBytes(UTF_8));
+            scambio.getResponseBody().flush();
+            aspetta();
+        };
+    }
+
     /** Fermo il thread del gestore: lo interrompe close(), a fine test */
     private static void aspetta() {
         try {

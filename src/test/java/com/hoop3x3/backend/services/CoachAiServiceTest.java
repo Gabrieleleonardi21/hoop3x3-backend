@@ -1,5 +1,10 @@
 package com.hoop3x3.backend.services;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.classic.spi.ThrowableProxyUtil;
+import ch.qos.logback.core.read.ListAppender;
 import com.hoop3x3.backend.dto.CoachChatRequestDTO;
 import com.hoop3x3.backend.exceptions.BadRequestException;
 import com.hoop3x3.backend.exceptions.UpstreamException;
@@ -10,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.JsonNode;
@@ -35,20 +41,33 @@ class CoachAiServiceTest {
     private static final String INIZIO_MESSAGGIO = "[{\"role\":\"user\",\"content\":\"";
     private static final String INIZIO_STRUMENTO = "[{\"type\":\"function\",\"description\":\"";
     private static final String FINE = "\"}]";
+    // Corpo di un errore di Groq: al client non deve arrivare, nei log sì
+    private static final String DETTAGLIO_DI_GROQ = "dettaglio interno di Groq";
+    private static final String CORPO_DI_ERRORE = "{\"error\":{\"message\":\"" + DETTAGLIO_DI_GROQ + "\"}}";
 
     private final ObjectMapper mapper = new ObjectMapper();
+    private final Logger logDelServizio = (Logger) LoggerFactory.getLogger(CoachAiService.class);
+    private final ListAppender<ILoggingEvent> logCatturato = new ListAppender<>();
     private GroqFinto groq;
     private CoachAiService service;
 
     @BeforeEach
     void conGroqFintoEChiaveConfigurata() throws IOException {
+        // Le righe di log del servizio si leggono dal test e non passano dalla console: l'output della build resta pulito
+        logCatturato.start();
+        logDelServizio.addAppender(logCatturato);
+        logDelServizio.setAdditive(false);
         groq = new GroqFinto();
         service = nuovoServizio(Duration.ofSeconds(5));
     }
 
     @AfterEach
-    void fermaGroqFinto() {
+    void fermaGroqFintoEControllaIlLog() {
         groq.close();
+        logDelServizio.detachAppender(logCatturato);
+        logDelServizio.setAdditive(true);
+        // Qualunque cosa sia successa nel test, la chiave non deve comparire in nessuna riga di log
+        assertThat(logCatturato.list).noneSatisfy(riga -> assertThat(testo(riga)).contains(CHIAVE));
     }
 
     /** Servizio puntato sempre a Groq finto, mai a quello vero; chiave e modello finti */
@@ -81,6 +100,12 @@ class CoachAiServiceTest {
         assertThat(groq.richieste()).hasSize(arrivateAGroq + 1);
     }
 
+    /** Una richiesta valida fallisce con un UpstreamException dello stato dato: l'eccezione serve a controllare il messaggio */
+    private AbstractThrowableAssert<?, ? extends Throwable> assertFallisceCon(HttpStatus stato) {
+        return assertThatThrownBy(() -> service.chat(richiesta(MESSAGGI_VALIDI, null)))
+                .isInstanceOfSatisfying(UpstreamException.class, e -> assertThat(e.getStatus()).isEqualTo(stato));
+    }
+
     /** Elenco JSON lungo esattamente `caratteri` caratteri: la cornice data, con in mezzo il riempimento di «x» */
     private static String lungo(String inizio, int caratteri) {
         return inizio + "x".repeat(caratteri - inizio.length() - FINE.length()) + FINE;
@@ -91,6 +116,18 @@ class CoachAiServiceTest {
         return "[" + String.join(",", Collections.nCopies(quanti, elemento)) + "]";
     }
 
+    /** L'unica riga di log scritta dal servizio, di livello WARN: messaggio ed eventuale catena di eccezioni, come testo */
+    private String unicaRigaDiLog() {
+        assertThat(logCatturato.list).singleElement().satisfies(riga -> assertThat(riga.getLevel()).isEqualTo(Level.WARN));
+        return testo(logCatturato.list.getFirst());
+    }
+
+    private static String testo(ILoggingEvent riga) {
+        String testo = riga.getFormattedMessage();
+        if (riga.getThrowableProxy() != null) testo += "\n" + ThrowableProxyUtil.asString(riga.getThrowableProxy());
+        return testo;
+    }
+
     /* ── Controlli sulla richiesta: nessuno di questi casi deve arrivare a Groq ── */
 
     @Test
@@ -99,6 +136,13 @@ class CoachAiServiceTest {
         assertThatThrownBy(() -> service.chat(richiesta(MESSAGGI_VALIDI, null)))
                 .isInstanceOfSatisfying(UpstreamException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
         assertThat(groq.richieste()).isEmpty();
+    }
+
+    @Test
+    void senzaChiave_lasciaUnaRigaDiLogConLaCausa() {
+        ReflectionTestUtils.setField(service, "apiKey", "");
+        assertFallisceCon(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(unicaRigaDiLog()).contains("groq.api.key");
     }
 
     @Test
@@ -213,15 +257,95 @@ class CoachAiServiceTest {
         assertThat(inviato.has("tool_choice")).isFalse();
     }
 
-    /* ── Timeout ── */
+    /* ── Errori di Groq: al client un messaggio nostro, stato e corpo nei log ── */
+
+    @Test
+    void groq429_alClientRisponde429() {
+        groq.rispondi(429, CORPO_DI_ERRORE);
+
+        assertFallisceCon(HttpStatus.TOO_MANY_REQUESTS)
+                .hasMessageContaining("Limite richieste")
+                .hasMessageNotContaining(DETTAGLIO_DI_GROQ);
+        assertThat(unicaRigaDiLog()).contains("429").contains(CORPO_DI_ERRORE);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {400, 413, 422})
+    void groqRifiutaLaRichiesta_alClientRisponde400(int stato) {
+        groq.rispondi(stato, CORPO_DI_ERRORE);
+
+        assertThatThrownBy(() -> service.chat(richiesta(MESSAGGI_VALIDI, null)))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("non valida")
+                .hasMessageNotContaining(DETTAGLIO_DI_GROQ);
+        assertThat(unicaRigaDiLog()).contains(String.valueOf(stato)).contains(CORPO_DI_ERRORE);
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {401, 403, 404, 500, 503})
+    void altriErroriDiGroq_alClientRisponde502ConMessaggioNeutro(int stato) {
+        // Con il 401 la chiave sul server è sbagliata: il client non lo deve sapere, ma nei log sì
+        groq.rispondi(stato, CORPO_DI_ERRORE);
+
+        assertFallisceCon(HttpStatus.BAD_GATEWAY)
+                .hasMessageContaining("non è disponibile")
+                .hasMessageNotContaining(DETTAGLIO_DI_GROQ)
+                .hasMessageNotContaining(String.valueOf(stato))
+                .hasMessageNotContaining(CHIAVE);
+        assertThat(unicaRigaDiLog()).contains(String.valueOf(stato)).contains(CORPO_DI_ERRORE);
+    }
+
+    @Test
+    void corpoDiErroreLungo_neiLogSiTroncaA500Caratteri() {
+        groq.rispondi(500, "a".repeat(500) + "#".repeat(100));
+
+        assertFallisceCon(HttpStatus.BAD_GATEWAY);
+        assertThat(unicaRigaDiLog()).contains("a".repeat(500) + "…").doesNotContain("#");
+    }
+
+    @Test
+    void groqNonRaggiungibile_risponde502_eLaCausaStaNeiLog() {
+        groq.close(); // la porta ora è chiusa: la connessione viene rifiutata
+
+        assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessageContaining("non raggiungibile");
+        assertThat(unicaRigaDiLog()).contains("ConnectException");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "<html><body>Bad gateway</body></html>",    // la pagina di errore di un proxy
+            "",                                         // nessun corpo
+            "   ",
+            "{\"choices\":[",                           // JSON a metà
+            "null", "[]", "42", "\"ok\""                // JSON valido ma non un oggetto
+    })
+    void rispostaCheNonEUnOggettoJson_risponde502_eIlCorpoStaNeiLog(String corpo) {
+        groq.rispondi(200, corpo);
+
+        assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessageContaining("risposta non valida");
+        assertThat(unicaRigaDiLog()).contains(corpo);
+    }
+
+    /* ── Timeout: Groq lento non tiene occupato il thread a tempo indeterminato ── */
 
     @Test
     @Timeout(10) // senza timeout la chiamata resterebbe appesa a tempo indeterminato e il test cadrebbe qui
     void groqCheNonRisponde_dopoIlTimeoutDiRisposta_risponde502() {
         groq.nonRispondeMai();
-        CoachAiService conTimeoutBreve = nuovoServizio(Duration.ofMillis(300));
+        service = nuovoServizio(Duration.ofMillis(300));
 
-        assertThatThrownBy(() -> conTimeoutBreve.chat(richiesta(MESSAGGI_VALIDI, null)))
-                .isInstanceOfSatisfying(UpstreamException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_GATEWAY));
+        assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessageContaining("non raggiungibile");
+        assertThat(unicaRigaDiLog()).contains("HttpTimeoutException");
+    }
+
+    @Test
+    @Timeout(10)
+    void rispostaCheSiFermaAMeta_dopoIlTimeout_risponde502_eLaCausaStaNeiLog() {
+        // Il timeout vale per tutta la risposta, corpo compreso: intestazioni subito, poi silenzio
+        groq.fermaLaRispostaAMeta();
+        service = nuovoServizio(Duration.ofMillis(300));
+
+        assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessageContaining("non raggiungibile");
+        assertThat(unicaRigaDiLog()).contains("IOException");
     }
 }
