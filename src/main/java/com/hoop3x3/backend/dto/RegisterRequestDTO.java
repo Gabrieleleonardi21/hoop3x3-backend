@@ -6,6 +6,6 @@ import jakarta.validation.constraints.Size;
 
 public record RegisterRequestDTO(
         @NotBlank @Size(min = 2, max = 80) String name,
-        @Email @NotBlank String email,
+        @Email @NotBlank @Size(max = 255) String email,
         @NotBlank @Size(min = 8, max = 72, message = "la password deve avere almeno 8 caratteri") String password
 ) {}

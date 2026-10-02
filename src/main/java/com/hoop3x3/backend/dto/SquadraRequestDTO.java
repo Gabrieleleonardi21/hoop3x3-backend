@@ -16,6 +16,6 @@ public record SquadraRequestDTO(
         @Size(max = 500) String logo,
         @Size(max = 500) String website,
         @Size(max = 500) String instagram,
-        String note,
+        @Size(max = 2000) String note, // colonna TEXT: il tetto è dell'API, perché una nota non pesi megabyte
         List<UUID> roster
 ) {}
