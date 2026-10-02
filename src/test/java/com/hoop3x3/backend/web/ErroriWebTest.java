@@ -178,6 +178,23 @@ class ErroriWebTest {
     }
 
     @Test
+    void percorsoInesistente_risponde404ConCorpoStandard() throws Exception {
+        mvc.perform(get("/api/non-esiste").header("Authorization", bearer))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Risorsa non trovata"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void corpoNonJson_risponde415ConCorpoStandard() throws Exception {
+        mvc.perform(post("/api/leghe").header("Authorization", bearer)
+                        .contentType(MediaType.TEXT_PLAIN).content("nome=Roma"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.message").value("Formato della richiesta non supportato"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
     void corpoNonValido_risponde400ConIlCampo() throws Exception {
         mvc.perform(post("/api/leghe").header("Authorization", bearer)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"\"}"))
