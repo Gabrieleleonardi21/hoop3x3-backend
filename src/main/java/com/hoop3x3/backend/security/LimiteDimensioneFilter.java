@@ -25,6 +25,10 @@ import java.time.LocalDateTime;
  * Rifiuta con 413 le richieste con il corpo oltre 2 MB, prima che arrivino a Spring MVC: senza un tetto Jackson
  * leggerebbe in memoria qualsiasi corpo, anche da centinaia di megabyte, e il login e la registrazione sono pubblici.
  * <p>
+ * Il tetto regge solo perché il FormContentFilter di Spring Boot è spento (spring.mvc.formcontent.filter.enabled=false
+ * in application.properties): girerebbe prima della sicurezza e di questo filtro e leggerebbe per intero, senza tetto,
+ * i corpi form di PUT, PATCH e DELETE. LimiteDimensioneIT lo prova su un server vero.
+ * <p>
  * Non ha {@code @Order}: gira dopo la catena di Spring Security, quindi il 413 porta gli header CORS e una richiesta
  * senza token su un endpoint protetto riceve il 401 senza che il suo corpo venga letto.
  * <p>
