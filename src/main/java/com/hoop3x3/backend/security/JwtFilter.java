@@ -27,6 +27,8 @@ import java.util.UUID;
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
+    private static final String TOKEN_NON_VALIDO = "Sessione scaduta o token non valido: accedi di nuovo";
+
     private final JWTtools jwtTools;
     private final UtenteRepository utenteRepository;
     private final HandlerExceptionResolver exceptionResolver;
@@ -46,18 +48,30 @@ public class JwtFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
+        Utente utente;
         try {
-            Claims claims = jwtTools.verifyToken(header.substring(7));
-            UUID utenteId = UUID.fromString(claims.getSubject());
-            Utente utente = utenteRepository.findById(utenteId)
-                    .orElseThrow(() -> new UnauthorizedException("L'utente associato al token non esiste più"));
-
-            SecurityContextHolder.getContext().setAuthentication(
-                    new UsernamePasswordAuthenticationToken(utente, null, utente.getAuthorities()));
-            chain.doFilter(request, response);
-        } catch (Exception e) {
-            // Il filtro è fuori dai controller: gira l'eccezione all'ExceptionsHandler per avere il solito corpo JSON
+            utente = utenteDelToken(header.substring(7));
+        } catch (UnauthorizedException e) {
+            // Solo gli errori di autenticazione si fermano qui: 401 con il solito corpo JSON
             exceptionResolver.resolveException(request, response, null, e);
+            return;
         }
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(utente, null, utente.getAuthorities()));
+        // Fuori dal try: un errore a valle (controller, service, database) segue il percorso normale degli errori
+        chain.doFilter(request, response);
+    }
+
+    /** Token valido → utente; qualsiasi problema del token diventa UnauthorizedException (401) */
+    private Utente utenteDelToken(String token) {
+        Claims claims = jwtTools.verifyToken(token);
+        UUID utenteId;
+        try {
+            utenteId = UUID.fromString(claims.getSubject());
+        } catch (IllegalArgumentException | NullPointerException _) {
+            throw new UnauthorizedException(TOKEN_NON_VALIDO);
+        }
+        return utenteRepository.findById(utenteId)
+                .orElseThrow(() -> new UnauthorizedException("L'utente associato al token non esiste più"));
     }
 }
