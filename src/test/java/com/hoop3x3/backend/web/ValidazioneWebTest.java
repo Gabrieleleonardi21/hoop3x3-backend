@@ -35,6 +35,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,6 +101,10 @@ class ValidazioneWebTest {
         return t;
     }
 
+    private static Map<String, Object> nuovaLega() {
+        return new LinkedHashMap<>(Map.of("nome", "Circuito 2026"));
+    }
+
     private static Map<String, Object> giocatore() {
         return new LinkedHashMap<>(Map.of("nome", "Mario", "cognome", "Rossi"));
     }
@@ -117,6 +123,18 @@ class ValidazioneWebTest {
 
     private static Map<String, Object> registrazione(String email) {
         return new LinkedHashMap<>(Map.of("name", "Mario", "email", email, "password", "password-valida"));
+    }
+
+    private static List<Map<String, Object>> tappeDiverse(int quante) {
+        List<Map<String, Object>> tappe = new ArrayList<>();
+        for (int i = 0; i < quante; i++) tappe.add(tappa()); // ogni tappa ha un id casuale diverso
+        return tappe;
+    }
+
+    private static List<UUID> idDiversi(int quanti) {
+        List<UUID> ids = new ArrayList<>();
+        for (int i = 0; i < quanti; i++) ids.add(UUID.randomUUID());
+        return ids;
     }
 
     private static String urlNuovaTappa() {
@@ -243,5 +261,76 @@ class ValidazioneWebTest {
         // Con 255 caratteri l'email è ancora valida: il 400 dei 256 dipende solo dalla lunghezza
         accettata(POST, "/api/auth/login", accesso(emailDi(255)));
         accettata(POST, "/api/auth/register", registrazione(emailDi(255)));
+    }
+
+    /* ── Liste: elementi non nulli, lunghezza massima e id di tappa unici ── */
+
+    @Test
+    void importConTappaNull_risponde400ConIlCampo() throws Exception {
+        Map<String, Object> lega = nuovaLega();
+        lega.put("tappe", Collections.singletonList(null)); // tappe: [null]
+
+        rifiutata(POST, "/api/leghe", lega, "tappe[0]");
+    }
+
+    @Test
+    void importConTappaNonValida_nominaIlPercorsoDelCampo() throws Exception {
+        Map<String, Object> tappaTroppoLunga = tappa();
+        tappaTroppoLunga.put("nome", "x".repeat(121));
+        Map<String, Object> lega = nuovaLega();
+        lega.put("tappe", List.of(tappaTroppoLunga));
+
+        rifiutata(POST, "/api/leghe", lega, "tappe[0].nome");
+    }
+
+    @Test
+    void importConPiuDi100Tappe_risponde400ConIlCampo() throws Exception {
+        Map<String, Object> lega = nuovaLega();
+        lega.put("tappe", tappeDiverse(101));
+
+        rifiutata(POST, "/api/leghe", lega, "tappe");
+    }
+
+    @Test
+    void importConIdDiTappaDuplicati_risponde400() throws Exception {
+        Map<String, Object> prima = tappa();
+        Map<String, Object> seconda = tappa();
+        seconda.put("id", prima.get("id")); // stesso id nello stesso import
+        Map<String, Object> lega = nuovaLega();
+        lega.put("tappe", List.of(prima, seconda));
+
+        rifiutata(POST, "/api/leghe", lega, "tappeConIdUnici");
+    }
+
+    @Test
+    void importAlLimiteDelleListe_siAccetta() throws Exception {
+        Map<String, Object> lega = nuovaLega();
+        lega.put("tappe", tappeDiverse(100));
+
+        accettata(POST, "/api/leghe", lega);
+    }
+
+    @Test
+    void rosterConGiocatoreNull_risponde400ConIlCampo() throws Exception {
+        Map<String, Object> s = squadra();
+        s.put("roster", Collections.singletonList(null)); // roster: [null]
+
+        rifiutata(POST, "/api/anagrafe/squadre", s, "roster[0]");
+    }
+
+    @Test
+    void rosterDi13Giocatori_risponde400ConIlCampo() throws Exception {
+        Map<String, Object> s = squadra();
+        s.put("roster", idDiversi(13));
+
+        rifiutata(POST, "/api/anagrafe/squadre", s, "roster");
+    }
+
+    @Test
+    void rosterDi12Giocatori_siAccetta() throws Exception {
+        Map<String, Object> s = squadra();
+        s.put("roster", idDiversi(12));
+
+        accettata(POST, "/api/anagrafe/squadre", s);
     }
 }
