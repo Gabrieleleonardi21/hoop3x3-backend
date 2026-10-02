@@ -44,6 +44,10 @@ class CoachAiServiceTest {
     // Corpo di un errore di Groq: al client non deve arrivare, nei log sì
     private static final String DETTAGLIO_DI_GROQ = "dettaglio interno di Groq";
     private static final String CORPO_DI_ERRORE = "{\"error\":{\"message\":\"" + DETTAGLIO_DI_GROQ + "\"}}";
+    // Timeout di risposta del servizio nei due test dei timeout. Lascia alle intestazioni di Groq finto il tempo di arrivare
+    // anche su una CI lenta: con 300 ms il test della risposta a metà vedeva a volte scadere il timeout delle intestazioni
+    // (HttpTimeoutException) invece di quello del corpo (IOException). 1 s basta e costa al più 1 s per test
+    private static final Duration TIMEOUT_BREVE = Duration.ofSeconds(1);
 
     private final ObjectMapper mapper = new ObjectMapper();
     private final Logger logDelServizio = (Logger) LoggerFactory.getLogger(CoachAiService.class);
@@ -333,7 +337,7 @@ class CoachAiServiceTest {
     @Timeout(10) // senza timeout la chiamata resterebbe appesa a tempo indeterminato e il test cadrebbe qui
     void groqCheNonRisponde_dopoIlTimeoutDiRisposta_risponde502() {
         groq.nonRispondeMai();
-        service = nuovoServizio(Duration.ofMillis(300));
+        service = nuovoServizio(TIMEOUT_BREVE);
 
         assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessageContaining("non raggiungibile");
         assertThat(unicaRigaDiLog()).contains("HttpTimeoutException");
@@ -344,7 +348,7 @@ class CoachAiServiceTest {
     void rispostaCheSiFermaAMeta_dopoIlTimeout_risponde502_eLaCausaStaNeiLog() {
         // Il timeout vale per tutta la risposta, corpo compreso: intestazioni subito, poi silenzio
         groq.fermaLaRispostaAMeta();
-        service = nuovoServizio(Duration.ofMillis(300));
+        service = nuovoServizio(TIMEOUT_BREVE);
 
         assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessageContaining("non raggiungibile");
         assertThat(unicaRigaDiLog()).contains("IOException");
