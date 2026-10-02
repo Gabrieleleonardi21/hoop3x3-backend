@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
@@ -98,6 +99,18 @@ class ErroriWebTest {
         mvc.perform(get("/api/leghe").header("Authorization", bearer))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("L'utente associato al token non esiste più"));
+    }
+
+    @Test
+    void databaseNonRaggiungibileNelFiltro_risponde500ConCorpoStandard() throws Exception {
+        // Il filtro legge l'utente dal database prima del controller: l'errore nasce nel filtro, fuori da Spring MVC,
+        // e deve comunque passare dal gestore generico (corpo {message, timestamp} e riga ERROR nei log)
+        when(utenteRepository.findById(utenteId)).thenThrow(new DataAccessResourceFailureException("database non raggiungibile"));
+
+        mvc.perform(get("/api/leghe").header("Authorization", bearer))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value("Errore interno del server: riprova più tardi"))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test

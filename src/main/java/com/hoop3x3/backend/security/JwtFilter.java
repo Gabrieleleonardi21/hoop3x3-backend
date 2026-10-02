@@ -51,8 +51,9 @@ public class JwtFilter extends OncePerRequestFilter {
         Utente utente;
         try {
             utente = utenteDelToken(header.substring(7));
-        } catch (UnauthorizedException e) {
-            // Solo gli errori di autenticazione si fermano qui: 401 con il solito corpo JSON
+        } catch (RuntimeException e) {
+            // Si ferma qui solo ciò che accade nella verifica del token, mai un errore a valle: token non valido → 401,
+            // errore del database nella lettura dell'utente → 500, entrambi con il solito corpo JSON
             exceptionResolver.resolveException(request, response, null, e);
             return;
         }
