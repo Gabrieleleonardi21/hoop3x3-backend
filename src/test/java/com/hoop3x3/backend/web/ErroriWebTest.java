@@ -19,6 +19,8 @@ import com.hoop3x3.backend.services.UtenteService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -110,6 +112,16 @@ class ErroriWebTest {
     @Test
     void tokenAlterato_risponde401() throws Exception {
         mvc.perform(get("/api/leghe").header("Authorization", "Bearer abc.def.ghi"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Sessione scaduta o token non valido: accedi di nuovo"));
+    }
+
+    // «Authorization: Bearer » senza token, o con soli spazi: JJWT lancia IllegalArgumentException e non una JwtException,
+    // e la richiesta finiva in un 500 invece che in un 401
+    @ParameterizedTest
+    @ValueSource(strings = {"Bearer ", "Bearer    "})
+    void bearerSenzaToken_risponde401(String header) throws Exception {
+        mvc.perform(get("/api/leghe").header("Authorization", header))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Sessione scaduta o token non valido: accedi di nuovo"));
     }

@@ -21,6 +21,9 @@ import java.util.Date;
 @EnableConfigurationProperties(JwtProperties.class)
 public class JWTtools {
 
+    /** Messaggio del 401 per ogni token non valido (alterato, scaduto, malformato, vuoto): lo riusa anche JwtFilter */
+    static final String TOKEN_NON_VALIDO = "Sessione scaduta o token non valido: accedi di nuovo";
+
     private final SecretKey chiave;
     /** Durata del token in minuti: scaduto, il client lo rinnova con il refresh token */
     private final long durataMinuti;
@@ -41,12 +44,15 @@ public class JWTtools {
                 .compact();
     }
 
-    /** Verifica firma e scadenza (401 se alterato/scaduto/malformato) e restituisce le claims */
+    /** Verifica firma e scadenza (401 se alterato/scaduto/malformato/vuoto) e restituisce le claims */
     public Claims verifyToken(String accessToken) {
+        // Con un token nullo, vuoto o di soli spazi (per esempio da «Authorization: Bearer ») JJWT lancia
+        // IllegalArgumentException e non una JwtException: senza questo controllo la richiesta risponderebbe 500
+        if (accessToken == null || accessToken.isBlank()) throw new UnauthorizedException(TOKEN_NON_VALIDO);
         try {
             return Jwts.parser().verifyWith(chiave).build().parseSignedClaims(accessToken).getPayload();
         } catch (JwtException _) {
-            throw new UnauthorizedException("Sessione scaduta o token non valido: accedi di nuovo");
+            throw new UnauthorizedException(TOKEN_NON_VALIDO);
         }
     }
 }

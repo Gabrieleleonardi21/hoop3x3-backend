@@ -6,6 +6,9 @@ import com.hoop3x3.backend.exceptions.UnauthorizedException;
 import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
@@ -47,5 +50,16 @@ class JWTtoolsTest {
         String scaduto = jwtTools.generateToken(utente);
 
         assertThatThrownBy(() -> jwtTools.verifyToken(scaduto)).isInstanceOf(UnauthorizedException.class);
+    }
+
+    // Un token nullo, vuoto o di soli spazi (per esempio da «Authorization: Bearer »): JJWT lancia IllegalArgumentException
+    // e non una JwtException, quindi senza un controllo esplicito diventava un errore 500 invece di un 401
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"", " ", "   "})
+    void unTokenVuotoODiSoliSpaziVieneRespinto(String token) {
+        JWTtools jwtTools = new JWTtools(new JwtProperties(SEGRETO, 30));
+
+        assertThatThrownBy(() -> jwtTools.verifyToken(token)).isInstanceOf(UnauthorizedException.class);
     }
 }
