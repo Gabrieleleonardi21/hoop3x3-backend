@@ -83,6 +83,8 @@ class ValidazioneWebTest {
     @MockitoBean JWTtools jwtTools;
     @MockitoBean UtenteRepository utenteRepository;
 
+    private static final int TRE_MB = 3 * 1024 * 1024; // oltre il limite di 2 MB del filtro
+
     private final Utente mario = new Utente("mario@x.it", "hash", "Mario", Ruolo.USER);
 
     // Login e registrazione che riescono: servono ai casi «al limite», che devono superare la validazione ed entrare nel controller
@@ -393,10 +395,8 @@ class ValidazioneWebTest {
 
     /* ── Corpo oltre 2 MB: 413 dal filtro, prima di Spring MVC e del database ── */
 
-    // JSON valido da 3 MB: senza il filtro attraverserebbe la validazione e arriverebbe al servizio
-    private static final int TRE_MB = 3 * 1024 * 1024;
-
-    // Anche l'endpoint pubblico del login, senza token: è quello che chiunque può raggiungere
+    // L'endpoint pubblico del login, senza token: è quello che chiunque può raggiungere. Il JSON è valido: senza il filtro
+    // attraverserebbe la validazione e arriverebbe al servizio
     @Test
     void corpoDi3MbSuUnEndpointPubblico_risponde413ConIlCorpoStandard() throws Exception {
         Map<String, Object> accessoConPasswordEnorme = accesso("mario@x.it");
