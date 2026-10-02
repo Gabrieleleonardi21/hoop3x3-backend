@@ -124,4 +124,31 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Test di integrazione con PostgreSQL (classi *IT): ./mvnw verify -Pintegrazione.
+             Usano il database di prova del profilo «test» (src/test/resources/application-test.properties) -->
+        <profile>
+            <id>integrazione</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <configuration>
+                            <argLine>-javaagent:${org.mockito:mockito-core:jar}</argLine>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
