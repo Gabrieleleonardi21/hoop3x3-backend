@@ -1,6 +1,6 @@
 # Hoop 3x3 — Backend
 
-API REST del gestionale [Hoop 3x3](https://github.com/Gabrieleleonardi21/Hoops-3x3): Spring Boot 4 (Java 17+), Spring Security + JWT, JPA/Hibernate, PostgreSQL. Porta `3001`.
+API REST del gestionale [Hoop 3x3](https://github.com/Gabrieleleonardi21/Hoops-3x3): Spring Boot 4 (Java 25), Spring Security + JWT, JPA/Hibernate, PostgreSQL. Porta `3001`.
 
 ## Avvio
 
@@ -21,7 +21,7 @@ psql -d hoop3x3 -f db/schema.sql
 **3. Server**
 
 ```bash
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
 Il frontend in sviluppo inoltra `/api` verso `http://localhost:3001` tramite il proxy di Vite.
