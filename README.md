@@ -47,7 +47,7 @@ Gli errori di Groq arrivano al client senza dettagli interni: 429 se Groq limita
 
 Il JWT di accesso dura poco e il client lo rinnova con un refresh token tenuto in un cookie httpOnly: chi torna dopo giorni non deve rifare il login, e il logout revoca il refresh token.
 
-- **JWT** — 30 minuti di default, da 5 a 1440 con `jwt.durata-minuti` (fuori da questo intervallo il server non parte: sotto i 5 minuti il client rinnoverebbe a ogni richiesta, perché rinnova in anticipo quando mancano meno di 2 minuti alla scadenza). Il client lo manda nell'header `Authorization: Bearer`; con il token vuoto, scaduto o alterato la risposta è 401.
+- **JWT** — 30 minuti di default, da 5 a 1440 con `jwt.durata-minuti` (fuori da questo intervallo il server non parte: con pochi minuti il client rinnoverebbe quasi a ogni richiesta, perché rinnova in anticipo quando mancano meno di 2 minuti alla scadenza). Il client lo manda nell'header `Authorization: Bearer`; con il token vuoto, scaduto o alterato la risposta è 401.
 - **Cookie** `hoop3x3_refresh` — `HttpOnly`, `SameSite=Lax`, `Path=/api/auth` (il browser lo rimanda solo agli endpoint di autenticazione), 30 giorni (`auth.refresh-giorni`). In produzione con HTTPS va impostato `AUTH_COOKIE_SECURE=true` in `env.properties` o come variabile d'ambiente (di default è `false`).
 - **Database** — la tabella `refresh_tokens` conserva solo l'hash SHA-256 del token, mai il token in chiaro.
 
@@ -79,6 +79,33 @@ Su origini diverse l'origine del frontend deve comunque stare in `CORS_ORIGINS`:
 - Il logout revoca il refresh token del browser da cui parte: un JWT già emesso resta valido fino alla sua scadenza (al massimo 30 minuti) e le sessioni aperte su altri dispositivi non vengono toccate.
 - Non c'è rilevamento del riuso di un refresh token già ruotato né un «esci da tutti i dispositivi»: chi ruba il cookie e lo usa per primo ottiene una sessione che si rinnova finché non scade o non viene revocata.
 - Il vecchio refresh token smette di valere appena il server lo ruota: se la risposta non arriva al browser (pagina chiusa o rete caduta durante il rinnovo), al rinnovo successivo si torna al login. Un periodo di grazia di qualche decina di secondi lo eviterebbe.
+
+## Limiti dell'API
+
+Una richiesta che sfora un limite risponde con un errore e non salva nulla.
+
+- **Richiesta** — al massimo 2 MB, anche senza `Content-Length`: oltre, 413. Dove l'API legge un corpo lo vuole in JSON: un altro tipo, per esempio un form, risponde 415.
+- **Blocchi JSON di una tappa** (`squadre`, `gironi`, `partite`, `bracket`, `video`) — al massimo 1 MB ciascuno, misurato in byte UTF-8. Vale quando la tappa si salva in una lega (creazione, import, aggiunta, modifica); la pubblicazione in archivio ha solo il tetto dei 2 MB della richiesta.
+- **Import di una lega** — al massimo 100 tappe, con id tutti diversi.
+- **Leghe e tappe** — nome della lega fino a 120 caratteri (anche quando si pubblica una tappa in archivio); nome della tappa fino a 120, luogo fino a 160, data nel formato `aaaa-mm-gg` oppure vuota.
+- **Anagrafe** — roster di una squadra fino a 12 giocatori; note di giocatori e squadre fino a 2000 caratteri.
+- **Account** — email fino a 255 caratteri; alla registrazione la password ha da 8 caratteri a 72 byte in UTF-8 (una lettera accentata ne occupa 2, un emoji 4).
+- **Coach AI** — da 1 a 60 messaggi per al massimo 100.000 caratteri, fino a 20 strumenti (50.000 caratteri): vedi la sezione Coach AI.
+
+**Errori** — ogni errore dell'applicazione ha lo stesso corpo JSON, `{message, timestamp}`: `message` è in italiano e senza dettagli interni (SQL e stack restano nei log), `timestamp` è la data e l'ora locali del server, senza fuso. Gli stati:
+
+- **400** — richiesta non valida: JSON malformato, campo oltre un limite o non valido, identificatore non valido nel percorso, richiesta al Coach AI rifiutata. Il messaggio dice che cosa non va, di solito con il nome del campo.
+- **401** — token mancante, scaduto o non valido; email o password sbagliate; refresh token assente, sconosciuto o scaduto.
+- **403** — ruolo insufficiente, oppure risorsa di un altro utente.
+- **404** — risorsa o percorso inesistente.
+- **405** — metodo non consentito per quell'indirizzo.
+- **409** — conflitto con dati già salvati (email già registrata, tappa con lo stesso id, vincolo del database), oppure sessione già rinnovata da un'altra richiesta.
+- **413** — richiesta oltre 2 MB.
+- **415** — corpo che non è JSON.
+- **429, 502, 503** — solo Coach AI: Groq limita le richieste (429), non risponde o risponde con un errore (502), la chiave manca sul server (503).
+- **500** — errore imprevisto, con un messaggio generico.
+
+Fanno eccezione le richieste respinte prima di Spring MVC, dal container o dal firewall di Spring Security (un indirizzo malformato: 400 con il corpo di Spring Boot `{timestamp, status, error, path}` oppure con la pagina di errore di Tomcat), e il 403 «Invalid CORS request», che è solo testo (vedi Deploy).
 
 ## Struttura
 
