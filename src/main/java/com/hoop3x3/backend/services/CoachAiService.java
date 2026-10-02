@@ -70,7 +70,7 @@ public class CoachAiService {
             if (e.getStatusCode().value() == 429) throw new UpstreamException(HttpStatus.TOO_MANY_REQUESTS, "Limite richieste Coach AI raggiunto, riprova tra poco");
             if (e.getStatusCode().value() == 401) throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Chiave Groq non valida sul server");
             throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Errore del servizio AI: " + e.getStatusCode().value());
-        } catch (ResourceAccessException e) {
+        } catch (ResourceAccessException _) {
             throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Servizio AI non raggiungibile");
         }
     }

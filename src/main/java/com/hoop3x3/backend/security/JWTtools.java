@@ -36,7 +36,7 @@ public class JWTtools {
     public Claims verifyToken(String accessToken) {
         try {
             return Jwts.parser().verifyWith(getSecretKey()).build().parseSignedClaims(accessToken).getPayload();
-        } catch (JwtException e) {
+        } catch (JwtException _) {
             throw new UnauthorizedException("Sessione scaduta o token non valido: accedi di nuovo");
         }
     }
