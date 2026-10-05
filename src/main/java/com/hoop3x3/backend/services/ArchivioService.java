@@ -1,12 +1,15 @@
 package com.hoop3x3.backend.services;
 
 import com.hoop3x3.backend.dto.PubTappaDTO;
-import com.hoop3x3.backend.dto.PubblicaTappaDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.ArchivioTappa;
+import com.hoop3x3.backend.entities.Lega;
+import com.hoop3x3.backend.entities.Tappa;
 import com.hoop3x3.backend.entities.Utente;
+import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.NotFoundException;
 import com.hoop3x3.backend.repositories.ArchivioTappaRepository;
+import com.hoop3x3.backend.repositories.TappaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -21,11 +24,16 @@ import java.util.UUID;
 public class ArchivioService {
 
     private final ArchivioTappaRepository repo;
+    private final TappaRepository tappe;
+    private final LegaService legaService;
     private final AccessGuard guard;
     private final ObjectMapper mapper;
 
-    public ArchivioService(ArchivioTappaRepository repo, AccessGuard guard, ObjectMapper mapper) {
+    public ArchivioService(ArchivioTappaRepository repo, TappaRepository tappe, LegaService legaService,
+                           AccessGuard guard, ObjectMapper mapper) {
         this.repo = repo;
+        this.tappe = tappe;
+        this.legaService = legaService;
         this.guard = guard;
         this.mapper = mapper;
     }
@@ -40,19 +48,27 @@ public class ArchivioService {
         return toDto(trova(tappaId));
     }
 
-    /** Upsert: la prima pubblicazione crea lo snapshot, le successive lo aggiornano (solo autore o ADMIN) */
+    /**
+     * Upsert: la prima pubblicazione crea lo snapshot, le successive lo aggiornano. Il client non manda niente: lo
+     * snapshot lo costruisce il server dalla tappa che ha salvato (la forma delle API delle tappe), quindi nessuno
+     * può pubblicare risultati inventati. Pubblica il proprietario della lega o un ADMIN, e solo una tappa conclusa.
+     * L'autore è sempre il proprietario della lega, anche quando pubblica un ADMIN o si ripubblica: così lui e gli
+     * ADMIN possono sempre ritirarla con {@link #rimuovi}.
+     */
     @Transactional
-    public PubTappaDTO pubblica(Utente utente, PubblicaTappaDTO dto) {
-        ArchivioTappa a = repo.findById(dto.tappa().id()).orElse(null);
-        if (a == null) {
-            a = new ArchivioTappa();
-            a.setTappaId(dto.tappa().id());
-            a.setAutore(utente);
-        } else {
-            guard.checkOwner(utente, a.getAutore().getId(), "questa pubblicazione");
+    public PubTappaDTO pubblica(Utente utente, UUID tappaId) {
+        Tappa tappa = tappe.findById(tappaId).orElseThrow(() -> new NotFoundException("Tappa non trovata: " + tappaId));
+        Lega lega = tappa.getLega();
+        // Il 403 viene prima del 409: chi non è il proprietario non deve poter scoprire se la tappa è conclusa
+        guard.checkOwner(utente, lega.getOwner().getId(), "questa tappa");
+        if (!tappa.isConclusa()) {
+            throw new ConflictException("La tappa non è conclusa: concludila prima di pubblicarla in archivio");
         }
-        a.setLegaNome(dto.lega().trim());
-        a.setContenuto(mapper.writeValueAsString(dto.tappa()));
+        ArchivioTappa a = repo.findById(tappaId).orElseGet(ArchivioTappa::new);
+        a.setTappaId(tappaId);
+        a.setAutore(lega.getOwner());
+        a.setLegaNome(lega.getNome());
+        a.setContenuto(mapper.writeValueAsString(legaService.toDto(tappa)));
         a.setPubblicatoIl(LocalDateTime.now());
         return toDto(repo.save(a));
     }

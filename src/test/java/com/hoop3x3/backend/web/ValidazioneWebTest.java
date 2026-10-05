@@ -51,12 +51,14 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.http.HttpMethod.PUT;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -122,10 +124,6 @@ class ValidazioneWebTest {
 
     private static Map<String, Object> squadra() {
         return new LinkedHashMap<>(Map.of("nome", "Roma 3x3"));
-    }
-
-    private static Map<String, Object> pubblicazione() {
-        return new LinkedHashMap<>(Map.of("tappa", tappa(), "lega", "Circuito 2026"));
     }
 
     private static Map<String, Object> accesso(String email) {
@@ -233,14 +231,6 @@ class ValidazioneWebTest {
     }
 
     @Test
-    void legaDiPubblicazioneDi121Caratteri_risponde400ConIlCampo() throws Exception {
-        Map<String, Object> p = pubblicazione();
-        p.put("lega", "x".repeat(121));
-
-        rifiutata(PUT, "/api/archivio", p, "lega");
-    }
-
-    @Test
     void notaDelGiocatoreDi2001Caratteri_risponde400ConIlCampo() throws Exception {
         Map<String, Object> g = giocatore();
         g.put("note", "x".repeat(2001));
@@ -267,7 +257,7 @@ class ValidazioneWebTest {
     }
 
     @Test
-    void notePubblicazioneEmailAlLimiteDelloSchema_siAccettano() throws Exception {
+    void noteEEmailAlLimiteDelloSchema_siAccettano() throws Exception {
         Map<String, Object> g = giocatore();
         g.put("note", "x".repeat(2000));
         accettata(POST, "/api/anagrafe/giocatori", g);
@@ -276,13 +266,34 @@ class ValidazioneWebTest {
         s.put("note", "x".repeat(2000));
         accettata(POST, "/api/anagrafe/squadre", s);
 
-        Map<String, Object> p = pubblicazione();
-        p.put("lega", "x".repeat(120));
-        accettata(PUT, "/api/archivio", p);
-
         // Con 255 caratteri l'email è ancora valida: il 400 dei 256 dipende solo dalla lunghezza
         accettata(POST, "/api/auth/login", accesso(emailDi(255)));
         accettata(POST, "/api/auth/register", registrazione(emailDi(255)));
+    }
+
+    /* ── Pubblicazione in archivio: il server non legge nessun corpo ── */
+
+    // La tappa la carica il server dal database: PUT /api/archivio/{tappaId} non ha corpo
+    @Test
+    void pubblicazioneSenzaCorpo_arrivaAlServizioConLIdDelPercorso() throws Exception {
+        UUID tappaId = UUID.randomUUID();
+
+        mvc.perform(put("/api/archivio/" + tappaId).with(user(mario))).andExpect(status().isOk());
+
+        verify(archivioService).pubblica(mario, tappaId);
+    }
+
+    // Un client vecchio manda ancora {tappa, lega}: il corpo si ignora, anche se non sarebbe valido (con il vecchio DTO
+    // sarebbe stato un 400). Non c'è niente da validare, perché il server non ci legge niente
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"tappa\":{\"nome\":\"\"},\"lega\":\"\"}", "{\"tappa\":null}", "{nome:", "non e JSON"})
+    void pubblicazioneConUnCorpoQualsiasi_ilCorpoSiIgnora(String corpo) throws Exception {
+        UUID tappaId = UUID.randomUUID();
+
+        mvc.perform(put("/api/archivio/" + tappaId).with(user(mario)).contentType(MediaType.APPLICATION_JSON).content(corpo))
+                .andExpect(status().isOk());
+
+        verify(archivioService).pubblica(mario, tappaId);
     }
 
     /* ── Liste: elementi non nulli, lunghezza massima e id di tappa unici ── */

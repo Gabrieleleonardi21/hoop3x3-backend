@@ -2,7 +2,7 @@ package com.hoop3x3.backend.runners;
 
 import com.hoop3x3.backend.entities.*;
 import com.hoop3x3.backend.repositories.*;
-import com.hoop3x3.backend.services.LegaService;
+import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.UtenteService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +17,6 @@ import tools.jackson.databind.node.ObjectNode;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -27,6 +26,7 @@ import java.util.UUID;
  * letti da resources/seed/estathe25.json. Attivo solo con SEED_DEMO=true e con l'admin configurato
  * (i dati vengono intestati a lui). Gli id corti del file ("p01", "s01", "t01") diventano UUID:
  * quelli delle tappe sono deterministici, così un secondo avvio riconosce i dati già inseriti.
+ * L'archivio lo riempie ArchivioService.pubblica, lo stesso metodo che usa l'app.
  */
 @Component
 @Order(2) // dopo DataSeeder: serve l'admin già creato
@@ -40,8 +40,7 @@ public class DemoSeeder implements CommandLineRunner {
     private final AnagrafeSquadraRepository squadre;
     private final LegaRepository leghe;
     private final TappaRepository tappe;
-    private final ArchivioTappaRepository archivio;
-    private final LegaService legaService;
+    private final ArchivioService archivioService;
     private final ObjectMapper mapper;
 
     @Value("${seed.demo:false}")
@@ -50,15 +49,14 @@ public class DemoSeeder implements CommandLineRunner {
     private String adminEmail;
 
     public DemoSeeder(UtenteRepository utenti, AnagrafeGiocatoreRepository giocatori, AnagrafeSquadraRepository squadre,
-                      LegaRepository leghe, TappaRepository tappe, ArchivioTappaRepository archivio,
-                      LegaService legaService, ObjectMapper mapper) {
+                      LegaRepository leghe, TappaRepository tappe, ArchivioService archivioService,
+                      ObjectMapper mapper) {
         this.utenti = utenti;
         this.giocatori = giocatori;
         this.squadre = squadre;
         this.leghe = leghe;
         this.tappe = tappe;
-        this.archivio = archivio;
-        this.legaService = legaService;
+        this.archivioService = archivioService;
         this.mapper = mapper;
     }
 
@@ -159,16 +157,14 @@ public class DemoSeeder implements CommandLineRunner {
         return leghe.save(lega);
     }
 
-    /** Snapshot pubblico di ogni tappa, come farebbe "Pubblica in archivio" dal frontend */
+    /**
+     * Pubblica ogni tappa come farebbe "Pubblica in archivio" dal frontend: con lo stesso metodo del servizio, quindi
+     * c'è un solo modo di costruire lo snapshot. Il seeder non ha un utente autenticato: pubblica l'admin, che della
+     * lega è il proprietario.
+     */
     private void pubblicaInArchivio(Utente admin, Lega lega) {
         for (Tappa t : lega.getTappe()) {
-            ArchivioTappa a = new ArchivioTappa();
-            a.setTappaId(t.getId());
-            a.setLegaNome(lega.getNome());
-            a.setAutore(admin);
-            a.setContenuto(mapper.writeValueAsString(legaService.toDto(t)));
-            a.setPubblicatoIl(LocalDateTime.now());
-            archivio.save(a);
+            archivioService.pubblica(admin, t.getId());
         }
     }
 

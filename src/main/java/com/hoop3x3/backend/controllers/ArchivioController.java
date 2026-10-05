@@ -1,12 +1,10 @@
 package com.hoop3x3.backend.controllers;
 
 import com.hoop3x3.backend.dto.PubTappaDTO;
-import com.hoop3x3.backend.dto.PubblicaTappaDTO;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.services.ArchivioService;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,10 +31,13 @@ public class ArchivioController {
         return archivioService.una(tappaId);
     }
 
-    /** Pubblica o ripubblica (upsert): la chiave è l'id della tappa nel corpo */
-    @PutMapping
-    public PubTappaDTO pubblica(@AuthenticationPrincipal Utente utente, @RequestBody @Validated PubblicaTappaDTO dto) {
-        return archivioService.pubblica(utente, dto);
+    /**
+     * Pubblica o ripubblica (upsert) la tappa del percorso. Nessun corpo: lo snapshot lo costruisce il server dai dati
+     * che ha salvato, e il corpo che un client vecchio manda ancora si ignora.
+     */
+    @PutMapping("/{tappaId}")
+    public PubTappaDTO pubblica(@AuthenticationPrincipal Utente utente, @PathVariable UUID tappaId) {
+        return archivioService.pubblica(utente, tappaId);
     }
 
     @DeleteMapping("/{tappaId}")
