@@ -316,6 +316,22 @@ class ArchivioIT {
             "{\"nome\": \"Vecchia\", \"squadre\": {\"s1\": \"Team Rome\"}}",
             "{\"nome\": \"Vecchia\", \"squadre\": \"nessuna\"}"})
     void unaPubblicazioneVecchiaConCampiMancantiONonValidi_stanellElencoConVuotiEZeroSquadre(String contenuto) throws Exception {
+        verificaLaVoceDellaPubblicazioneVecchia(contenuto, "Vecchia");
+    }
+
+    // Anche il nome può mancare: in un contenuto vuoto, o che non è nemmeno un oggetto. Il test sopra fissa il nome «Vecchia»,
+    // quindi la difesa del nome è provata qui: la voce ha il nome vuoto e il resto come sopra, e l'elenco non dà errore
+    @ParameterizedTest
+    @ValueSource(strings = {"{}", "[]"})
+    void unaPubblicazioneVecchiaSenzaNome_stanellElencoConNomeVuoto(String contenuto) throws Exception {
+        verificaLaVoceDellaPubblicazioneVecchia(contenuto, "");
+    }
+
+    /**
+     * Un archivio con una pubblicazione normale e una vecchia con questo contenuto: l'elenco le ha entrambe, e la voce della
+     * vecchia ha il nome atteso, luogo e data vuoti e 0 squadre
+     */
+    private void verificaLaVoceDellaPubblicazioneVecchia(String contenuto, String nomeAtteso) throws Exception {
         UUID buona = tappaConclusa(mario, "Circuito 2026");
         pubblica(buona, mario).andExpect(status().isOk());
         UUID vecchia = tappaConclusa(luigi, "Altro circuito");
@@ -325,8 +341,9 @@ class ArchivioIT {
 
         assertThat(elenco.size()).isEqualTo(2);
         assertThat(elenco).contains(mapper.readTree("""
-                {"tappaId": "%s", "nome": "Vecchia", "luogo": "", "data": "", "nSquadre": 0,
-                 "lega": "Nome vecchio", "autore": "Luigi", "ts": %d}""".formatted(vecchia, millis(riga.getPubblicatoIl()))));
+                {"tappaId": "%s", "nome": "%s", "luogo": "", "data": "", "nSquadre": 0,
+                 "lega": "Nome vecchio", "autore": "Luigi", "ts": %d}"""
+                .formatted(vecchia, nomeAtteso, millis(riga.getPubblicatoIl()))));
     }
 
     /* ── Pulizia: la pubblicazione segue la sua tappa (V2) ── */
