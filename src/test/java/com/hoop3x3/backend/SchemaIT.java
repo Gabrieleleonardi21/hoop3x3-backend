@@ -14,8 +14,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Il contesto completo parte contro il database di prova: lo schema di db/schema.sql combacia con le entity
- * (Hibernate gira con ddl-auto=validate) e le tabelle si svuotano prima di ogni test.
+ * Il contesto completo parte contro il database di prova: lo schema creato dalle migrazioni di Flyway combacia con le
+ * entity (Hibernate gira con ddl-auto=validate) e le tabelle si svuotano prima di ogni test.
  */
 @TestDiIntegrazione
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)

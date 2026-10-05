@@ -15,7 +15,7 @@ import java.util.UUID;
  * Tappa nello stesso formato del tipo `Tappa` del frontend, usata sia in ingresso
  * (POST/PUT) che in uscita. I blocchi di gioco viaggiano come JSON grezzo (JsonNode):
  * il server li valida come struttura (array/oggetto) e li salva in JSONB.
- * nome, luogo e data hanno i limiti delle colonne di `tappe` (db/schema.sql): oltre, il database rifiuterebbe la riga.
+ * nome, luogo e data hanno i limiti delle colonne di `tappe` (migrazioni in db/migration): oltre, il database rifiuterebbe la riga.
  */
 public record TappaDTO(
         @NotNull UUID id,
