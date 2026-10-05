@@ -37,7 +37,8 @@ class DemoSeederIT {
     @Autowired LegaService legaService;
     @Autowired ObjectMapper mapper;
 
-    // Il seeder è un bean condiviso con gli altri test di integrazione: i suoi campi tornano com'erano
+    // Il seeder è un bean condiviso con gli altri test di integrazione: lo si rimette come lo vuole il profilo di prova,
+    // spento (seed.demo=false e nessuna email dell'admin, vedi application-test.properties)
     @AfterEach
     void spegniIlSeeder() {
         ReflectionTestUtils.setField(seeder, "abilitato", false);

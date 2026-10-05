@@ -48,7 +48,7 @@ Lo schema cambia solo con le migrazioni di Flyway in `src/main/resources/db/migr
 - **Niente nome dello schema**: dentro una migrazione si scrive `tappe`, non `public.tappe`. `MigrazioniIT` esegue le migrazioni anche su schemi temporanei, e un nome con `public.` colpirebbe lo schema vero e farebbe fallire quei test.
 - **Tabella nuova**: il suo nome va aggiunto anche alla `TRUNCATE` di `src/test/resources/svuota.sql`, lo controlla `MigrazioniIT`. `flyway_schema_history`, lo storico di Flyway, non ci va mai.
 - `spring.flyway.baseline-on-migrate=true` (in `application.properties`) serve ai database creati a mano prima di Flyway: Flyway li segna come versione 1 invece di rifiutarli. Su un database che ha già lo storico non cambia nulla.
-- `MigrazioniIT` prova i due percorsi, database vuoto e database creato a mano prima di Flyway, su schemi temporanei e qualunque sia lo stato del database di prova: una V2 o una V3 nuova non richiede ritocchi a quei test.
+- `MigrazioniIT` prova i due percorsi, database vuoto e database creato a mano prima di Flyway, su schemi temporanei e qualunque sia lo stato del database di prova: una migrazione nuova (V3, V4…) non richiede ritocchi a quei test.
 
 ## Coach AI
 
