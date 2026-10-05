@@ -28,8 +28,8 @@ public interface ArchivioTappaRepository extends JpaRepository<ArchivioTappa, UU
      * pubblicazioni non si caricano come entity. SQL nativo perché gli operatori JSONB di PostgreSQL (-> e ->>) e
      * jsonb_array_length non fanno parte di JPQL.
      * Le pubblicazioni fatte con il vecchio endpoint hanno la tappa scelta dal client e possono avere forme strane: coalesce
-     * e CASE fanno di luogo e data mancanti dei vuoti, e di «squadre» che non è un array 0 squadre, invece di un errore
-     * che romperebbe l'elenco intero.
+     * e CASE fanno di nome, luogo e data mancanti dei vuoti, e di «squadre» che non è un array 0 squadre, invece di un
+     * errore che romperebbe l'elenco intero.
      */
     @Query(nativeQuery = true, value = """
             select a.tappa_id,
