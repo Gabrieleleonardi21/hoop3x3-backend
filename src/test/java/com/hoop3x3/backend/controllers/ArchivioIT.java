@@ -143,13 +143,7 @@ class ArchivioIT {
     @Test
     void laRipubblicazioneRiportaAlProprietarioLAutoreDiUnaPubblicazioneVecchia() throws Exception {
         UUID tappaId = tappaConclusa(mario, "Circuito 2026");
-        ArchivioTappa vecchia = new ArchivioTappa();
-        vecchia.setTappaId(tappaId);
-        vecchia.setLegaNome("Nome vecchio");
-        vecchia.setAutore(luigi);
-        vecchia.setContenuto("{}");
-        vecchia.setPubblicatoIl(LocalDateTime.now().minusDays(1));
-        archivio.save(vecchia);
+        pubblicazioneVecchia(tappaId, luigi);
 
         pubblica(tappaId, mario).andExpect(status().isOk())
                 .andExpect(jsonPath("$.autoreId").value(mario.getId().toString()))
@@ -195,6 +189,24 @@ class ArchivioIT {
                 .andExpect(jsonPath("$.message").value(containsString("questa tappa")));
 
         assertThat(archivio.count()).isZero();
+    }
+
+    // Il vecchio codice lasciava ripubblicare anche all'autore di una riga già in archivio, che poteva non essere il
+    // proprietario della lega (la prima pubblicazione la faceva chiunque). Ora conta solo la proprietà della lega: chi non
+    // è il proprietario né ADMIN riceve 403 anche se è l'autore della riga, e la riga resta com'è
+    @Test
+    void unAutoreDiPubblicazioneVecchiaCheNonEProprietario_risponde403ELaRigaResta() throws Exception {
+        UUID tappaId = tappaConclusa(mario, "Circuito 2026");
+        ArchivioTappa vecchia = pubblicazioneVecchia(tappaId, luigi);
+
+        pubblica(tappaId, luigi).andExpect(status().isForbidden());
+
+        // Stesso autore, stessa lega, stesso contenuto e stessa data di prima
+        ArchivioTappa dopo = archivio.findById(tappaId).orElseThrow();
+        assertThat(letta(tappaId).get("autoreId").asString()).isEqualTo(luigi.getId().toString());
+        assertThat(dopo.getLegaNome()).isEqualTo("Nome vecchio");
+        assertThat(mapper.readTree(dopo.getContenuto())).isEqualTo(mapper.readTree(vecchia.getContenuto()));
+        assertThat(dopo.getPubblicatoIl()).isEqualTo(vecchia.getPubblicatoIl());
     }
 
     // Chi non è il proprietario non deve poter scoprire se la tappa è conclusa: il 403 vince sul 409
@@ -296,6 +308,21 @@ class ArchivioIT {
         TappaDTO tappa = tappaDto("Tappa di Roma", true);
         lega(proprietario, nomeLega, tappa);
         return tappa.id();
+    }
+
+    /**
+     * Una pubblicazione come le faceva il vecchio endpoint: l'autore è chi l'aveva mandata, non per forza il proprietario,
+     * e il contenuto una tappa completa scelta dal client (qui con un altro nome, per riconoscerla)
+     */
+    private ArchivioTappa pubblicazioneVecchia(UUID tappaId, Utente autore) {
+        ArchivioTappa vecchia = new ArchivioTappa();
+        vecchia.setTappaId(tappaId);
+        vecchia.setLegaNome("Nome vecchio");
+        vecchia.setAutore(autore);
+        vecchia.setContenuto(mapper.writeValueAsString(tappaDto(tappaId, "Tappa vecchia", true)));
+        // Al secondo, senza frazioni: la colonna arrotonda al microsecondo e il confronto con la riga riletta non tornerebbe
+        vecchia.setPubblicatoIl(LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS));
+        return archivio.save(vecchia);
     }
 
     /* ── Richieste ── */
