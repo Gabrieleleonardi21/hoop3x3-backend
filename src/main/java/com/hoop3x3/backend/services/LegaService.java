@@ -82,9 +82,9 @@ public class LegaService {
         Lega lega = trovaLega(utente, legaId);
         if (tappaRepository.existsById(dto.id())) throw new ConflictException("Esiste già una tappa con id " + dto.id());
         // In coda: una posizione dopo la massima, non il numero delle tappe (dopo un'eliminazione sarebbe già di un'altra).
-        // Due richieste insieme nella stessa lega potrebbero prendere la stessa posizione, ma non succede: le fa solo il
-        // proprietario e la coda del frontend le manda una alla volta
-        Tappa t = fromDto(dto, lega, tappaRepository.prossimaPosizione(lega.getId()));
+        // Due richieste insieme nella stessa lega potrebbero prendere la stessa posizione, ma non succede: le fa chi
+        // gestisce la lega (il proprietario o un ADMIN) e la coda del frontend le manda una alla volta
+        Tappa t = fromDto(dto, lega, tappaRepository.prossimaPosizione(legaId));
         lega.getTappe().add(t);
         lega.touch();
         legaRepository.save(lega);
