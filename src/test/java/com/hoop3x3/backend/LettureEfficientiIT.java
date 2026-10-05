@@ -1,14 +1,21 @@
 package com.hoop3x3.backend;
 
+import com.hoop3x3.backend.dto.GiocatoreDTO;
 import com.hoop3x3.backend.dto.LegaMetaDTO;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
 import com.hoop3x3.backend.dto.PatchLegaDTO;
 import com.hoop3x3.backend.dto.RegoleDTO;
+import com.hoop3x3.backend.dto.SquadraDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
+import com.hoop3x3.backend.entities.AnagrafeGiocatore;
+import com.hoop3x3.backend.entities.AnagrafeSquadra;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Tappa;
 import com.hoop3x3.backend.entities.Utente;
+import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
+import com.hoop3x3.backend.repositories.AnagrafeSquadraRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
+import com.hoop3x3.backend.services.AnagrafeService;
 import com.hoop3x3.backend.services.LegaService;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
@@ -36,11 +43,14 @@ class LettureEfficientiIT {
 
     @Autowired EntityManagerFactory emf;
     @Autowired UtenteRepository utenti;
+    @Autowired AnagrafeGiocatoreRepository giocatori;
+    @Autowired AnagrafeSquadraRepository squadre;
+    @Autowired AnagrafeService anagrafeService;
     @Autowired LegaService legaService;
     @Autowired ObjectMapper mapper;
 
     private Statistics statistiche;
-    private int progressivo; // dà un nome o un'email diversi a ogni utente e a ogni lega di prova
+    private int progressivo; // dà un nome diverso a ogni lega, squadra e autore di prova
 
     // Le statistiche si accendono qui, solo per la durata del test: da proprietà (hibernate.generate_statistics) tutti i
     // test di integrazione stamperebbero «Session Metrics» a ogni sessione. Il contesto è condiviso con gli altri IT,
@@ -59,7 +69,7 @@ class LettureEfficientiIT {
     /* ── Indice delle leghe: una query che conta le tappe, senza caricarle (cinque colonne JSONB l'una) ── */
 
     @Test
-    void l_indiceDelleLegheSiLeggeConUnaQuery_ilNumeroNonCresceConLeLeghe() {
+    void indiceDelleLegheSiLeggeConUnaQuery_ilNumeroNonCresceConLeLeghe() {
         Utente mario = utente("Mario");
         aggiungiLeghe(mario, 1);
         long conUna = misura(() -> legaService.indice(mario)).query();
@@ -74,7 +84,7 @@ class LettureEfficientiIT {
     }
 
     @Test
-    void l_indiceHaLeLeghePropriePiuRecentiPerPrime_ognunaConIlNumeroDelleSueTappe() {
+    void indiceHaLeLeghePropriePiuRecentiPerPrime_ognunaConIlNumeroDelleSueTappe() {
         Utente mario = utente("Mario");
         Utente luigi = utente("Luigi");
         LegaMetaDTO senzaTappe = legaService.crea(mario, new NuovaLegaDTO("Senza tappe", null)); // una lega vuota c'è, con 0 tappe
@@ -105,6 +115,58 @@ class LettureEfficientiIT {
         assertThat(caricate(Tappa.class)).as("tappe caricate dalla rinomina").isZero();
     }
 
+    /* ── Anagrafe: squadre e giocatori in una query, con roster e autore insieme alle righe ── */
+
+    @Test
+    void leSquadreSiLeggonoConUnaQuery_ilNumeroNonCresceConLeSquadre() {
+        aggiungiSquadre(1);
+        long conUna = misura(anagrafeService::tutteSquadre).query();
+
+        aggiungiSquadre(4); // ognuna con un autore diverso e tre giocatori nel roster
+        var conCinque = misura(anagrafeService::tutteSquadre);
+
+        assertThat(conCinque.risultato()).hasSize(5);
+        assertThat(conCinque.query()).as("query dell'elenco con 5 squadre").isEqualTo(conUna);
+        assertThat(conCinque.query()).as("query dell'elenco delle squadre").isEqualTo(1);
+    }
+
+    // Caricare il roster insieme alle squadre non deve cambiare ciò che l'API restituisce: l'ordine dei giocatori è quello
+    // della posizione salvata (@OrderColumn), e una squadra senza giocatori resta nell'elenco
+    @Test
+    void leSquadreHannoAutoreERosterNellOrdineSalvato_ancheSenzaGiocatori() {
+        Utente mario = utente("Mario");
+        AnagrafeGiocatore rossi = giocatore(mario, "Rossi");
+        AnagrafeGiocatore bianchi = giocatore(mario, "Bianchi");
+        AnagrafeGiocatore verdi = giocatore(mario, "Verdi");
+        // Né l'ordine in cui i giocatori sono stati creati né quello alfabetico
+        AnagrafeSquadra lupi = squadra(mario, "Lupi", verdi, rossi, bianchi);
+        AnagrafeSquadra senzaGiocatori = squadra(mario, "Senza giocatori");
+
+        List<SquadraDTO> lette = anagrafeService.tutteSquadre();
+
+        assertThat(lette).extracting(SquadraDTO::id).containsExactly(senzaGiocatori.getId(), lupi.getId()); // la più recente prima
+        assertThat(lette.get(0).roster()).isEmpty();
+        assertThat(lette.get(1).roster()).containsExactly(verdi.getId(), rossi.getId(), bianchi.getId());
+        assertThat(lette).allSatisfy(squadra -> {
+            assertThat(squadra.autore()).isEqualTo("Mario");
+            assertThat(squadra.autoreId()).isEqualTo(mario.getId());
+        });
+    }
+
+    @Test
+    void iGiocatoriSiLeggonoConUnaQuery_ilNumeroNonCresceConIGiocatori() {
+        aggiungiGiocatori(1);
+        long conUno = misura(anagrafeService::tuttiGiocatori).query();
+
+        aggiungiGiocatori(4); // ognuno con un autore diverso
+        var conCinque = misura(anagrafeService::tuttiGiocatori);
+
+        assertThat(conCinque.risultato()).hasSize(5);
+        assertThat(conCinque.risultato()).extracting(GiocatoreDTO::autore).doesNotHaveDuplicates();
+        assertThat(conCinque.query()).as("query dell'elenco con 5 giocatori").isEqualTo(conUno);
+        assertThat(conCinque.query()).as("query dell'elenco dei giocatori").isEqualTo(1);
+    }
+
     /* ── Dati di prova ── */
 
     /** Aggiunge `quante` leghe a `proprietario`, ognuna con due tappe */
@@ -114,8 +176,42 @@ class LettureEfficientiIT {
         }
     }
 
+    /** Aggiunge `quante` squadre, ognuna di un autore nuovo con tre giocatori suoi nel roster */
+    private void aggiungiSquadre(int quante) {
+        for (int i = 0; i < quante; i++) {
+            Utente autore = utente("Autore " + (++progressivo));
+            squadra(autore, "Squadra " + progressivo, giocatore(autore, "Primo"), giocatore(autore, "Secondo"),
+                    giocatore(autore, "Terzo"));
+        }
+    }
+
+    /** Aggiunge `quanti` giocatori, ognuno di un autore nuovo */
+    private void aggiungiGiocatori(int quanti) {
+        for (int i = 0; i < quanti; i++) {
+            giocatore(utente("Autore " + (++progressivo)), "Cognome");
+        }
+    }
+
+    private AnagrafeGiocatore giocatore(Utente autore, String cognome) {
+        AnagrafeGiocatore g = new AnagrafeGiocatore();
+        g.setNome("Nome");
+        g.setCognome(cognome);
+        g.setAutore(autore);
+        return giocatori.save(g);
+    }
+
+    /** Una squadra con il roster nell'ordine indicato */
+    private AnagrafeSquadra squadra(Utente autore, String nome, AnagrafeGiocatore... roster) {
+        AnagrafeSquadra s = new AnagrafeSquadra();
+        s.setNome(nome);
+        s.setAutore(autore);
+        s.getRoster().addAll(List.of(roster));
+        return squadre.save(s);
+    }
+
+    /** Un utente con questo nome (l'email è sempre diversa) */
     private Utente utente(String nome) {
-        return utenti.save(new Utente(nome.toLowerCase() + (++progressivo) + "@test.it", "hash", nome, Ruolo.USER));
+        return utenti.save(new Utente(UUID.randomUUID() + "@test.it", "hash", nome, Ruolo.USER));
     }
 
     /** Una tappa qualsiasi, con un id nuovo */
