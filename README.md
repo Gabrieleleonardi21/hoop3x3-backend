@@ -12,7 +12,7 @@ createdb hoop3x3
 
 Le tabelle le crea il server al primo avvio con le migrazioni di [Flyway](https://flywaydb.org) (`src/main/resources/db/migration`): non c'è nessuno script da eseguire. Flyway segna le migrazioni applicate nella tabella `flyway_schema_history`, accanto alle altre. L'utente del database (`DB_USERNAME`) deve poter creare e modificare tabelle nello schema `public`, per esempio perché è il proprietario del database: Flyway crea `flyway_schema_history` e applica le migrazioni, e con un utente che può solo leggere e scrivere i dati il primo avvio fallisce.
 
-Un database già esistente, creato a mano con il vecchio `db/schema.sql`, non va ricreato né toccato: al primo avvio Flyway trova le tabelle ma non lo storico e lo segna come versione 1 (`V1__schema_iniziale.sql` è quello schema) senza rieseguire niente, quindi i dati restano com'erano. Da quel momento ogni cambio di schema arriva come migrazione nuova (V2, V3…) e il server la applica da solo all'avvio. Il database deve avere lo schema attuale, compresa la tabella `refresh_tokens`: se manca, il server non parte e dice quale tabella manca (`Schema validation: missing table [refresh_tokens]`). In quel caso riesegui il file intero, che è idempotente (tutto `IF NOT EXISTS`, i dati non si toccano, i messaggi `already exists, skipping` sono normali), e riavvia:
+Un database già esistente, creato a mano con il vecchio `db/schema.sql`, non va ricreato né toccato: al primo avvio Flyway trova le tabelle ma non lo storico e lo segna come versione 1 (`V1__schema_iniziale.sql` è quello schema) senza rieseguire niente, quindi i dati restano com'erano. Da quel momento ogni cambio di schema arriva come migrazione nuova (V2, V3…) e il server la applica da solo all'avvio: la V2 lega le pubblicazioni dell'archivio alle loro tappe e lascia dove sono le eventuali pubblicazioni orfane di un database già in uso (vedi «Archivio circuito»). Il database deve avere lo schema attuale, compresa la tabella `refresh_tokens`: se manca, il server non parte e dice quale tabella manca (`Schema validation: missing table [refresh_tokens]`). In quel caso riesegui il file intero, che è idempotente (tutto `IF NOT EXISTS`, i dati non si toccano, i messaggi `already exists, skipping` sono normali), e riavvia:
 
 ```bash
 psql -d hoop3x3 -f src/main/resources/db/migration/V1__schema_iniziale.sql
@@ -41,7 +41,7 @@ Il frontend in sviluppo inoltra `/api` verso `http://localhost:3001` tramite il 
 
 ## Migrazioni del database
 
-Lo schema cambia solo con le migrazioni di Flyway in `src/main/resources/db/migration`: un file SQL per ogni modifica, chiamato `V<numero>__<descrizione>.sql` (due underscore dopo il numero, per esempio `V2__versione_tappe.sql`), con il numero successivo all'ultimo. All'avvio il server applica in ordine quelle che il database non ha ancora, poi Hibernate (`ddl-auto=validate`) controlla che le entity combacino con le tabelle: nessuno deve più applicare SQL a mano su un ambiente.
+Lo schema cambia solo con le migrazioni di Flyway in `src/main/resources/db/migration`: un file SQL per ogni modifica, chiamato `V<numero>__<descrizione>.sql` (due underscore dopo il numero, per esempio `V3__versione_tappe.sql`), con il numero successivo all'ultimo. All'avvio il server applica in ordine quelle che il database non ha ancora, poi Hibernate (`ddl-auto=validate`) controlla che le entity combacino con le tabelle: nessuno deve più applicare SQL a mano su un ambiente.
 
 - **Una migrazione già applicata non si modifica**, nemmeno nei commenti: Flyway ne confronta il checksum e il server non parte (`Migration checksum mismatch`). Un errore si corregge con una migrazione nuova.
 - **Il nome del file conta**: con un nome sbagliato (per esempio `V2_x.sql`, con un solo underscore) il server non parte e dice quale file è sbagliato, invece di ignorare in silenzio quella migrazione (`spring.flyway.validate-migration-naming`).
@@ -57,6 +57,33 @@ Proxy verso [Groq](https://console.groq.com/) (`POST /api/coach/chat`, autentica
 La richiesta è controllata prima di arrivare a Groq, altrimenti 400: `messages` da 1 a 60 messaggi, ognuno con ruolo `system`, `user`, `assistant` o `tool`, per al massimo 100.000 caratteri; `tools` al massimo 20 strumenti (50.000 caratteri). Modello e limite di token li fissa il server. Groq ha 5 secondi per accettare la connessione e 60 per mandare l'intera risposta.
 
 Gli errori di Groq arrivano al client senza dettagli interni: 429 se Groq limita le richieste, 400 se rifiuta la richiesta (anche perché troppo lunga), 502 per tutto il resto (errore di Groq, chiave non valida, rete, timeout, risposta che non è un oggetto JSON), 503 se la chiave manca. Nei log del server ogni 502 e 503 ha la sua riga `WARN` con la causa: stato e corpo della risposta di Groq (troncato a 500 caratteri) oppure l'eccezione di rete. La chiave non viene mai scritta nei log.
+
+## Archivio circuito
+
+Le tappe concluse si pubblicano nell'archivio del circuito. Leggerlo è pubblico, senza account (`GET /api/archivio` per l'elenco, `GET /api/archivio/{tappaId}` per una tappa); pubblicare e ritirare chiedono il login.
+
+- `PUT /api/archivio/{tappaId}` — pubblica la tappa, o la ripubblica aggiornando la copia. **Non ha corpo**: la copia pubblica (lo snapshot) la costruisce il server dalla tappa che ha salvato, nella forma delle API delle tappe, quindi nessuno può pubblicare risultati inventati; un corpo mandato da un client vecchio si ignora. Risponde 200 con `{tappa, lega, autore, autoreId, ts}`. La copia ha i dati che il server ha in quel momento: il client salva la tappa e poi la pubblica. Il vecchio `PUT /api/archivio`, con la tappa nel corpo, non esiste più (405).
+  - **404** se la tappa non esiste, **403** se non è di una lega dell'utente (un ADMIN può pubblicare qualsiasi tappa), **409** se la tappa non è conclusa («concludila prima di pubblicarla in archivio»). I controlli vanno in quest'ordine: chi non è il proprietario non scopre se la tappa è conclusa.
+  - L'autore è sempre il proprietario della lega, anche quando pubblica un ADMIN o quando si ripubblica: così lui e gli ADMIN possono sempre ritirare la pubblicazione.
+- `DELETE /api/archivio/{tappaId}` — 204, ritira la pubblicazione (l'autore o un ADMIN).
+
+Eliminare una tappa, la sua lega o il suo proprietario elimina anche la pubblicazione: lo fa il database, con una chiave esterna da `archivio_tappe.tappa_id` a `tappe(id)` con `ON DELETE CASCADE` (migrazione V2).
+
+**Database già in uso: pubblicazioni orfane.** Prima della V2 le pubblicazioni di una tappa eliminata restavano in archivio. La V2 non le tocca e non fallisce per colpa loro: il vincolo è `NOT VALID`, cioè vale per le pubblicazioni nuove ma non controlla quelle già presenti, perché una migrazione non deve cancellare dati. Si trovano con:
+
+```sql
+SELECT a.tappa_id, a.lega_nome, a.pubblicato_il, u.email AS autore
+FROM archivio_tappe a JOIN utenti u ON u.id = a.autore_id
+WHERE NOT EXISTS (SELECT 1 FROM tappe t WHERE t.id = a.tappa_id)
+ORDER BY a.pubblicato_il;
+```
+
+Se non servono più le cancella chi gestisce il database, e dopo si può convalidare il vincolo:
+
+```sql
+DELETE FROM archivio_tappe a WHERE NOT EXISTS (SELECT 1 FROM tappe t WHERE t.id = a.tappa_id);
+ALTER TABLE archivio_tappe VALIDATE CONSTRAINT archivio_tappe_tappa_id_fkey;
+```
 
 ## Sessioni e refresh token
 
@@ -100,9 +127,9 @@ Su origini diverse l'origine del frontend deve comunque stare in `CORS_ORIGINS`:
 Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 
 - **Richiesta** — al massimo 2 MB, anche senza `Content-Length`: oltre, 413. Dove l'API legge un corpo lo vuole in JSON: un altro tipo, per esempio un form, risponde 415.
-- **Blocchi JSON di una tappa** (`squadre`, `gironi`, `partite`, `bracket`, `video`) — al massimo 1 MB ciascuno, misurato in byte UTF-8. Vale quando la tappa si salva in una lega (creazione, import, aggiunta, modifica); la pubblicazione in archivio ha solo il tetto dei 2 MB della richiesta.
+- **Blocchi JSON di una tappa** (`squadre`, `gironi`, `partite`, `bracket`, `video`) — al massimo 1 MB ciascuno, misurato in byte UTF-8. Vale quando la tappa si salva in una lega (creazione, import, aggiunta, modifica); la pubblicazione in archivio non riceve nulla dal client e copia i blocchi già salvati, quindi ha gli stessi tetti.
 - **Import di una lega** — al massimo 100 tappe, con id tutti diversi.
-- **Leghe e tappe** — nome della lega fino a 120 caratteri (anche quando si pubblica una tappa in archivio); nome della tappa fino a 120, luogo fino a 160, data nel formato `aaaa-mm-gg` oppure vuota.
+- **Leghe e tappe** — nome della lega fino a 120 caratteri; nome della tappa fino a 120, luogo fino a 160, data nel formato `aaaa-mm-gg` oppure vuota.
 - **Anagrafe** — roster di una squadra fino a 12 giocatori; note di giocatori e squadre fino a 2000 caratteri.
 - **Account** — email fino a 255 caratteri; alla registrazione la password ha da 8 caratteri a 72 byte in UTF-8 (una lettera accentata ne occupa 2, un emoji 4).
 - **Coach AI** — da 1 a 60 messaggi per al massimo 100.000 caratteri, fino a 20 strumenti (50.000 caratteri): vedi la sezione Coach AI.
@@ -114,7 +141,7 @@ Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 - **403** — ruolo insufficiente, oppure risorsa di un altro utente.
 - **404** — risorsa o percorso inesistente.
 - **405** — metodo non consentito per quell'indirizzo.
-- **409** — conflitto con dati già salvati (email già registrata, tappa con lo stesso id, vincolo del database), oppure sessione già rinnovata da un'altra richiesta.
+- **409** — conflitto con dati già salvati (email già registrata, tappa con lo stesso id, vincolo del database), tappa non ancora conclusa che si prova a pubblicare in archivio, oppure sessione già rinnovata da un'altra richiesta.
 - **413** — richiesta oltre 2 MB.
 - **415** — corpo che non è JSON.
 - **429, 502, 503** — solo Coach AI: Groq limita le richieste (429), non risponde o risponde con un errore (502), la chiave manca sul server (503).
@@ -126,7 +153,7 @@ Fanno eccezione le richieste respinte prima di Spring MVC, dal container o dal f
 
 ```
 env.properties.example          # segreti: copiare in env.properties
-src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale), applicate all'avvio
+src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 = archivio legato alle tappe), applicate all'avvio
 src/main/java/com/hoop3x3/backend/
 ├── controllers/  # REST (auth, utenti, leghe, tappe, anagrafe, archivio, coach)
 ├── dto/          # record con validazione Bean Validation
