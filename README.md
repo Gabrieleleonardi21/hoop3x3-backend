@@ -4,17 +4,15 @@ API REST del gestionale [Hoop 3x3](https://github.com/Gabrieleleonardi21/Hoops-3
 
 ## Avvio
 
-**1. Database** — crea il DB `hoop3x3` ed esegui `db/schema.sql` (in pgAdmin: Query Tool → apri il file → Esegui), oppure:
+**1. Database** — crea un database vuoto, senza tabelle (in pgAdmin: clic destro su Databases → Create → Database, nome `hoop3x3`), oppure:
 
 ```bash
-createdb hoop3x3 && psql -d hoop3x3 -f db/schema.sql
+createdb hoop3x3
 ```
 
-Su un database già esistente basta rieseguire `db/schema.sql` (è tutto `IF NOT EXISTS`, i dati non si toccano): crea la tabella `refresh_tokens`, senza la quale il server non parte perché Hibernate gira con `ddl-auto=validate`.
+Le tabelle le crea il server al primo avvio con le migrazioni di [Flyway](https://flywaydb.org) (`src/main/resources/db/migration`): non c'è nessuno script da eseguire. Flyway segna le migrazioni applicate nella tabella `flyway_schema_history`, accanto alle altre.
 
-```bash
-psql -d hoop3x3 -f db/schema.sql
-```
+Un database già esistente, creato a mano con il vecchio `db/schema.sql`, non va ricreato né toccato: al primo avvio Flyway trova le tabelle ma non lo storico e lo segna come versione 1 (`V1__schema_iniziale.sql` è quello schema) senza rieseguire niente, quindi i dati restano com'erano. Da quel momento ogni cambio di schema arriva come migrazione nuova (V2, V3…) e il server la applica da solo all'avvio. Il database deve avere lo schema attuale, compresa la tabella `refresh_tokens`: se manca, il server non parte e dice quale tabella manca (`Schema validation: missing table [refresh_tokens]`). In quel caso crea a mano le tabelle che mancano, copiando le istruzioni da `V1__schema_iniziale.sql`, e riavvia.
 
 **2. Configurazione** — copia `env.properties.example` in `env.properties` (ignorato da git) e compila i valori. I segreti si controllano all'avvio, perché un esempio lasciato com'è renderebbe nota a tutti la chiave dei token o la password dell'amministratore:
 
@@ -33,7 +31,15 @@ Il frontend in sviluppo inoltra `/api` verso `http://localhost:3001` tramite il 
 ## Test
 
 - `./mvnw test`: test senza database (web con MockMvc, servizi con Mockito).
-- `./mvnw verify -Pintegrazione`: anche i test di integrazione con PostgreSQL (classi `*IT`). Usano il database di prova `hoop3x3_test` sul PostgreSQL locale, da creare una volta con `createdb hoop3x3_test`: all'avvio dei test lo schema lo crea `db/schema.sql` e prima di ogni test le tabelle vengono svuotate. Per un altro database c'è `TEST_DB_URL`, con `TEST_DB_USERNAME` e `TEST_DB_PASSWORD`; altrimenti valgono `DB_USERNAME` e `DB_PASSWORD` di `env.properties`. Le variabili `SPRING_DATASOURCE_*` non hanno effetto sui test di integrazione. Lo script che svuota le tabelle si rifiuta di girare su un database il cui nome non contiene «test».
+- `./mvnw verify -Pintegrazione`: anche i test di integrazione con PostgreSQL (classi `*IT`). Usano il database di prova `hoop3x3_test` sul PostgreSQL locale, da creare una volta, vuoto, con `createdb hoop3x3_test`: all'avvio dei test lo schema lo creano le migrazioni di Flyway (un database di prova che ha già le tabelle, create dal vecchio `db/schema.sql`, viene riconosciuto come versione 1) e prima di ogni test le tabelle vengono svuotate, tranne lo storico di Flyway. Per un altro database c'è `TEST_DB_URL`, con `TEST_DB_USERNAME` e `TEST_DB_PASSWORD`; altrimenti valgono `DB_USERNAME` e `DB_PASSWORD` di `env.properties`. Le variabili `SPRING_DATASOURCE_*` non hanno effetto sui test di integrazione. Lo script che svuota le tabelle si rifiuta di girare su un database il cui nome non contiene «test».
+
+## Migrazioni del database
+
+Lo schema cambia solo con le migrazioni di Flyway in `src/main/resources/db/migration`: un file SQL per ogni modifica, chiamato `V<numero>__<descrizione>.sql` (per esempio `V2__versione_tappe.sql`), con il numero successivo all'ultimo. All'avvio il server applica in ordine quelle che il database non ha ancora, poi Hibernate (`ddl-auto=validate`) controlla che le entity combacino con le tabelle: nessuno deve più applicare SQL a mano su un ambiente.
+
+- **Una migrazione già applicata non si modifica**, nemmeno nei commenti: Flyway ne confronta il checksum e il server non parte (`Migration checksum mismatch`). Un errore si corregge con una migrazione nuova.
+- **Tabella nuova**: il suo nome va aggiunto anche alla `TRUNCATE` di `src/test/resources/svuota.sql`, lo controlla `MigrazioniIT`. `flyway_schema_history`, lo storico di Flyway, non ci va mai.
+- `spring.flyway.baseline-on-migrate=true` (in `application.properties`) serve ai database creati a mano prima di Flyway: Flyway li segna come versione 1 invece di rifiutarli. Su un database che ha già lo storico non cambia nulla.
 
 ## Coach AI
 
@@ -110,8 +116,8 @@ Fanno eccezione le richieste respinte prima di Spring MVC, dal container o dal f
 ## Struttura
 
 ```
-db/schema.sql                   # tabelle PostgreSQL (da eseguire in pgAdmin)
 env.properties.example          # segreti: copiare in env.properties
+src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale), applicate all'avvio
 src/main/java/com/hoop3x3/backend/
 ├── controllers/  # REST (auth, utenti, leghe, tappe, anagrafe, archivio, coach)
 ├── dto/          # record con validazione Bean Validation
