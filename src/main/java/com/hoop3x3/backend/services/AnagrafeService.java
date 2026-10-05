@@ -59,9 +59,10 @@ public class AnagrafeService {
         AnagrafeGiocatore g = trovaGiocatore(id);
         guard.checkOwner(utente, g.getAutore().getId(), "questa scheda giocatore");
         // Toglie il giocatore dai roster che lo contengono (la FK del ponte è ON DELETE CASCADE,
-        // ma Hibernate va tenuto allineato per non lasciare buchi nell'@OrderColumn)
-        for (AnagrafeSquadra s : squadre.findAll()) {
-            if (s.getRoster().removeIf(x -> x.getId().equals(id))) squadre.save(s);
+        // ma Hibernate va tenuto allineato per non lasciare buchi nell'@OrderColumn). Si caricano solo quelle squadre,
+        // non tutte, e sono già gestite: la modifica del roster la salva la transazione
+        for (AnagrafeSquadra s : squadre.findByRosterContains(g)) {
+            s.getRoster().removeIf(x -> x.getId().equals(id));
         }
         giocatori.delete(g);
     }

@@ -24,6 +24,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
@@ -31,6 +32,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.assertj.core.api.Assertions.within;
 
 /**
@@ -47,6 +49,7 @@ class LettureEfficientiIT {
     @Autowired AnagrafeSquadraRepository squadre;
     @Autowired AnagrafeService anagrafeService;
     @Autowired LegaService legaService;
+    @Autowired JdbcTemplate jdbc;
     @Autowired ObjectMapper mapper;
 
     private Statistics statistiche;
@@ -167,6 +170,58 @@ class LettureEfficientiIT {
         assertThat(conCinque.query()).as("query dell'elenco dei giocatori").isEqualTo(1);
     }
 
+    /* ── eliminaGiocatore: carica solo le squadre che lo contengono, non tutte ── */
+
+    // Il giocatore esce dai roster che lo contengono. Gli altri restano dov'erano e nello stesso ordine, senza buchi nelle
+    // posizioni (@OrderColumn), e le squadre che non lo contengono non cambiano. Se il roster si caricasse filtrato (solo il
+    // giocatore cercato), salvarlo senza di lui cancellerebbe tutti gli altri
+    @Test
+    void eliminareUnGiocatoreLoTogliDaiRoster_gliAltriRestanoNellOrdineSenzaBuchi() {
+        Utente mario = utente("Mario");
+        AnagrafeGiocatore a = giocatore(mario, "A");
+        AnagrafeGiocatore b = giocatore(mario, "B");
+        AnagrafeGiocatore c = giocatore(mario, "C");
+        AnagrafeSquadra conTutti = squadra(mario, "Con tutti", a, b, c);
+        AnagrafeSquadra conBeC = squadra(mario, "Con B e C", b, c);
+        AnagrafeSquadra senzaB = squadra(mario, "Senza B", c, a);
+
+        anagrafeService.eliminaGiocatore(mario, b.getId());
+
+        assertThat(giocatori.existsById(b.getId())).isFalse();
+        assertThat(rosterSalvato(conTutti)).containsExactly(a.getId(), c.getId());
+        assertThat(posizioniSalvate(conTutti)).containsExactly(0, 1);
+        assertThat(rosterSalvato(conBeC)).containsExactly(c.getId());
+        assertThat(posizioniSalvate(conBeC)).containsExactly(0);
+        assertThat(rosterSalvato(senzaB)).containsExactly(c.getId(), a.getId());
+    }
+
+    @Test
+    void eliminareUnGiocatoreCaricaSoloLeSquadreCheLoContengono_leQueryNonDipendonoDalleAltre() {
+        Utente mario = utente("Mario");
+        AnagrafeGiocatore altro = giocatore(mario, "Altro");
+        // Prima eliminazione: il giocatore è in 2 squadre, una come primo e una come ultimo, e c'è 1 squadra senza di lui
+        AnagrafeGiocatore primo = giocatore(mario, "Primo");
+        squadra(mario, "Con il primo 1", primo, altro);
+        squadra(mario, "Con il primo 2", altro, primo);
+        squadra(mario, "Senza 1", altro);
+        long conUnaSenzaDiLui = query(() -> anagrafeService.eliminaGiocatore(mario, primo.getId()));
+
+        // Seconda: è nelle stesse due posizioni di due squadre, ma ora quelle senza di lui sono 7
+        AnagrafeGiocatore secondo = giocatore(mario, "Secondo");
+        squadra(mario, "Con il secondo 1", secondo, altro);
+        squadra(mario, "Con il secondo 2", altro, secondo);
+        for (int i = 2; i <= 5; i++) {
+            squadra(mario, "Senza " + i, altro);
+        }
+        long conSetteSenzaDiLui = query(() -> anagrafeService.eliminaGiocatore(mario, secondo.getId()));
+
+        // Le due cose sono indipendenti: se falliscono entrambe si vedono entrambe
+        assertSoftly(soft -> {
+            soft.assertThat(caricate(AnagrafeSquadra.class)).as("squadre caricate").isEqualTo(2);
+            soft.assertThat(conSetteSenzaDiLui).as("query con 7 squadre senza il giocatore").isEqualTo(conUnaSenzaDiLui);
+        });
+    }
+
     /* ── Dati di prova ── */
 
     /** Aggiunge `quante` leghe a `proprietario`, ognuna con due tappe */
@@ -209,6 +264,17 @@ class LettureEfficientiIT {
         return squadre.save(s);
     }
 
+    /** Gli id del roster come sono nella tabella ponte, per posizione */
+    private List<UUID> rosterSalvato(AnagrafeSquadra squadra) {
+        return jdbc.queryForList("select giocatore_id from anagrafe_squadre_roster where squadra_id = ? order by posizione",
+                UUID.class, squadra.getId());
+    }
+
+    private List<Integer> posizioniSalvate(AnagrafeSquadra squadra) {
+        return jdbc.queryForList("select posizione from anagrafe_squadre_roster where squadra_id = ? order by posizione",
+                Integer.class, squadra.getId());
+    }
+
     /** Un utente con questo nome (l'email è sempre diversa) */
     private Utente utente(String nome) {
         return utenti.save(new Utente(UUID.randomUUID() + "@test.it", "hash", nome, Ruolo.USER));
@@ -230,6 +296,14 @@ class LettureEfficientiIT {
         statistiche.clear();
         T risultato = azione.get();
         return new Misura<>(risultato, statistiche.getPrepareStatementCount());
+    }
+
+    /** Le istruzioni SQL che Hibernate esegue per un'azione che non restituisce nulla */
+    private long query(Runnable azione) {
+        return misura(() -> {
+            azione.run();
+            return null;
+        }).query();
     }
 
     /** Quante istanze di `entity` Hibernate ha caricato dal database dall'ultima misura */
