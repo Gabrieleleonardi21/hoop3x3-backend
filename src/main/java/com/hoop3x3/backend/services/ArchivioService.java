@@ -9,7 +9,6 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.NotFoundException;
 import com.hoop3x3.backend.repositories.ArchivioTappaRepository;
-import com.hoop3x3.backend.repositories.TappaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -24,15 +23,12 @@ import java.util.UUID;
 public class ArchivioService {
 
     private final ArchivioTappaRepository repo;
-    private final TappaRepository tappe;
     private final LegaService legaService;
     private final AccessGuard guard;
     private final ObjectMapper mapper;
 
-    public ArchivioService(ArchivioTappaRepository repo, TappaRepository tappe, LegaService legaService,
-                           AccessGuard guard, ObjectMapper mapper) {
+    public ArchivioService(ArchivioTappaRepository repo, LegaService legaService, AccessGuard guard, ObjectMapper mapper) {
         this.repo = repo;
-        this.tappe = tappe;
         this.legaService = legaService;
         this.guard = guard;
         this.mapper = mapper;
@@ -57,13 +53,14 @@ public class ArchivioService {
      */
     @Transactional
     public PubTappaDTO pubblica(Utente utente, UUID tappaId) {
-        Tappa tappa = tappe.findById(tappaId).orElseThrow(() -> new NotFoundException("Tappa non trovata: " + tappaId));
-        Lega lega = tappa.getLega();
-        // Il 403 viene prima del 409: chi non è il proprietario non deve poter scoprire se la tappa è conclusa
-        guard.checkOwner(utente, lega.getOwner().getId(), "questa tappa");
+        // 404 se la tappa non esiste e 403 se non è del proprietario né di un ADMIN: la regola è quella di LegaService per le
+        // sue tappe, scritta una volta sola. Vengono prima del 409: chi non è il proprietario non deve poter scoprire se la
+        // tappa è conclusa
+        Tappa tappa = legaService.trovaTappa(utente, tappaId);
         if (!tappa.isConclusa()) {
             throw new ConflictException("La tappa non è conclusa: concludila prima di pubblicarla in archivio");
         }
+        Lega lega = tappa.getLega();
         ArchivioTappa a = repo.findById(tappaId).orElseGet(ArchivioTappa::new);
         a.setTappaId(tappaId);
         a.setAutore(lega.getOwner());

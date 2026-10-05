@@ -112,7 +112,12 @@ public class LegaService {
         return lega;
     }
 
-    private Tappa trovaTappa(Utente utente, UUID id) {
+    /**
+     * Carica la tappa (404 se non esiste) e verifica che l'utente sia il proprietario della sua lega o un ADMIN (403).
+     * Visibile nel package perché la usa anche ArchivioService: la regola di accesso a una tappa sta in un posto solo.
+     * Va chiamata dentro una transazione: la lega e il suo proprietario si caricano a richiesta.
+     */
+    Tappa trovaTappa(Utente utente, UUID id) {
         Tappa t = tappaRepository.findById(id).orElseThrow(() -> new NotFoundException("Tappa non trovata: " + id));
         guard.checkOwner(utente, t.getLega().getOwner().getId(), "questa tappa");
         return t;
