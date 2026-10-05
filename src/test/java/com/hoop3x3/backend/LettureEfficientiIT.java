@@ -137,15 +137,20 @@ class LettureEfficientiIT {
     }
 
     // Caricare il roster insieme alle squadre non deve cambiare ciò che l'API restituisce: l'ordine dei giocatori è quello
-    // della posizione salvata (@OrderColumn), e una squadra senza giocatori resta nell'elenco
+    // delle posizioni salvate (@OrderColumn), e una squadra senza giocatori resta nell'elenco. Se le righe del ponte le
+    // scrivesse Hibernate sarebbero già nell'ordine delle posizioni, e uscirebbe giusto anche l'ordine di una «bag», che
+    // viene dalle righe SQL: per questo le scrive il test con JDBC, nell'ordine 2, 0, 1
     @Test
-    void leSquadreHannoAutoreERosterNellOrdineSalvato_ancheSenzaGiocatori() {
+    void leSquadreHannoAutoreERosterNellOrdineDellePosizioni_ancheSenzaGiocatori() {
         Utente mario = utente("Mario");
         AnagrafeGiocatore rossi = giocatore(mario, "Rossi");
         AnagrafeGiocatore bianchi = giocatore(mario, "Bianchi");
         AnagrafeGiocatore verdi = giocatore(mario, "Verdi");
-        // Né l'ordine in cui i giocatori sono stati creati né quello alfabetico
-        AnagrafeSquadra lupi = squadra(mario, "Lupi", verdi, rossi, bianchi);
+        AnagrafeSquadra lupi = squadra(mario, "Lupi");
+        // Posizioni: 0 verdi, 1 rossi, 2 bianchi (né l'ordine di creazione né quello alfabetico), scritte nell'ordine 2, 0, 1
+        rigaDelRoster(lupi, 2, bianchi);
+        rigaDelRoster(lupi, 0, verdi);
+        rigaDelRoster(lupi, 1, rossi);
         AnagrafeSquadra senzaGiocatori = squadra(mario, "Senza giocatori");
 
         List<SquadraDTO> lette = anagrafeService.tutteSquadre();
@@ -292,6 +297,12 @@ class LettureEfficientiIT {
         s.setAutore(autore);
         s.getRoster().addAll(List.of(roster));
         return squadre.save(s);
+    }
+
+    /** Scrive con JDBC una riga della tabella ponte del roster, alla posizione indicata */
+    private void rigaDelRoster(AnagrafeSquadra squadra, int posizione, AnagrafeGiocatore giocatore) {
+        jdbc.update("insert into anagrafe_squadre_roster (squadra_id, giocatore_id, posizione) values (?, ?, ?)",
+                squadra.getId(), giocatore.getId(), posizione);
     }
 
     /** Gli id del roster come sono nella tabella ponte, per posizione */
