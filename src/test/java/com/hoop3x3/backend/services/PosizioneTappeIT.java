@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,7 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * BE-10, posizione delle tappe con il database vero. La tappa nuova prendeva come posizione il numero di tappe della
  * lega: dopo un'eliminazione quel numero è la posizione di una tappa che c'è ancora, e l'ordine tra le due era
- * indefinito. Ora prende una più della massima.
+ * indefinito. Ora prende una più della massima. I database già in uso hanno ancora posizioni doppie, lasciate dal
+ * difetto: a parità di posizione le tappe escono sempre nello stesso ordine, la più vecchia prima.
  */
 @TestDiIntegrazione
 class PosizioneTappeIT {
@@ -95,6 +97,36 @@ class PosizioneTappeIT {
         assertThat(posizioni(lega)).containsExactly(0, 1);
     }
 
+    /* ── Posizioni doppie dei database già in uso: a parità di posizione l'ordine è sempre lo stesso ── */
+
+    // Le righe si scrivono con JDBC, come le avrebbe lasciate il difetto, e nell'ordine opposto a quello atteso: senza
+    // uno spareggio PostgreSQL le restituirebbe nell'ordine in cui sono state scritte, con uno spareggio per id o per
+    // data decrescente le metterebbe nell'altro ordine
+    @Test
+    void aParitaDiPosizioneVieneLaTappaPiuVecchia_ancheSeScrittaPerUltimaEConIdMaggiore() {
+        UUID lega = legaVuota();
+        UUID recente = id(2);
+        UUID vecchia = id(9);
+        UUID inCoda = id(1);
+        scriviTappa(lega, recente, 0, LocalDateTime.of(2026, 3, 2, 10, 0)); // più recente, id minore, scritta per prima
+        scriviTappa(lega, vecchia, 0, LocalDateTime.of(2026, 3, 1, 10, 0)); // più vecchia, id maggiore, scritta dopo
+        // La più vecchia di tutte, ma in un'altra posizione: la posizione conta più dell'età
+        scriviTappa(lega, inCoda, 1, LocalDateTime.of(2026, 2, 1, 10, 0));
+
+        assertThat(ordineDelleTappe(lega)).containsExactly(vecchia, recente, inCoda);
+    }
+
+    // Se anche la data è uguale decide l'id: scritta per prima la tappa con l'id maggiore, deve uscire dopo
+    @Test
+    void aParitaDiPosizioneEDiDataVieneLIdMinore() {
+        UUID lega = legaVuota();
+        LocalDateTime stessoMomento = LocalDateTime.of(2026, 3, 1, 10, 0);
+        scriviTappa(lega, id(7), 0, stessoMomento);
+        scriviTappa(lega, id(5), 0, stessoMomento);
+
+        assertThat(ordineDelleTappe(lega)).containsExactly(id(5), id(7));
+    }
+
     /* ── Dati di prova ── */
 
     /** Una lega di Mario senza tappe: l'id con cui aggiungerne */
@@ -105,6 +137,20 @@ class PosizioneTappeIT {
     /** Aggiunge una tappa con il servizio, come fa POST /api/leghe/{id}/tappe */
     private TappaDTO aggiungi(UUID legaId, String nome) {
         return legaService.aggiungiTappa(mario, legaId, tappa(nome));
+    }
+
+    /**
+     * Scrive con JDBC una riga di `tappe` con la posizione e la data di creazione indicate: le altre colonne hanno un
+     * valore predefinito. Il servizio non produce più posizioni doppie, ma i database già in uso le hanno.
+     */
+    private void scriviTappa(UUID legaId, UUID id, int posizione, LocalDateTime creatoIl) {
+        jdbc.update("insert into tappe (id, lega_id, posizione, nome, creato_il, modificato_il) values (?, ?, ?, ?, ?, ?)",
+                id, legaId, posizione, "Tappa", creatoIl, creatoIl);
+    }
+
+    /** Un id con un ordine prevedibile: 00000000-0000-0000-0000-00000000000n */
+    private static UUID id(int n) {
+        return new UUID(0, n);
     }
 
     /** Una tappa qualsiasi, con un id nuovo */

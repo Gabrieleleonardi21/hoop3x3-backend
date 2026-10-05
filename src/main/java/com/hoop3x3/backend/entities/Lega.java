@@ -29,9 +29,11 @@ public class Lega {
     @JoinColumn(name = "owner_id", nullable = false)
     private Utente owner;
 
-    // orphanRemoval: eliminare una tappa dalla lista la cancella anche a database
+    // orphanRemoval: eliminare una tappa dalla lista la cancella anche a database.
+    // Ordine: per posizione, poi dalla più vecchia, poi per id. Lo spareggio serve ai database già in uso, che hanno
+    // posizioni doppie (BE-10): senza, PostgreSQL darebbe le tappe a pari posizione in un ordine qualsiasi
     @OneToMany(mappedBy = "lega", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("posizione ASC")
+    @OrderBy("posizione ASC, creatoIl ASC, id ASC")
     private List<Tappa> tappe = new ArrayList<>();
 
     @Column(name = "creato_il", nullable = false, updatable = false)
