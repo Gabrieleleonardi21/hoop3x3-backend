@@ -1,8 +1,5 @@
 -- ============================================================================
 --  Hoop 3x3 — V1: schema iniziale (PostgreSQL)
---  Lo applica Flyway all'avvio del server su un database vuoto. Un database creato
---  a mano con il vecchio db/schema.sql (identico a questo file) ha già queste tabelle:
---  Flyway non la riesegue: la segna come già applicata (baseline-on-migrate).
 --  Una migrazione già applicata non si modifica (Flyway ne controlla il checksum e
 --  il server non parte): ogni cambio di schema è un file nuovo, V2__..., V3__...
 --  Hibernate gira con ddl-auto=validate: controlla che le entity combacino
