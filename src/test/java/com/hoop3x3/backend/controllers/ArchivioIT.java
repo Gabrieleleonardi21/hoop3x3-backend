@@ -217,6 +217,18 @@ class ArchivioIT {
         assertThat(archivio.count()).isZero();
     }
 
+    // Il vecchio endpoint, con la tappa nel corpo, non esiste più: un client non aggiornato riceve 405 e non pubblica nulla
+    @Test
+    void ilVecchioEndpointConLaTappaNelCorpo_risponde405() throws Exception {
+        UUID tappaId = tappaConclusa(mario, "Circuito 2026");
+
+        mvc.perform(put("/api/archivio").header(AUTHORIZATION, bearer(mario)).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"tappa\": {\"id\": \"" + tappaId + "\"}, \"lega\": \"Circuito 2026\"}"))
+                .andExpect(status().isMethodNotAllowed());
+
+        assertThat(archivio.count()).isZero();
+    }
+
     @Test
     void senzaToken_risponde401ENonPubblicaNulla() throws Exception {
         UUID tappaId = tappaConclusa(mario, "Circuito 2026");
