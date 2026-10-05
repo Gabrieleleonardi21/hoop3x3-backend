@@ -6,6 +6,8 @@ import com.hoop3x3.backend.dto.RegoleDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
+import com.hoop3x3.backend.exceptions.ForbiddenException;
+import com.hoop3x3.backend.exceptions.NotFoundException;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * BE-10, posizione delle tappe con il database vero. La tappa nuova prendeva come posizione il numero di tappe della
@@ -125,6 +128,35 @@ class PosizioneTappeIT {
         scriviTappa(lega, id(5), 0, stessoMomento);
 
         assertThat(ordineDelleTappe(lega)).containsExactly(id(5), id(7));
+    }
+
+    /* ── Chi può aggiungere tappe: la regola di AccessGuard (404, 403, ADMIN) non cambia con il modo di leggere la lega ── */
+
+    @Test
+    void chiNonEProprietarioNonPuoAggiungereTappe() {
+        UUID lega = legaVuota();
+        Utente luigi = utenti.save(new Utente("luigi@test.it", "hash", "Luigi", Ruolo.USER));
+
+        assertThatThrownBy(() -> legaService.aggiungiTappa(luigi, lega, tappa("Intrusa")))
+                .isInstanceOf(ForbiddenException.class);
+
+        assertThat(posizioni(lega)).isEmpty();
+    }
+
+    @Test
+    void unAdminPuoAggiungereTappeAllaLegaDiUnAltro() {
+        UUID lega = legaVuota();
+        Utente admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
+
+        legaService.aggiungiTappa(admin, lega, tappa("Dell'admin"));
+
+        assertThat(posizioni(lega)).containsExactly(0);
+    }
+
+    @Test
+    void aggiungereUnaTappaAUnaLegaCheNonEsisteDaNotFound() {
+        assertThatThrownBy(() -> legaService.aggiungiTappa(mario, UUID.randomUUID(), tappa("Orfana")))
+                .isInstanceOf(NotFoundException.class);
     }
 
     /* ── Dati di prova ── */
