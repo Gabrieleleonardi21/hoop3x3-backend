@@ -1,6 +1,7 @@
 package com.hoop3x3.backend;
 
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.annotation.AliasFor;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
 import org.springframework.test.context.jdbc.Sql;
@@ -32,4 +33,11 @@ public @interface TestDiIntegrazione {
 
     /** Database di prova usato quando TEST_DB_URL non è impostata (da creare con createdb hoop3x3_test) */
     String URL_PREDEFINITO = "jdbc:postgresql://localhost:5432/hoop3x3_test";
+
+    /**
+     * MOCK (predefinito): ambiente web simulato, si prova con MockMvc. RANDOM_PORT: server vero su una porta libera,
+     * per i test che devono parlare con Tomcat e con i suoi filtri (stesso profilo e stesso database di prova).
+     */
+    @AliasFor(annotation = SpringBootTest.class, attribute = "webEnvironment")
+    SpringBootTest.WebEnvironment webEnvironment() default SpringBootTest.WebEnvironment.MOCK;
 }

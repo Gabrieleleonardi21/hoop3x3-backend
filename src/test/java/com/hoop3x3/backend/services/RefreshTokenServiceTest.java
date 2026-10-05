@@ -49,7 +49,7 @@ class RefreshTokenServiceTest {
     @Test
     void emettiFaPuliziaDeiTokenScadutiDellUtente() {
         service.emetti(utente);
-        verify(repository).deleteByUtente_IdAndScadeIlBefore(eq(utente.getId()), any(LocalDateTime.class));
+        verify(repository).eliminaScaduti(eq(utente.getId()), any(LocalDateTime.class));
     }
 
     @Test

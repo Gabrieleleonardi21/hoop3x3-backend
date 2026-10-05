@@ -1,27 +1,47 @@
 package com.hoop3x3.backend.services;
 
 import com.hoop3x3.backend.dto.CoachChatRequestDTO;
+import com.hoop3x3.backend.exceptions.BadRequestException;
 import com.hoop3x3.backend.exceptions.UpstreamException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
+import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
+import java.util.Set;
+
 /**
  * Proxy verso Groq per il Coach AI: la chiave resta sul server e non arriva mai al browser.
- * Il corpo (messages + tools nel formato OpenAI) è inoltrato così com'è; modello e limite
- * di token li fissa il server.
+ * Il corpo (messages + tools nel formato OpenAI) è inoltrato dopo un controllo di forma e dimensione;
+ * modello e limite di token li fissa il server.
  */
 @Service
 public class CoachAiService {
 
+    private static final Logger log = LoggerFactory.getLogger(CoachAiService.class);
+
     private static final String GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+    private static final Duration TIMEOUT_CONNESSIONE = Duration.ofSeconds(5);
+    private static final Duration TIMEOUT_RISPOSTA = Duration.ofSeconds(60);
+    /* Limiti della richiesta: bastano largamente al Coach dell'app e impediscono l'uso come proxy generico */
+    private static final int MAX_MESSAGGI = 60;
+    private static final int MAX_CARATTERI_MESSAGGI = 100_000;
+    private static final int MAX_TOOL = 20;
+    private static final int MAX_CARATTERI_TOOL = 50_000;
+    private static final Set<String> RUOLI = Set.of("system", "user", "assistant", "tool");
 
     @Value("${groq.api.key:}")
     private String apiKey;
@@ -31,10 +51,23 @@ public class CoachAiService {
     private String model;
 
     private final ObjectMapper mapper;
-    private final RestClient http = RestClient.create();
+    private final String url;
+    private final RestClient http;
 
+    @Autowired // con due costruttori Spring deve sapere quale usare
     public CoachAiService(ObjectMapper mapper) {
+        this(mapper, GROQ_URL, TIMEOUT_CONNESSIONE, TIMEOUT_RISPOSTA);
+    }
+
+    /** Per i test: Groq finto su un indirizzo locale e timeout brevi, per non aspettare 60 secondi */
+    CoachAiService(ObjectMapper mapper, String url, Duration timeoutConnessione, Duration timeoutRisposta) {
         this.mapper = mapper;
+        this.url = url;
+        // Senza timeout una risposta lenta di Groq terrebbe occupato un thread del server a tempo indeterminato
+        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
+                HttpClient.newBuilder().connectTimeout(timeoutConnessione).build());
+        factory.setReadTimeout(timeoutRisposta);
+        this.http = RestClient.builder().requestFactory(factory).build();
     }
 
     public boolean isConfigurato() {
@@ -43,8 +76,10 @@ public class CoachAiService {
 
     public JsonNode chat(CoachChatRequestDTO req) {
         if (!isConfigurato()) {
+            log.warn("Richiesta al Coach AI ma groq.api.key non è configurata sul server: risposta 503");
             throw new UpstreamException(HttpStatus.SERVICE_UNAVAILABLE, "Coach AI non configurato sul server (groq.api.key mancante)");
         }
+        valida(req);
         ObjectNode body = mapper.createObjectNode();
         body.put("model", model);
         // gpt-oss ragiona prima di rispondere e i token di reasoning contano nel budget:
@@ -52,26 +87,71 @@ public class CoachAiService {
         body.put("max_tokens", 1200);
         body.put("reasoning_effort", "low");
         body.set("messages", req.messages());
-        if (req.tools() != null && req.tools().isArray() && !req.tools().isEmpty()) {
+        if (req.tools() != null && !req.tools().isEmpty()) {
             body.set("tools", req.tools());
             body.put("tool_choice", "auto");
         }
+        String risposta;
         try {
-            String risposta = http.post()
-                    .uri(GROQ_URL)
+            risposta = http.post()
+                    .uri(url)
                     .header("Authorization", "Bearer " + apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body.toString())
                     .retrieve()
                     .body(String.class);
-            return mapper.readTree(risposta);
         } catch (RestClientResponseException e) {
-            // Gli errori di Groq vengono tradotti in status nostri: il client non deve distinguere JWT da chiave Groq
-            if (e.getStatusCode().value() == 429) throw new UpstreamException(HttpStatus.TOO_MANY_REQUESTS, "Limite richieste Coach AI raggiunto, riprova tra poco");
-            if (e.getStatusCode().value() == 401) throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Chiave Groq non valida sul server");
-            throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Errore del servizio AI: " + e.getStatusCode().value());
-        } catch (ResourceAccessException _) {
+            // Stato e corpo di Groq restano nei log del server; al client va un messaggio nostro
+            int stato = e.getStatusCode().value();
+            log.warn("Groq ha risposto {}: {}", stato, tronca(e.getResponseBodyAsString()));
+            if (stato == 429) throw new UpstreamException(HttpStatus.TOO_MANY_REQUESTS, "Limite richieste Coach AI raggiunto, riprova tra poco");
+            if (stato == 400 || stato == 413 || stato == 422) throw new BadRequestException("Richiesta al Coach AI non valida o troppo lunga");
+            throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Il servizio AI non è disponibile in questo momento");
+        } catch (RestClientException e) {
+            // Rete, timeout o risposta interrotta a metà: la causa resta nell'eccezione, che va nel log con il suo stack
+            log.warn("Groq non raggiungibile o risposta interrotta", e);
             throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Servizio AI non raggiungibile");
         }
+        return leggiRisposta(risposta);
+    }
+
+    /** La risposta di Groq è un oggetto JSON: altro (pagina HTML, corpo vuoto o a metà) è un guasto a monte, con il corpo nei log */
+    private JsonNode leggiRisposta(String corpo) {
+        try {
+            JsonNode json = mapper.readTree(corpo);
+            if (json.isObject()) return json;
+        } catch (JacksonException | IllegalArgumentException _) {
+            // Non è JSON (o il corpo manca: readTree(null) lancia IllegalArgumentException): stessa risposta di un JSON non oggetto
+        }
+        log.warn("Risposta di Groq non valida, non è un oggetto JSON: {}", tronca(corpo));
+        throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Il servizio AI ha dato una risposta non valida");
+    }
+
+    /** Forma e dimensione di messages/tools: il proxy serve solo al Coach dell'app */
+    private void valida(CoachChatRequestDTO req) {
+        JsonNode messaggi = req.messages();
+        if (!messaggi.isArray() || messaggi.isEmpty() || messaggi.size() > MAX_MESSAGGI) {
+            throw new BadRequestException("messages deve essere un elenco da 1 a " + MAX_MESSAGGI + " messaggi");
+        }
+        for (JsonNode m : messaggi) {
+            if (!m.isObject() || !RUOLI.contains(m.path("role").asString(""))) {
+                throw new BadRequestException("Ogni messaggio deve avere un ruolo valido");
+            }
+        }
+        if (messaggi.toString().length() > MAX_CARATTERI_MESSAGGI) {
+            throw new BadRequestException("Conversazione troppo lunga: cancella la chat e riprova");
+        }
+        JsonNode tool = req.tools();
+        if (tool == null || tool.isNull()) return;
+        if (!tool.isArray() || tool.size() > MAX_TOOL || tool.toString().length() > MAX_CARATTERI_TOOL) {
+            throw new BadRequestException("tools deve essere un elenco di al massimo " + MAX_TOOL + " strumenti");
+        }
+    }
+
+    /** Nei log il corpo di Groq entra al massimo con 500 caratteri */
+    private static String tronca(String s) {
+        if (s == null) return "";
+        if (s.length() <= 500) return s;
+        return s.substring(0, 500) + "…";
     }
 }

@@ -17,5 +17,5 @@ public record GiocatoreRequestDTO(
         @Size(max = 5) String numero,
         @Size(max = 120) String squadra,
         @Size(max = 40) String esperienza,
-        String note
+        @Size(max = 2000) String note // colonna TEXT: il tetto è dell'API, perché una nota non pesi megabyte
 ) {}
