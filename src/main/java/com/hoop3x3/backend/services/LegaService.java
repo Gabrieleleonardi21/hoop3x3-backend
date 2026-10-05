@@ -11,6 +11,7 @@ import com.hoop3x3.backend.repositories.TappaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
@@ -35,8 +36,9 @@ public class LegaService {
 
     @Transactional(readOnly = true)
     public List<LegaMetaDTO> indice(Utente utente) {
-        return legaRepository.findByOwnerIdOrderByModificatoIlDesc(utente.getId()).stream()
-                .map(this::toMeta)
+        // Una sola query: le leghe con il numero delle loro tappe, contate dal database senza caricarle
+        return legaRepository.indiceDi(utente.getId()).stream()
+                .map(v -> toMeta(v.getId(), v.getNome(), v.getModificatoIl(), v.getNumeroTappe()))
                 .toList();
     }
 
@@ -123,9 +125,14 @@ public class LegaService {
         return t;
     }
 
+    /** Voce dell'indice di una lega già letta (dopo la creazione e la rinomina): le tappe si contano con una query, non si caricano */
     private LegaMetaDTO toMeta(Lega l) {
-        long ts = l.getModificatoIl().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-        return new LegaMetaDTO(l.getId(), l.getNome(), ts, l.getTappe().size());
+        return toMeta(l.getId(), l.getNome(), l.getModificatoIl(), tappaRepository.countByLegaId(l.getId()));
+    }
+
+    private static LegaMetaDTO toMeta(UUID id, String nome, LocalDateTime modificatoIl, int nTappe) {
+        long ts = modificatoIl.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        return new LegaMetaDTO(id, nome, ts, nTappe);
     }
 
     private Tappa fromDto(TappaDTO dto, Lega lega, int posizione) {
