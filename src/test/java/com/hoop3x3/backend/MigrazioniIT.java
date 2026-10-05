@@ -8,6 +8,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.io.IOException;
@@ -20,6 +21,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Lo schema del database lo creano le migrazioni di Flyway (src/main/resources/db/migration), non uno script a mano:
@@ -77,7 +79,7 @@ class MigrazioniIT {
     @Test
     void unDatabaseFattoAManoPartePerBaselineEPoiRiceveLeMigrazioniSuccessive() {
         String schema = nuovoSchema();
-        // Come il database di Gabriele: ci sono le tabelle di V1 ma nessuno storico di Flyway
+        // Un database creato a mano, prima di Flyway: ci sono le tabelle di V1 ma nessuno storico di Flyway
         configurazionePer(schema).target("1").load().migrate();
         jdbc.execute("drop table " + schema + ".flyway_schema_history");
 
@@ -87,6 +89,32 @@ class MigrazioniIT {
         // V1 è segnata dalla baseline e non rieseguita: per la versione 1 non c'è nessuna riga SQL
         assertThat(tipiApplicati(schema, "1")).containsExactly("BASELINE");
         assertLeMigrazioniDopoLaV1Applicate(migrazioni);
+    }
+
+    // Un database già in uso può avere pubblicazioni orfane: la tappa è stata eliminata quando la V1 non lo impediva e non le
+    // cancellava. La V2 non deve fallire per colpa loro né cancellarle (toglierebbe dati senza che nessuno l'abbia deciso):
+    // il vincolo è NOT VALID, quindi non controlla le righe che ci sono già ma controlla quelle nuove
+    @Test
+    void laV2LasciaLePubblicazioniOrfaneEImpedisceLeNuove() {
+        String schema = nuovoSchema();
+        configurazionePer(schema).target("1").load().migrate();
+        UUID autore = nuovoUtente(schema);
+        UUID orfana = UUID.randomUUID();
+        nuovaPubblicazione(schema, orfana, autore); // con la V1 nulla impedisce una pubblicazione senza tappa
+
+        configurazionePer(schema).load().migrate();
+
+        // L'orfana è ancora lì, e la query che la cerca la trova
+        assertThat(valori("select tappa_id::text from " + schema + ".archivio_tappe")).containsExactly(orfana.toString());
+        assertThat(orfane(schema)).containsExactly(orfana.toString());
+        // Una pubblicazione nuova deve avere la sua tappa
+        assertThatThrownBy(() -> nuovaPubblicazione(schema, UUID.randomUUID(), autore))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        nuovaPubblicazione(schema, nuovaTappa(schema, autore), autore);
+        assertThat(orfane(schema)).containsExactly(orfana.toString());
+        // Chi cancella le orfane può convalidare il vincolo anche sulle righe vecchie
+        jdbc.update("delete from " + schema + ".archivio_tappe where tappa_id = ?", orfana);
+        jdbc.execute("alter table " + schema + ".archivio_tappe validate constraint archivio_tappe_tappa_id_fkey");
     }
 
     // Una tabella che manca dalla TRUNCATE di svuota.sql resterebbe piena tra un test e l'altro. Lo storico di Flyway
@@ -121,7 +149,7 @@ class MigrazioniIT {
         return valori("select type from " + schema + ".flyway_schema_history where version = ? and success", versione);
     }
 
-    /** Ogni migrazione dopo V1 risulta applicata con successo. Oggi non ce ne sono: V2, V3... entreranno da sole */
+    /** Ogni migrazione dopo V1 (V2, V3...) risulta applicata con successo: una nuova entra da sola, senza ritoccare i test */
     private static void assertLeMigrazioniDopoLaV1Applicate(Flyway migrazioni) {
         for (MigrationInfo migrazione : migrazioni.info().all()) {
             if (migrazione.isVersioned() && migrazione.getVersion().isNewerThan("1")) {
@@ -129,6 +157,37 @@ class MigrazioniIT {
                         .isEqualTo(MigrationState.SUCCESS);
             }
         }
+    }
+
+    /* ── Righe di prova nello schema temporaneo (con i soli campi obbligatori) ── */
+
+    private UUID nuovoUtente(String schema) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("insert into " + schema + ".utenti (id, email, password, nome, ruolo, creato_il, modificato_il) "
+                + "values (?, 'mario@test.it', 'hash', 'Mario', 'USER', now(), now())", id);
+        return id;
+    }
+
+    /** Una lega con una tappa dell'utente: restituisce l'id della tappa */
+    private UUID nuovaTappa(String schema, UUID proprietario) {
+        UUID lega = UUID.randomUUID();
+        UUID tappa = UUID.randomUUID();
+        jdbc.update("insert into " + schema + ".leghe (id, nome, owner_id, creato_il, modificato_il) "
+                + "values (?, 'Circuito', ?, now(), now())", lega, proprietario);
+        jdbc.update("insert into " + schema + ".tappe (id, lega_id, nome, creato_il, modificato_il) "
+                + "values (?, ?, 'Tappa', now(), now())", tappa, lega);
+        return tappa;
+    }
+
+    private void nuovaPubblicazione(String schema, UUID tappa, UUID autore) {
+        jdbc.update("insert into " + schema + ".archivio_tappe (tappa_id, lega_nome, autore_id, contenuto, pubblicato_il) "
+                + "values (?, 'Circuito', ?, '{}'::jsonb, now())", tappa, autore);
+    }
+
+    /** Le pubblicazioni la cui tappa non esiste più: la query del README per i database già in uso, sullo schema di prova */
+    private List<String> orfane(String schema) {
+        return valori("select a.tappa_id::text from " + schema + ".archivio_tappe a "
+                + "where not exists (select 1 from " + schema + ".tappe t where t.id = a.tappa_id)");
     }
 
     /** Il primo campo di ogni riga restituita dalla query, per esempio il nome della tabella o dell'indice */

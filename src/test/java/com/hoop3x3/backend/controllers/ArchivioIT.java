@@ -226,6 +226,42 @@ class ArchivioIT {
         assertThat(archivio.count()).isZero();
     }
 
+    /* ── Pulizia: la pubblicazione segue la sua tappa (V2) ── */
+
+    @Test
+    void eliminareLaTappaPubblicataTogliePureLaPubblicazione() throws Exception {
+        TappaDTO daEliminare = tappaDto("Da eliminare", true);
+        TappaDTO daTenere = tappaDto("Da tenere", true);
+        lega(mario, "Circuito 2026", daEliminare, daTenere);
+        pubblica(daEliminare.id(), mario).andExpect(status().isOk());
+        pubblica(daTenere.id(), mario).andExpect(status().isOk());
+
+        mvc.perform(delete("/api/tappe/" + daEliminare.id()).header(AUTHORIZATION, bearer(mario)))
+                .andExpect(status().isNoContent());
+
+        // Resta solo la pubblicazione dell'altra tappa, e quella eliminata non si legge più dall'archivio
+        assertThat(tappeInArchivio()).containsExactly(daTenere.id());
+        mvc.perform(get("/api/archivio/" + daEliminare.id())).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void eliminareLaLegaTogliLePubblicazioniDelleSueTappe() throws Exception {
+        TappaDTO prima = tappaDto("Prima", true);
+        TappaDTO seconda = tappaDto("Seconda", true);
+        TappaDTO diUnAltraLega = tappaDto("Di un'altra lega", true);
+        UUID legaId = lega(mario, "Circuito 2026", prima, seconda);
+        lega(luigi, "Altro circuito", diUnAltraLega);
+        pubblica(prima.id(), mario).andExpect(status().isOk());
+        pubblica(seconda.id(), mario).andExpect(status().isOk());
+        pubblica(diUnAltraLega.id(), luigi).andExpect(status().isOk());
+
+        mvc.perform(delete("/api/leghe/" + legaId).header(AUTHORIZATION, bearer(mario)))
+                .andExpect(status().isNoContent());
+
+        // Le pubblicazioni di Mario se ne vanno con la sua lega, quella di Luigi resta
+        assertThat(tappeInArchivio()).containsExactly(diUnAltraLega.id());
+    }
+
     /* ── Dati di prova ── */
 
     /** Tappa di Roma con id nuovo: i blocchi di gioco sono quelli di SQUADRE e PARTITE */
@@ -259,6 +295,11 @@ class ArchivioIT {
     /** «Pubblica» premuto da `chi`: nessun corpo */
     private ResultActions pubblica(UUID tappaId, Utente chi) throws Exception {
         return mvc.perform(put("/api/archivio/" + tappaId).header(AUTHORIZATION, bearer(chi)));
+    }
+
+    /** Gli id delle tappe che hanno una pubblicazione */
+    private List<UUID> tappeInArchivio() {
+        return archivio.findAll().stream().map(ArchivioTappa::getTappaId).toList();
     }
 
     /** Ciò che chiunque legge dall'archivio: la GET è pubblica, senza token */

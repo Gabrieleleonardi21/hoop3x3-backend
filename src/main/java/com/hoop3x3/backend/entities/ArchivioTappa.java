@@ -13,6 +13,8 @@ import java.util.UUID;
  * Snapshot di una tappa conclusa e pubblicata nell'Archivio circuito.
  * La chiave è l'id della tappa: ripubblicare sovrascrive lo snapshot. Lo costruisce il server
  * (ArchivioService.pubblica) dalla tappa salvata, e l'autore è il proprietario della sua lega.
+ * Eliminare la tappa, la sua lega o il suo proprietario elimina anche la pubblicazione: lo fa il database,
+ * con la chiave esterna su tappa_id della migrazione V2.
  */
 @Entity
 @Table(name = "archivio_tappe")
