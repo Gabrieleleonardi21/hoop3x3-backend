@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Leghe e tappe dell'utente: ogni operazione verifica che la lega sia sua (o che sia ADMIN). */
@@ -79,11 +80,13 @@ public class LegaService {
 
     @Transactional
     public TappaDTO aggiungiTappa(Utente utente, UUID legaId, TappaDTO dto) {
-        Lega lega = trovaLega(utente, legaId);
+        // La riga della lega si blocca fino alla fine della transazione: il frontend può mandare insieme le POST di più
+        // tappe nuove della stessa lega (svuota() della coda, chiusura della pagina) e senza il lock due richieste
+        // leggerebbero la stessa posizione massima. Così la seconda aspetta il commit della prima e il suo massimo vede
+        // la tappa nuova
+        Lega lega = trovaLegaConLock(utente, legaId);
         if (tappaRepository.existsById(dto.id())) throw new ConflictException("Esiste già una tappa con id " + dto.id());
-        // In coda: una posizione dopo la massima, non il numero delle tappe (dopo un'eliminazione sarebbe già di un'altra).
-        // Due richieste insieme nella stessa lega potrebbero prendere la stessa posizione, ma non succede: le fa chi
-        // gestisce la lega (il proprietario o un ADMIN) e la coda del frontend le manda una alla volta
+        // In coda: una posizione dopo la massima, non il numero delle tappe (dopo un'eliminazione sarebbe già di un'altra)
         Tappa t = fromDto(dto, lega, tappaRepository.prossimaPosizione(legaId));
         lega.getTappe().add(t);
         lega.touch();
@@ -112,7 +115,17 @@ public class LegaService {
     /* ── Helper ── */
 
     private Lega trovaLega(Utente utente, UUID id) {
-        Lega lega = legaRepository.findById(id).orElseThrow(() -> new NotFoundException("Lega non trovata: " + id));
+        return controllaLega(utente, id, legaRepository.findById(id));
+    }
+
+    /** Come {@link #trovaLega}, ma con la riga della lega bloccata fino alla fine della transazione (vedi aggiungiTappa) */
+    private Lega trovaLegaConLock(Utente utente, UUID id) {
+        return controllaLega(utente, id, legaRepository.trovaConLock(id));
+    }
+
+    /** 404 se la lega non c'è e 403 se l'utente non ne è il proprietario né un ADMIN: la regola è la stessa con o senza lock */
+    private Lega controllaLega(Utente utente, UUID id, Optional<Lega> trovata) {
+        Lega lega = trovata.orElseThrow(() -> new NotFoundException("Lega non trovata: " + id));
         guard.checkOwner(utente, lega.getOwner().getId(), "questa lega");
         return lega;
     }
