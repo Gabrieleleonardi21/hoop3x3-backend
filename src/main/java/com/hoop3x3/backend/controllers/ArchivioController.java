@@ -1,6 +1,7 @@
 package com.hoop3x3.backend.controllers;
 
 import com.hoop3x3.backend.dto.PubTappaDTO;
+import com.hoop3x3.backend.dto.PubTappaMetaDTO;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.services.ArchivioService;
 import org.springframework.http.HttpStatus;
@@ -21,8 +22,9 @@ public class ArchivioController {
         this.archivioService = archivioService;
     }
 
+    /** L'elenco in forma sintetica (PubTappaMetaDTO): il contenuto di una tappa si legge con {@link #una} */
     @GetMapping
-    public List<PubTappaDTO> tutte() {
+    public List<PubTappaMetaDTO> tutte() {
         return archivioService.tutte();
     }
 

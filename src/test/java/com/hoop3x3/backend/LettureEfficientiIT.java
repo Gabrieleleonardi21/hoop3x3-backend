@@ -9,6 +9,7 @@ import com.hoop3x3.backend.dto.SquadraDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.AnagrafeGiocatore;
 import com.hoop3x3.backend.entities.AnagrafeSquadra;
+import com.hoop3x3.backend.entities.ArchivioTappa;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Tappa;
 import com.hoop3x3.backend.entities.Utente;
@@ -16,6 +17,7 @@ import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
 import com.hoop3x3.backend.repositories.AnagrafeSquadraRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.services.AnagrafeService;
+import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.LegaService;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
@@ -49,6 +51,7 @@ class LettureEfficientiIT {
     @Autowired AnagrafeSquadraRepository squadre;
     @Autowired AnagrafeService anagrafeService;
     @Autowired LegaService legaService;
+    @Autowired ArchivioService archivioService;
     @Autowired JdbcTemplate jdbc;
     @Autowired ObjectMapper mapper;
 
@@ -222,12 +225,41 @@ class LettureEfficientiIT {
         });
     }
 
+    /* ── Elenco dell'archivio: una query che estrae i campi dal JSONB, senza caricare le pubblicazioni ── */
+
+    @Test
+    void elencoDellArchivioSiLeggeConUnaQuery_ilNumeroNonCresceConLePubblicazioni() {
+        pubblicaTappe(1);
+        long conUna = misura(archivioService::tutte).query();
+
+        pubblicaTappe(4); // ognuna di un autore diverso
+        var conCinque = misura(archivioService::tutte);
+
+        assertThat(conCinque.risultato()).hasSize(5);
+        // Le tre cose sono indipendenti: se falliscono insieme si vedono insieme
+        assertSoftly(soft -> {
+            soft.assertThat(conCinque.query()).as("query dell'elenco con 5 pubblicazioni").isEqualTo(conUna);
+            soft.assertThat(conCinque.query()).as("query dell'elenco dell'archivio").isEqualTo(1);
+            soft.assertThat(caricate(ArchivioTappa.class)).as("pubblicazioni caricate").isZero();
+        });
+    }
+
     /* ── Dati di prova ── */
 
     /** Aggiunge `quante` leghe a `proprietario`, ognuna con due tappe */
     private void aggiungiLeghe(Utente proprietario, int quante) {
         for (int i = 0; i < quante; i++) {
             legaService.crea(proprietario, new NuovaLegaDTO("Lega " + (++progressivo), List.of(tappa(), tappa())));
+        }
+    }
+
+    /** Pubblica `quante` tappe, ognuna conclusa nella lega di un autore nuovo */
+    private void pubblicaTappe(int quante) {
+        for (int i = 0; i < quante; i++) {
+            Utente autore = utente("Autore " + (++progressivo));
+            TappaDTO tappa = tappa();
+            legaService.crea(autore, new NuovaLegaDTO("Lega " + progressivo, List.of(tappa)));
+            archivioService.pubblica(autore, tappa.id());
         }
     }
 

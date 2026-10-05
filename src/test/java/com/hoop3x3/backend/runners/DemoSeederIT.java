@@ -2,6 +2,7 @@ package com.hoop3x3.backend.runners;
 
 import com.hoop3x3.backend.TestDiIntegrazione;
 import com.hoop3x3.backend.dto.PubTappaDTO;
+import com.hoop3x3.backend.dto.PubTappaMetaDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
@@ -54,12 +55,16 @@ class DemoSeederIT {
         seeder.run();
 
         String nomeLega = leghe.findAll().getFirst().getNome();
-        List<PubTappaDTO> pubblicate = archivioService.tutte();
-        assertThat(pubblicate).hasSize(4).allSatisfy(pubblicata -> {
+        List<PubTappaMetaDTO> elenco = archivioService.tutte();
+        assertThat(elenco).hasSize(4).allSatisfy(voce -> {
+            assertThat(voce.lega()).isEqualTo(nomeLega);
+            assertThat(voce.autore()).isEqualTo("Admin");
+            // L'elenco è sintetico: autore e tappa si guardano nella pubblicazione, come fa l'app aprendola
+            PubTappaDTO pubblicata = archivioService.una(voce.tappaId());
             assertThat(pubblicata.autoreId()).isEqualTo(admin.getId());
             assertThat(pubblicata.lega()).isEqualTo(nomeLega);
             // Come nell'archivio dell'app: la tappa salvata nel database, nella forma delle API
-            TappaDTO salvata = legaService.toDto(tappe.findById(pubblicata.tappa().id()).orElseThrow());
+            TappaDTO salvata = legaService.toDto(tappe.findById(voce.tappaId()).orElseThrow());
             assertThat(comeJson(pubblicata.tappa())).isEqualTo(comeJson(salvata));
         });
     }

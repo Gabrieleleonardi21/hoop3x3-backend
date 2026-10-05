@@ -14,6 +14,8 @@ import com.hoop3x3.backend.security.JWTtools;
 import com.hoop3x3.backend.services.LegaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc; // Spring Boot 4: package del modulo webmvc-test
 import org.springframework.http.MediaType;
@@ -25,6 +27,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -52,6 +55,8 @@ class ArchivioIT {
     // I dati veri della tappa: Team Rome batte Team Milan 21-17
     private static final String SQUADRE = "[{\"id\":\"s1\",\"nome\":\"Team Rome\"},{\"id\":\"s2\",\"nome\":\"Team Milan\"}]";
     private static final String PARTITE = "[{\"id\":\"m1\",\"a\":\"s1\",\"b\":\"s2\",\"sa\":21,\"sb\":17,\"done\":true}]";
+    private static final String TRE_SQUADRE = "[{\"id\":\"s1\",\"nome\":\"Team Rome\"},{\"id\":\"s2\",\"nome\":\"Team Milan\"},"
+            + "{\"id\":\"s3\",\"nome\":\"Team Turin\"}]";
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
@@ -274,6 +279,56 @@ class ArchivioIT {
         assertThat(archivio.count()).isZero();
     }
 
+    /* ── Elenco: una voce sintetica per pubblicazione, estratta dal JSONB ── */
+
+    // L'elenco mostra di ogni tappa nome, luogo, data, numero di squadre, lega e autore: la voce ha questi campi più l'id per
+    // aprirla e ts per l'ordine. Niente contenuto della tappa (lo dà GET /api/archivio/{tappaId}) e niente id dell'autore
+    @Test
+    void elencoHaUnaVoceSinteticaPerOgniPubblicazione_laPiuRecenteDavanti() throws Exception {
+        assertThat(elenco().size()).as("voci dell'archivio vuoto").isZero();
+        TappaDTO roma = tappaDto(UUID.randomUUID(), "Tappa di Roma", "Roma", "2026-06-14", SQUADRE, true);
+        TappaDTO milano = tappaDto(UUID.randomUUID(), "Finale di Milano", "Milano", "2026-07-05", TRE_SQUADRE, true);
+        lega(mario, "Circuito 2026", roma);
+        lega(luigi, "Altro circuito", milano);
+        pubblica(roma.id(), mario).andExpect(status().isOk());
+        pubblica(milano.id(), luigi).andExpect(status().isOk());
+        // Date certe: Roma è di ieri, Milano di adesso
+        LocalDateTime ieri = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime adesso = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        pubblicataIl(roma.id(), ieri);
+        pubblicataIl(milano.id(), adesso);
+
+        assertThat(elenco()).isEqualTo(mapper.readTree("""
+                [{"tappaId": "%s", "nome": "Finale di Milano", "luogo": "Milano", "data": "2026-07-05", "nSquadre": 3,
+                  "lega": "Altro circuito", "autore": "Luigi", "ts": %d},
+                 {"tappaId": "%s", "nome": "Tappa di Roma", "luogo": "Roma", "data": "2026-06-14", "nSquadre": 2,
+                  "lega": "Circuito 2026", "autore": "Mario", "ts": %d}]"""
+                .formatted(milano.id(), millis(adesso), roma.id(), millis(ieri))));
+    }
+
+    // Le pubblicazioni fatte con il vecchio endpoint sono tappe scelte dal client: possono mancare luogo e data, e le squadre
+    // possono non essere un array. Una voce così non deve rompere l'elenco (500) né nascondere le altre: ha luogo e data vuoti
+    // e 0 squadre
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "{\"nome\": \"Vecchia\"}",
+            "{\"nome\": \"Vecchia\", \"luogo\": null, \"data\": null, \"squadre\": null}",
+            "{\"nome\": \"Vecchia\", \"squadre\": {\"s1\": \"Team Rome\"}}",
+            "{\"nome\": \"Vecchia\", \"squadre\": \"nessuna\"}"})
+    void unaPubblicazioneVecchiaConCampiMancantiONonValidi_stanellElencoConVuotiEZeroSquadre(String contenuto) throws Exception {
+        UUID buona = tappaConclusa(mario, "Circuito 2026");
+        pubblica(buona, mario).andExpect(status().isOk());
+        UUID vecchia = tappaConclusa(luigi, "Altro circuito");
+        ArchivioTappa riga = pubblicazioneConContenuto(vecchia, luigi, contenuto);
+
+        JsonNode elenco = elenco();
+
+        assertThat(elenco.size()).isEqualTo(2);
+        assertThat(elenco).contains(mapper.readTree("""
+                {"tappaId": "%s", "nome": "Vecchia", "luogo": "", "data": "", "nSquadre": 0,
+                 "lega": "Nome vecchio", "autore": "Luigi", "ts": %d}""".formatted(vecchia, millis(riga.getPubblicatoIl()))));
+    }
+
     /* ── Pulizia: la pubblicazione segue la sua tappa (V2) ── */
 
     @Test
@@ -318,8 +373,12 @@ class ArchivioIT {
     }
 
     private TappaDTO tappaDto(UUID id, String nome, boolean conclusa) {
-        return new TappaDTO(id, nome, "Roma", "2026-06-14", 1, new RegoleDTO(21, 10, 2, 12),
-                mapper.readTree(SQUADRE), null, mapper.readTree(PARTITE), mapper.readTree("[]"), conclusa, null);
+        return tappaDto(id, nome, "Roma", "2026-06-14", SQUADRE, conclusa);
+    }
+
+    private TappaDTO tappaDto(UUID id, String nome, String luogo, String data, String squadre, boolean conclusa) {
+        return new TappaDTO(id, nome, luogo, data, 1, new RegoleDTO(21, 10, 2, 12),
+                mapper.readTree(squadre), null, mapper.readTree(PARTITE), mapper.readTree("[]"), conclusa, null);
     }
 
     /** Crea la lega di `proprietario` con le tappe indicate, come fa l'import di una lega da file */
@@ -339,14 +398,31 @@ class ArchivioIT {
      * e il contenuto una tappa completa scelta dal client (qui con un altro nome, per riconoscerla)
      */
     private ArchivioTappa pubblicazioneVecchia(UUID tappaId, Utente autore) {
+        return pubblicazioneConContenuto(tappaId, autore, mapper.writeValueAsString(tappaDto(tappaId, "Tappa vecchia", true)));
+    }
+
+    /** Una pubblicazione di ieri, con il contenuto JSON scelto dal chiamante (anche uno che il server non costruirebbe mai) */
+    private ArchivioTappa pubblicazioneConContenuto(UUID tappaId, Utente autore, String contenuto) {
         ArchivioTappa vecchia = new ArchivioTappa();
         vecchia.setTappaId(tappaId);
         vecchia.setLegaNome("Nome vecchio");
         vecchia.setAutore(autore);
-        vecchia.setContenuto(mapper.writeValueAsString(tappaDto(tappaId, "Tappa vecchia", true)));
+        vecchia.setContenuto(contenuto);
         // Al secondo, senza frazioni: la colonna arrotonda al microsecondo e il confronto con la riga riletta non tornerebbe
         vecchia.setPubblicatoIl(LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS));
         return archivio.save(vecchia);
+    }
+
+    /** Cambia la data di pubblicazione di una pubblicazione (al secondo, come sopra) */
+    private void pubblicataIl(UUID tappaId, LocalDateTime quando) {
+        ArchivioTappa riga = archivio.findById(tappaId).orElseThrow();
+        riga.setPubblicatoIl(quando);
+        archivio.save(riga);
+    }
+
+    /** `ts` dell'API: i millisecondi epoch di una data del database, nel fuso del server */
+    private static long millis(LocalDateTime data) {
+        return data.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
     }
 
     /* ── Richieste ── */
@@ -363,6 +439,11 @@ class ArchivioIT {
     /** Gli id delle tappe che hanno una pubblicazione */
     private List<UUID> tappeInArchivio() {
         return archivio.findAll().stream().map(ArchivioTappa::getTappaId).toList();
+    }
+
+    /** L'elenco dell'archivio: la GET è pubblica, senza token */
+    private JsonNode elenco() throws Exception {
+        return mapper.readTree(corpo(mvc.perform(get("/api/archivio")).andExpect(status().isOk())));
     }
 
     /** Ciò che chiunque legge dall'archivio: la GET è pubblica, senza token */

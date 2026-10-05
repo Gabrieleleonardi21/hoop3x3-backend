@@ -1,6 +1,7 @@
 package com.hoop3x3.backend.services;
 
 import com.hoop3x3.backend.dto.PubTappaDTO;
+import com.hoop3x3.backend.dto.PubTappaMetaDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.ArchivioTappa;
 import com.hoop3x3.backend.entities.Lega;
@@ -34,9 +35,16 @@ public class ArchivioService {
         this.mapper = mapper;
     }
 
+    /**
+     * L'elenco sintetico, dalla pubblicazione più recente: una sola query estrae i dati dal JSONB, senza leggere né
+     * interpretare il contenuto delle tappe (che si legge con {@link #una}).
+     */
     @Transactional(readOnly = true)
-    public List<PubTappaDTO> tutte() {
-        return repo.findAllByOrderByPubblicatoIlDesc().stream().map(this::toDto).toList();
+    public List<PubTappaMetaDTO> tutte() {
+        return repo.elenco().stream()
+                .map(v -> new PubTappaMetaDTO(v.getTappaId(), v.getNome(), v.getLuogo(), v.getData(),
+                        v.getNumeroSquadre(), v.getLega(), v.getAutore(), ts(v.getPubblicatoIl())))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -83,7 +91,11 @@ public class ArchivioService {
 
     private PubTappaDTO toDto(ArchivioTappa a) {
         TappaDTO tappa = mapper.readValue(a.getContenuto(), TappaDTO.class);
-        long ts = a.getPubblicatoIl().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-        return new PubTappaDTO(tappa, a.getLegaNome(), a.getAutore().getNome(), a.getAutore().getId(), ts);
+        return new PubTappaDTO(tappa, a.getLegaNome(), a.getAutore().getNome(), a.getAutore().getId(), ts(a.getPubblicatoIl()));
+    }
+
+    /** I millisecondi epoch di una data del database: il `ts` dell'API */
+    private static long ts(LocalDateTime pubblicatoIl) {
+        return pubblicatoIl.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
     }
 }
