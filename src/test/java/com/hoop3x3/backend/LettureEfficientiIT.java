@@ -56,6 +56,7 @@ class LettureEfficientiIT {
     @Autowired ObjectMapper mapper;
 
     private Statistics statistiche;
+    private boolean eranoAccese; // com'erano le statistiche prima del test
     private int progressivo; // dà un nome diverso a ogni lega, squadra e autore di prova
 
     // Le statistiche si accendono qui, solo per la durata del test: da proprietà (hibernate.generate_statistics) tutti i
@@ -64,12 +65,13 @@ class LettureEfficientiIT {
     @BeforeEach
     void accendiLeStatistiche() {
         statistiche = emf.unwrap(SessionFactory.class).getStatistics();
+        eranoAccese = statistiche.isStatisticsEnabled();
         statistiche.setStatisticsEnabled(true);
     }
 
     @AfterEach
-    void spegniLeStatistiche() {
-        statistiche.setStatisticsEnabled(false);
+    void rimettiLeStatistiche() {
+        statistiche.setStatisticsEnabled(eranoAccese);
     }
 
     /* ── Indice delle leghe: una query che conta le tappe, senza caricarle (cinque colonne JSONB l'una) ── */
