@@ -33,7 +33,7 @@ public class ArchivioController {
 
     /**
      * Pubblica o ripubblica (upsert) la tappa del percorso. Nessun corpo: lo snapshot lo costruisce il server dai dati
-     * che ha salvato, e il corpo che un client vecchio manda ancora si ignora.
+     * che ha salvato, e un corpo eventuale si ignora (non si legge né si valida).
      */
     @PutMapping("/{tappaId}")
     public PubTappaDTO pubblica(@AuthenticationPrincipal Utente utente, @PathVariable UUID tappaId) {

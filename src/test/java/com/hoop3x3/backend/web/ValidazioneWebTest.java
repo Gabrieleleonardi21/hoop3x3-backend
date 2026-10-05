@@ -283,8 +283,8 @@ class ValidazioneWebTest {
         verify(archivioService).pubblica(mario, tappaId);
     }
 
-    // Un client vecchio manda ancora {tappa, lega}: il corpo si ignora, anche se non sarebbe valido (con il vecchio DTO
-    // sarebbe stato un 400). Non c'è niente da validare, perché il server non ci legge niente
+    // Un corpo eventuale si ignora (non si legge né si valida): con il vecchio DTO un {tappa, lega} non valido, un JSON
+    // malformato o un testo qualsiasi sarebbero stati un 400, ora la risposta non cambia
     @ParameterizedTest
     @ValueSource(strings = {"{\"tappa\":{\"nome\":\"\"},\"lega\":\"\"}", "{\"tappa\":null}", "{nome:", "non e JSON"})
     void pubblicazioneConUnCorpoQualsiasi_ilCorpoSiIgnora(String corpo) throws Exception {

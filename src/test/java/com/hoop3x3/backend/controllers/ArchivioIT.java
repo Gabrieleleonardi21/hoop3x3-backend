@@ -72,8 +72,9 @@ class ArchivioIT {
         admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
     }
 
-    // Il cuore di BE-7: un client vecchio manda ancora {tappa, lega}, qui con nomi e punteggi inventati e perfino un
-    // altro id di tappa. Il corpo non si legge: si pubblicano i dati del database, con la chiave del percorso
+    // Il cuore di BE-7: la richiesta porta un corpo {tappa, lega}, la forma del vecchio endpoint, con nomi e punteggi
+    // inventati e perfino un altro id di tappa. Il corpo si ignora (non si legge né si valida): si pubblicano i dati del
+    // database, con la chiave del percorso
     @Test
     void unCorpoInventatoNonCambiaNulla_siPubblicanoIDatiDelDatabase() throws Exception {
         UUID tappaId = tappaConclusa(mario, "Circuito 2026");
