@@ -35,7 +35,7 @@ import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
-import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**
  * BE-8, letture pesanti. Le statistiche di Hibernate contano le istruzioni SQL di ogni lettura: devono essere poche e
@@ -219,10 +219,9 @@ class LettureEfficientiIT {
         long conSetteSenzaDiLui = query(() -> anagrafeService.eliminaGiocatore(mario, secondo.getId()));
 
         // Le due cose sono indipendenti: se falliscono entrambe si vedono entrambe
-        assertSoftly(soft -> {
-            soft.assertThat(caricate(AnagrafeSquadra.class)).as("squadre caricate").isEqualTo(2);
-            soft.assertThat(conSetteSenzaDiLui).as("query con 7 squadre senza il giocatore").isEqualTo(conUnaSenzaDiLui);
-        });
+        assertAll(
+                () -> assertThat(caricate(AnagrafeSquadra.class)).as("squadre caricate").isEqualTo(2),
+                () -> assertThat(conSetteSenzaDiLui).as("query con 7 squadre senza il giocatore").isEqualTo(conUnaSenzaDiLui));
     }
 
     /* ── Elenco dell'archivio: una query che estrae i campi dal JSONB, senza caricare le pubblicazioni ── */
@@ -237,11 +236,10 @@ class LettureEfficientiIT {
 
         assertThat(conCinque.risultato()).hasSize(5);
         // Le tre cose sono indipendenti: se falliscono insieme si vedono insieme
-        assertSoftly(soft -> {
-            soft.assertThat(conCinque.query()).as("query dell'elenco con 5 pubblicazioni").isEqualTo(conUna);
-            soft.assertThat(conCinque.query()).as("query dell'elenco dell'archivio").isEqualTo(1);
-            soft.assertThat(caricate(ArchivioTappa.class)).as("pubblicazioni caricate").isZero();
-        });
+        assertAll(
+                () -> assertThat(conCinque.query()).as("query dell'elenco con 5 pubblicazioni").isEqualTo(conUna),
+                () -> assertThat(conCinque.query()).as("query dell'elenco dell'archivio").isEqualTo(1),
+                () -> assertThat(caricate(ArchivioTappa.class)).as("pubblicazioni caricate").isZero());
     }
 
     /* ── Dati di prova ── */
