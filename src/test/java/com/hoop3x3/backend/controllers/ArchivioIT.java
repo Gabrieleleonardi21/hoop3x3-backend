@@ -229,6 +229,29 @@ class ArchivioIT {
         assertThat(archivio.count()).isZero();
     }
 
+    // Una tappa riaperta dopo la pubblicazione (non più conclusa): la copia pubblica resta quella dell'ultima pubblicazione,
+    // ripubblicare dà 409 finché la tappa non torna conclusa, e ritirare si può sempre
+    @Test
+    void unaTappaRiapertaDopoLaPubblicazione_laCopiaResta_ripubblicareDa409_ritirareSiPuo() throws Exception {
+        TappaDTO tappa = tappaDto("Tappa di Roma", true);
+        lega(mario, "Circuito 2026", tappa);
+        pubblica(tappa.id(), mario).andExpect(status().isOk());
+        legaService.aggiornaTappa(mario, tappa.id(), tappaDto(tappa.id(), "Tappa di Roma (riaperta)", false));
+
+        pubblica(tappa.id(), mario).andExpect(status().isConflict());
+        // La copia pubblica è ancora quella dell'ultima pubblicazione
+        JsonNode copia = letta(tappa.id());
+        assertThat(copia.at("/tappa/nome").asString()).isEqualTo("Tappa di Roma");
+        assertThat(copia.at("/tappa/conclusa").asBoolean()).isTrue();
+        // Ritirarla si può anche con la tappa riaperta
+        mvc.perform(delete("/api/archivio/" + tappa.id()).header(AUTHORIZATION, bearer(mario)))
+                .andExpect(status().isNoContent());
+        // Quando la tappa torna conclusa si può pubblicare di nuovo
+        legaService.aggiornaTappa(mario, tappa.id(), tappaDto(tappa.id(), "Tappa di Roma (riaperta)", true));
+        pubblica(tappa.id(), mario).andExpect(status().isOk())
+                .andExpect(jsonPath("$.tappa.nome").value("Tappa di Roma (riaperta)"));
+    }
+
     // Il vecchio endpoint, con la tappa nel corpo, non esiste più: un client non aggiornato riceve 405 e non pubblica nulla
     @Test
     void ilVecchioEndpointConLaTappaNelCorpo_risponde405() throws Exception {
