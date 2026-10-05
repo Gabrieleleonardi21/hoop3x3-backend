@@ -102,7 +102,9 @@ class MigrazioniIT {
         UUID orfana = UUID.randomUUID();
         nuovaPubblicazione(schema, orfana, autore); // con la V1 nulla impedisce una pubblicazione senza tappa
 
-        configurazionePer(schema).load().migrate();
+        // Si ferma alla V2: il test riguarda lei, e le righe di prova hanno i soli campi obbligatori di quello schema. Una
+        // migrazione futura sulle stesse tabelle non deve romperlo per un motivo che con la V2 non c'entra
+        configurazionePer(schema).target("2").load().migrate();
 
         // L'orfana è ancora lì, e la query che la cerca la trova
         assertThat(valori("select tappa_id::text from " + schema + ".archivio_tappe")).containsExactly(orfana.toString());
