@@ -34,10 +34,12 @@ import static org.springframework.security.web.servlet.util.matcher.PathPatternR
  *   <li><b>Coach AI</b> (POST /api/coach/chat), per utente e in due finestre, il minuto e il giorno UTC: ogni richiesta è una
  *       chiamata alla chiave Groq del server. Respinta qui, non arriva a Groq.</li>
  * </ul>
- * È un filtro come JwtFilter e LimiteDimensioneFilter, e non un HandlerInterceptor o un controllo nel controller, perché deve
- * girare prima di Spring MVC, che leggerebbe e validerebbe il corpo di una richiesta destinata al 429. Sta subito dopo il
- * JwtFilter: il Coach si conta per utente e l'utente lo riconosce lui (senza utente non si conta niente: ci pensa
- * l'autorizzazione con il 401), mentre login, registrazione e rinnovo non passano dal JwtFilter.
+ * È un filtro, come JwtFilter e LimiteDimensioneFilter, e non un HandlerInterceptor o un controllo nel controller, perché deve
+ * girare prima di tutto il resto: una richiesta respinta qui non fa leggere il corpo (LimiteDimensioneFilter, che gira dopo,
+ * ne legge fino a 2 MB) e non arriva a Spring MVC, e un interceptor non conterebbe le richieste che un filtro ha già fermato,
+ * per esempio con il 413. Sta subito dopo il JwtFilter: il Coach si conta per utente e l'utente lo riconosce lui (senza
+ * utente non si conta niente: ci pensa l'autorizzazione con il 401), mentre login, registrazione e rinnovo non passano dal
+ * JwtFilter.
  * <p>
  * I percorsi si confrontano come fanno le regole di autorizzazione di SecurityConfig (PathPatternRequestMatcher): Spring
  * decodifica il percorso e ne toglie i parametri prima di scegliere il controller, e con un confronto sul testo grezzo

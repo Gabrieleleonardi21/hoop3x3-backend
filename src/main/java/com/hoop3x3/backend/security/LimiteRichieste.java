@@ -66,12 +66,12 @@ public class LimiteRichieste {
     /** Conta una richiesta della chiave e dice se può passare */
     public Esito conta(String chiave) {
         long adesso = orologio.instant().getEpochSecond();
-        long numero = adesso / finestra.secondi;
+        long numero = adesso / finestra.secondi();
         // Il contatore è atomico: due richieste contemporanee non si perdono e non contano due volte lo stesso posto
         long richieste = finestraInCorso(numero).conteggi().computeIfAbsent(chiave, _ -> new AtomicLong()).incrementAndGet();
         if (richieste <= massimo) return CONSENTITA;
         // Conta anche chi sfora: la richiesta che porta il conteggio a massimo + 1 è la prima respinta, una per finestra
-        long attesa = (numero + 1) * finestra.secondi - adesso;
+        long attesa = (numero + 1) * finestra.secondi() - adesso;
         return new Esito(false, attesa, richieste == massimo + 1L);
     }
 
