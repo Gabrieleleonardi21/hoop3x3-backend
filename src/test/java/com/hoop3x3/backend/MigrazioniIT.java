@@ -119,6 +119,24 @@ class MigrazioniIT {
         jdbc.execute("alter table " + schema + ".archivio_tappe validate constraint archivio_tappe_tappa_id_fkey");
     }
 
+    // La colonna versione delle tappe è NOT NULL: la V4 non deve fallire su un database che ha già delle tappe, né lasciarle senza
+    // valore. Le tappe già salvate partono dalla versione 0, come una tappa nuova, e così un inserimento che non nomina la colonna
+    // (i test con JDBC, un import a mano). Si ferma alla V3 per avere una tappa «di prima»
+    @Test
+    void laV4DaVersioneZeroAlleTappeGiaSalvateEAQuelleInseriteSenzaNominarla() {
+        String schema = nuovoSchema();
+        configurazionePer(schema).target("3").load().migrate();
+        UUID proprietario = nuovoUtente(schema);
+        nuovaTappa(schema, proprietario);
+
+        configurazionePer(schema).target("4").load().migrate();
+        nuovaTappa(schema, proprietario);
+
+        assertThat(valori("select versione::text from " + schema + ".tappe")).containsExactly("0", "0");
+        assertThatThrownBy(() -> jdbc.update("update " + schema + ".tappe set versione = null"))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
     // Una tabella che manca dalla TRUNCATE di svuota.sql resterebbe piena tra un test e l'altro. Lo storico di Flyway
     // invece non va mai svuotato: dice quali migrazioni il database ha già, e svuotarlo le farebbe riapplicare
     @Test

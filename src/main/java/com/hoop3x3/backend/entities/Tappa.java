@@ -1,6 +1,7 @@
 package com.hoop3x3.backend.entities;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -72,6 +73,16 @@ public class Tappa {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")
     private String video = "[]";
+
+    /**
+     * Versione della tappa (BE-9). Hibernate la aumenta a ogni UPDATE e la scrive nella condizione dell'UPDATE stesso
+     * (where id = ? and versione = ?): due salvataggi insieme sulla stessa tappa non si sovrascrivono, il secondo fallisce.
+     * Il client la riceve con la tappa e la rimanda con la PUT, vedi LegaService.aggiornaTappa. Senza setter: la gestisce
+     * Hibernate, e una versione scritta a mano su una tappa già caricata non verrebbe nemmeno controllata.
+     */
+    @Version
+    @Setter(AccessLevel.NONE)
+    private long versione;
 
     @Column(name = "creato_il", nullable = false, updatable = false)
     private LocalDateTime creatoIl;

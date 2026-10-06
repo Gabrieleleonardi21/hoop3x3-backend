@@ -115,7 +115,9 @@ class ArchivioIT {
 
         TappaDTO salvata = legaService.toDto(tappe.findById(tappaId).orElseThrow());
         JsonNode pubblico = letta(tappaId);
-        assertThat(pubblico.get("tappa")).isEqualTo(mapper.valueToTree(salvata));
+        // Il JSON come lo riceve un client: scritto e riletto. valueToTree darebbe a `versione` un LongNode, che non è uguale
+        // all'IntNode che esce dalla lettura di «0», anche se il JSON è lo stesso
+        assertThat(pubblico.get("tappa")).isEqualTo(mapper.readTree(mapper.writeValueAsString(salvata)));
         assertThat(pubblico.get("lega").asString()).isEqualTo("Circuito 2026");
         assertThat(pubblico.get("autoreId").asString()).isEqualTo(mario.getId().toString());
     }

@@ -184,7 +184,7 @@ class LogApplicativiTest {
         when(leghe.trovaConLock(ID_LEGA)).thenReturn(Optional.of(lega));
         when(leghe.save(any(Lega.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
         when(tappe.findById(ID_TAPPA)).thenReturn(Optional.of(tappaDiMario));
-        when(tappe.save(any(Tappa.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
+        when(tappe.saveAndFlush(any(Tappa.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
 
         ArchivioTappa pubblicazione = new ArchivioTappa();
         pubblicazione.setTappaId(ID_TAPPA);

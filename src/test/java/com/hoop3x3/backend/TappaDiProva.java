@@ -67,6 +67,6 @@ public final class TappaDiProva {
         // La lettura di una stringa JSON non dipende dalla configurazione del mapper: basta quello condiviso di Jackson
         JsonMapper json = JsonMapper.shared();
         return new TappaDTO(id, nome, luogo, data, 1, new RegoleDTO(21, 10, 2, 12),
-                json.readTree(squadre), null, json.readTree(partite), json.readTree("[]"), conclusa, null);
+                json.readTree(squadre), null, json.readTree(partite), json.readTree("[]"), conclusa, null, null);
     }
 }

@@ -105,7 +105,8 @@ public class LegaService {
         applica(dto, t);
         guard.tracciaModifica(utente, t.getLega().getOwner().getId(), "tappa", tappaId);
         t.getLega().touch();
-        return toDto(tappaRepository.save(t));
+        // saveAndFlush: Hibernate aumenta la versione quando scrive l'UPDATE, e la risposta deve portare quella nuova
+        return toDto(tappaRepository.saveAndFlush(t));
     }
 
     @Transactional
@@ -184,7 +185,8 @@ public class LegaService {
     public TappaDTO toDto(Tappa t) {
         return new TappaDTO(t.getId(), t.getNome(), t.getLuogo(), t.getData(), t.getNGironi(),
                 RegoleDTO.from(t.getRegole()), json.parse(t.getSquadre()), json.parse(t.getGironi()),
-                json.parse(t.getPartite()), json.parse(t.getVideo()), t.isConclusa(), json.parse(t.getBracket()));
+                json.parse(t.getPartite()), json.parse(t.getVideo()), t.isConclusa(), json.parse(t.getBracket()),
+                t.getVersione());
     }
 
     private static String valore(String s) {

@@ -16,6 +16,9 @@ import java.util.UUID;
  * (POST/PUT) che in uscita. I blocchi di gioco viaggiano come JSON grezzo (JsonNode):
  * il server li valida come struttura (array/oggetto) e li salva in JSONB.
  * nome, luogo e data hanno i limiti delle colonne di `tappe` (migrazioni in db/migration): oltre, il database rifiuterebbe la riga.
+ * `versione` è il numero di salvataggi che la tappa ha avuto (0 se nuova): la decide il server e la restituisce in ogni
+ * risposta. La POST e l'import di una lega la ignorano. Può mancare, perché la stessa classe è il corpo delle richieste e
+ * rilegge anche le tappe pubblicate in archivio prima che esistesse.
  */
 public record TappaDTO(
         @NotNull UUID id,
@@ -30,5 +33,6 @@ public record TappaDTO(
         @NotNull JsonNode partite,
         JsonNode video,
         Boolean conclusa,
-        JsonNode bracket
+        JsonNode bracket,
+        Long versione
 ) {}
