@@ -12,7 +12,7 @@ createdb hoop3x3
 
 Le tabelle le crea il server al primo avvio con le migrazioni di [Flyway](https://flywaydb.org) (`src/main/resources/db/migration`): non c'è nessuno script da eseguire. Flyway segna le migrazioni applicate nella tabella `flyway_schema_history`, accanto alle altre. L'utente del database (`DB_USERNAME`) deve poter creare e modificare tabelle nello schema `public`, per esempio perché è il proprietario del database: Flyway crea `flyway_schema_history` e applica le migrazioni, e con un utente che può solo leggere e scrivere i dati il primo avvio fallisce.
 
-Un database già esistente, creato a mano con il vecchio `db/schema.sql`, non va ricreato né toccato: al primo avvio Flyway trova le tabelle ma non lo storico e lo segna come versione 1 (`V1__schema_iniziale.sql` è quello schema) senza rieseguire niente, quindi i dati restano com'erano. Da quel momento ogni cambio di schema arriva come migrazione nuova (V2, V3…) e il server la applica da solo all'avvio: la V2 lega le pubblicazioni dell'archivio alle loro tappe e lascia dove sono le eventuali pubblicazioni orfane di un database già in uso (vedi «Archivio circuito»); la V3 aggiunge `seed_eseguiti`, il segno dei seed già eseguiti (vedi «Dati di prova»). Il database deve avere lo schema attuale, compresa la tabella `refresh_tokens`: se manca, il server non parte e dice quale tabella manca (`Schema validation: missing table [refresh_tokens]`). In quel caso riesegui il file intero, che è idempotente (tutto `IF NOT EXISTS`, i dati non si toccano, i messaggi `already exists, skipping` sono normali), e riavvia:
+Un database già esistente, creato a mano con il vecchio `db/schema.sql`, non va ricreato né toccato: al primo avvio Flyway trova le tabelle ma non lo storico e lo segna come versione 1 (`V1__schema_iniziale.sql` è quello schema) senza rieseguire niente, quindi i dati restano com'erano. Da quel momento ogni cambio di schema arriva come migrazione nuova (V2, V3, V4…) e il server la applica da solo all'avvio: la V2 lega le pubblicazioni dell'archivio alle loro tappe e lascia dove sono le eventuali pubblicazioni orfane di un database già in uso (vedi «Archivio circuito»); la V3 aggiunge `seed_eseguiti`, il segno dei seed già eseguiti (vedi «Dati di prova»); la V4 aggiunge `tappe.versione` e lascia alle tappe già salvate la versione 0 (vedi «Tappe e modifiche da più dispositivi»). Il database deve avere lo schema attuale, compresa la tabella `refresh_tokens`: se manca, il server non parte e dice quale tabella manca (`Schema validation: missing table [refresh_tokens]`). In quel caso riesegui il file intero, che è idempotente (tutto `IF NOT EXISTS`, i dati non si toccano, i messaggi `already exists, skipping` sono normali), e riavvia:
 
 ```bash
 psql -d hoop3x3 -f src/main/resources/db/migration/V1__schema_iniziale.sql
@@ -41,14 +41,14 @@ Il frontend in sviluppo inoltra `/api` verso `http://localhost:3001` tramite il 
 
 ## Migrazioni del database
 
-Lo schema cambia solo con le migrazioni di Flyway in `src/main/resources/db/migration`: un file SQL per ogni modifica, chiamato `V<numero>__<descrizione>.sql` (due underscore dopo il numero, per esempio `V4__versione_tappe.sql`), con il numero successivo all'ultimo. All'avvio il server applica in ordine quelle che il database non ha ancora, poi Hibernate (`ddl-auto=validate`) controlla che le entity combacino con le tabelle: nessuno deve più applicare SQL a mano su un ambiente.
+Lo schema cambia solo con le migrazioni di Flyway in `src/main/resources/db/migration`: un file SQL per ogni modifica, chiamato `V<numero>__<descrizione>.sql` (due underscore dopo il numero, per esempio `V5__nuova_colonna.sql`), con il numero successivo all'ultimo. All'avvio il server applica in ordine quelle che il database non ha ancora, poi Hibernate (`ddl-auto=validate`) controlla che le entity combacino con le tabelle: nessuno deve più applicare SQL a mano su un ambiente.
 
 - **Una migrazione già applicata non si modifica**, nemmeno nei commenti: Flyway ne confronta il checksum e il server non parte (`Migration checksum mismatch`). Un errore si corregge con una migrazione nuova.
 - **Il nome del file conta**: con un nome sbagliato (per esempio `V2_x.sql`, con un solo underscore) il server non parte e dice quale file è sbagliato, invece di ignorare in silenzio quella migrazione (`spring.flyway.validate-migration-naming`).
 - **Niente nome dello schema**: dentro una migrazione si scrive `tappe`, non `public.tappe`. `MigrazioniIT` esegue le migrazioni anche su schemi temporanei, e un nome con `public.` colpirebbe lo schema vero e farebbe fallire quei test.
 - **Tabella nuova**: il suo nome va aggiunto anche alla `TRUNCATE` di `src/test/resources/svuota.sql`, lo controlla `MigrazioniIT`. `flyway_schema_history`, lo storico di Flyway, non ci va mai.
 - `spring.flyway.baseline-on-migrate=true` (in `application.properties`) serve ai database creati a mano prima di Flyway: Flyway li segna come versione 1 invece di rifiutarli. Su un database che ha già lo storico non cambia nulla.
-- `MigrazioniIT` prova i due percorsi, database vuoto e database creato a mano prima di Flyway, su schemi temporanei e qualunque sia lo stato del database di prova: una migrazione nuova (V3, V4…) non richiede ritocchi a quei test.
+- `MigrazioniIT` prova i due percorsi, database vuoto e database creato a mano prima di Flyway, su schemi temporanei e qualunque sia lo stato del database di prova: una migrazione nuova (V5, V6…) non richiede ritocchi a quei test.
 
 ## Coach AI
 
@@ -59,6 +59,19 @@ La richiesta è controllata prima di arrivare a Groq, altrimenti 400: `messages`
 Ogni utente può fare 20 richieste al minuto e 300 al giorno: oltre, il server risponde 429 (vedi «Limiti di frequenza»).
 
 Gli errori di Groq arrivano al client senza dettagli interni: 429 se Groq limita le richieste, 400 se rifiuta la richiesta (anche perché troppo lunga), 502 per tutto il resto (errore di Groq, chiave non valida, rete, timeout, risposta che non è un oggetto JSON), 503 se la chiave manca. Nei log del server ogni 502 e 503 ha la sua riga `WARN` con la causa: stato e corpo della risposta di Groq (troncato a 500 caratteri e su una riga sola: a capo e caratteri di controllo sono scritti per esteso) oppure l'eccezione di rete. La chiave non viene mai scritta nei log.
+
+## Tappe e modifiche da più dispositivi
+
+Salvare una tappa (`PUT /api/tappe/{id}`) sostituisce la tappa intera, partite comprese: due dispositivi, o due schede, aperti sulla stessa tappa si sovrascriverebbero in silenzio, e l'ultimo a salvare cancellerebbe il lavoro dell'altro. Per questo ogni tappa ha una `versione`: un numero che il server aumenta quando un salvataggio cambia la tappa (colonna `tappe.versione`, migrazione V4) e che il client rimanda con la PUT.
+
+- **Dove si legge.** `versione` è un campo della tappa in ogni risposta che la contiene: `GET /api/leghe/{id}`, `POST /api/leghe/{id}/tappe` e `PUT /api/tappe/{id}`. Una tappa nuova ha la versione 0, e così quelle che c'erano prima della V4. La POST e l'import di una lega ignorano la `versione` che il corpo porta: le tappe che creano partono sempre da 0.
+- `PUT /api/tappe/{id}` — il corpo è la tappa intera, con la `versione` che il client ha letto. Se va a buon fine risponde 200 con la tappa e la versione che ha adesso, da rimandare con la PUT successiva: il client usa quella della risposta e non la calcola da sé (può restare uguale se la PUT non cambia niente).
+  - **400** «Manca la versione della tappa (campo versione): ricarica la pagina e riprova» se `versione` non c'è o è `null`. Senza, il server non può sapere se sta sovrascrivendo il lavoro di un altro dispositivo, e non salva in silenzio: una pagina aperta prima dell'aggiornamento riceve questo errore finché non si ricarica.
+  - **409** «La tappa è stata modificata da un altro dispositivo: ricaricala» se la `versione` non è quella che il database ha adesso, cioè la tappa è stata salvata da qualcun altro dopo che il client l'ha letta. Della richiesta non si salva niente. Vale anche per due richieste che arrivano insieme: quella che arriva dopo trova la tappa già cambiata e riceve lo stesso 409. Per ricaricare la tappa il client legge `GET /api/leghe/{id}`, che porta tutte le tappe della lega con la loro versione.
+  - I controlli vanno in quest'ordine: 400 (versione mancante), poi 404 e 403 (tappa inesistente o di un altro utente), poi 409. Chi non è il proprietario non può scoprire la versione di una tappa altrui provando dei numeri.
+- Il 409 della PUT non è quello della POST («Esiste già una tappa con id …»): il client li distingue dal metodo.
+- `DELETE /api/tappe/{id}` non porta la versione. Se un altro dispositivo salva la tappa nello stesso istante in cui la si elimina, risponde con lo stesso 409 e la tappa resta com'è stata salvata.
+- Le tappe in archivio portano la `versione` che avevano quando sono state pubblicate (lo snapshot è la tappa come la restituiscono le API): è una fotografia e non serve a salvare. Le pubblicazioni fatte prima della V4 non ce l'hanno (`versione: null`).
 
 ## Archivio circuito
 
@@ -141,12 +154,12 @@ Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 
 **Errori** — ogni errore dell'applicazione ha lo stesso corpo JSON, `{message, timestamp}`, qualunque `Accept` mandi il client: `message` è in italiano e senza dettagli interni (SQL e stack restano nei log), `timestamp` è la data e l'ora locali del server, senza fuso. Gli stati:
 
-- **400** — richiesta non valida: JSON malformato, campo oltre un limite o non valido, identificatore non valido nel percorso, richiesta al Coach AI rifiutata. Il messaggio dice che cosa non va, di solito con il nome del campo.
+- **400** — richiesta non valida: JSON malformato, campo oltre un limite o non valido, identificatore non valido nel percorso, versione mancante nel salvataggio di una tappa, richiesta al Coach AI rifiutata. Il messaggio dice che cosa non va, di solito con il nome del campo.
 - **401** — token mancante, scaduto o non valido; email o password sbagliate; refresh token assente, sconosciuto o scaduto.
 - **403** — ruolo insufficiente, oppure risorsa di un altro utente.
 - **404** — risorsa o percorso inesistente.
 - **405** — metodo non consentito per quell'indirizzo.
-- **409** — conflitto con dati già salvati (email già registrata, tappa con lo stesso id, vincolo del database), tappa non ancora conclusa che si prova a pubblicare in archivio, oppure sessione già rinnovata da un'altra richiesta.
+- **409** — conflitto con dati già salvati (email già registrata, tappa con lo stesso id, vincolo del database), tappa salvata da un altro dispositivo dopo che il client l'ha letta (versione della PUT non più quella del database), tappa non ancora conclusa che si prova a pubblicare in archivio, oppure sessione già rinnovata da un'altra richiesta.
 - **413** — richiesta oltre 2 MB.
 - **415** — corpo che non è JSON.
 - **429** — troppe richieste: il limite di frequenza di login, registrazione, rinnovo del token e Coach AI, con `Retry-After` (vedi «Limiti di frequenza»). Per il Coach AI è 429 anche quando è Groq a limitare le richieste, con un altro messaggio e senza `Retry-After`.
@@ -208,7 +221,7 @@ L'applicazione scrive nei log (console) ciò che serve a capire un problema in p
 
 ```
 env.properties.example          # segreti: copiare in env.properties
-src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 = archivio legato alle tappe, V3 = segno dei seed eseguiti), applicate all'avvio
+src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 = archivio legato alle tappe, V3 = segno dei seed eseguiti, V4 = versione delle tappe), applicate all'avvio
 src/main/java/com/hoop3x3/backend/
 ├── controllers/  # REST (auth, utenti, leghe, tappe, anagrafe, archivio, coach)
 ├── dto/          # record con validazione Bean Validation
