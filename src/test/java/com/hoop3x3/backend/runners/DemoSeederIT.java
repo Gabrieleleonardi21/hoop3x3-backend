@@ -6,6 +6,8 @@ import com.hoop3x3.backend.dto.PubTappaMetaDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
+import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
+import com.hoop3x3.backend.repositories.AnagrafeSquadraRepository;
 import com.hoop3x3.backend.repositories.LegaRepository;
 import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
@@ -14,6 +16,7 @@ import com.hoop3x3.backend.services.LegaService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -25,7 +28,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Il seed demo con il database vero: le 4 tappe del circuito Estathé finiscono in archivio con la forma che il frontend
  * legge dalle API delle tappe, intestate all'admin. Il seeder parte da solo solo all'avvio (SEED_DEMO=true) e i test
- * cominciano con le tabelle vuote: qui lo si accende a mano, dopo aver creato l'admin.
+ * cominciano con le tabelle vuote: qui lo si accende a mano, dopo aver creato l'admin. Il seed si esegue una sola volta
+ * (il segno nella tabella seed_eseguiti), anche se la lega demo viene eliminata.
  */
 @TestDiIntegrazione
 class DemoSeederIT {
@@ -34,6 +38,9 @@ class DemoSeederIT {
     @Autowired UtenteRepository utenti;
     @Autowired LegaRepository leghe;
     @Autowired TappaRepository tappe;
+    @Autowired AnagrafeGiocatoreRepository giocatori;
+    @Autowired AnagrafeSquadraRepository squadre;
+    @Autowired JdbcTemplate jdbc;
     @Autowired ArchivioService archivioService;
     @Autowired LegaService legaService;
     @Autowired ObjectMapper mapper;
@@ -48,9 +55,7 @@ class DemoSeederIT {
 
     @Test
     void leTappeDelSeedSonoInArchivioUgualiAQuelleSalvateEIntestateAllAdmin() throws Exception {
-        Utente admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
-        ReflectionTestUtils.setField(seeder, "abilitato", true);
-        ReflectionTestUtils.setField(seeder, "adminEmail", admin.getEmail());
+        Utente admin = accendiIlSeed();
 
         seeder.run();
 
@@ -67,6 +72,78 @@ class DemoSeederIT {
             TappaDTO salvata = legaService.toDto(tappe.findById(voce.tappaId()).orElseThrow());
             assertThat(comeJson(pubblicata.tappa())).isEqualTo(comeJson(salvata));
         });
+    }
+
+    @Test
+    void alTermineDelSeedIlSegnoStaNelDatabase() throws Exception {
+        accendiIlSeed();
+        assertThat(segni()).as("prima del seed nessun segno").isEmpty();
+
+        seeder.run();
+
+        assertThat(segni()).containsExactly("demo");
+        assertThat(jdbc.queryForObject("select count(*) from seed_eseguiti where eseguito_il is not null", Integer.class))
+                .as("il segno ha la data").isEqualTo(1);
+    }
+
+    // Il difetto: giocatori e squadre demo hanno id generati dal database, mentre la lega con le sue tappe e l'archivio
+    // spariscono insieme quando si elimina la lega. Alla prima tappa il seed non si riconosceva più, e al riavvio
+    // giocatori e squadre venivano inseriti una seconda volta
+    @Test
+    void seLaLegaDemoEEliminata_alRiavvioNonCiSonoGiocatoriNeSquadreDoppi() throws Exception {
+        accendiIlSeed();
+        seeder.run();
+        long giocatoriDemo = giocatori.count();
+        long squadreDemo = squadre.count();
+        assertThat(giocatoriDemo).isPositive();
+        assertThat(squadreDemo).isPositive();
+        // Un task successivo cambierà i nomi dei dati demo: il segno non deve dipendere da nessuno di loro
+        jdbc.update("update anagrafe_giocatori set nome = 'Nome', cognome = 'Cognome'");
+        jdbc.update("update anagrafe_squadre set nome = 'Squadra'");
+        jdbc.update("update leghe set nome = 'Lega'");
+
+        leghe.deleteAll();
+        assertThat(tappe.count()).as("con la lega spariscono le tappe").isZero();
+        assertThat(archivioService.tutte()).as("e l'archivio").isEmpty();
+        assertThat(giocatori.count()).as("ma non i giocatori").isEqualTo(giocatoriDemo);
+
+        seeder.run(); // il riavvio
+
+        assertThat(giocatori.count()).isEqualTo(giocatoriDemo);
+        assertThat(squadre.count()).isEqualTo(squadreDemo);
+        assertThat(leghe.count()).as("la lega demo non rinasce").isZero();
+    }
+
+    // I database seminati prima del segno: i dati ci sono (compresa la prima tappa demo) ma il segno no. Il seed non riparte
+    // e il segno compare, così da quel momento regge anche se la lega viene eliminata
+    @Test
+    void databaseSeminatoPrimaDelSegno_ilSeedNonRipartEIlSegnoCompare() throws Exception {
+        accendiIlSeed();
+        seeder.run();
+        long giocatoriDemo = giocatori.count();
+        long squadreDemo = squadre.count();
+        long tappeDemo = tappe.count();
+        jdbc.update("delete from seed_eseguiti"); // com'era un database di prima del segno
+
+        seeder.run();
+
+        assertThat(giocatori.count()).isEqualTo(giocatoriDemo);
+        assertThat(squadre.count()).isEqualTo(squadreDemo);
+        assertThat(tappe.count()).isEqualTo(tappeDemo);
+        assertThat(segni()).containsExactly("demo");
+    }
+
+    /** Come all'avvio con SEED_DEMO=true e ADMIN_EMAIL: un admin nel database e il seeder acceso su di lui */
+    private Utente accendiIlSeed() {
+        Utente admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
+        ReflectionTestUtils.setField(seeder, "abilitato", true);
+        ReflectionTestUtils.setField(seeder, "adminEmail", admin.getEmail());
+        return admin;
+    }
+
+    /** I nomi dei seed che hanno lasciato il segno nel database */
+    private List<String> segni() {
+        return jdbc.queryForList("select nome from seed_eseguiti", String.class);
     }
 
     /** Confronto sul JSON e non sui record: un blocco assente è null in uno e NullNode nell'altro, ma in JSON è lo stesso */
