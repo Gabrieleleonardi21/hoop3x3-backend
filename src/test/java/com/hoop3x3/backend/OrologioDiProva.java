@@ -1,5 +1,9 @@
 package com.hoop3x3.backend;
 
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -14,25 +18,43 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class OrologioDiProva extends Clock {
 
-    private volatile Instant adesso;
-    private final AtomicReference<Runnable> allaProssimaLettura = new AtomicReference<>();
+    /** Il secondo 20 di un minuto, a metà giornata: al minuto dopo mancano 40 secondi, a mezzanotte UTC 13 ore, 59 minuti e 40 */
+    public static final Instant INIZIO = Instant.parse("2026-10-06T10:00:20Z");
 
-    /** @param istante in formato ISO con il fuso, per esempio {@code 2026-10-06T10:00:20Z} */
-    public OrologioDiProva(String istante) {
-        this.adesso = Instant.parse(istante);
+    /**
+     * Mette un orologio di prova al posto di quello vero nei test che caricano il contesto di Spring: basta
+     * {@code @Import(OrologioDiProva.Configurazione.class)} sulla classe e {@code @Autowired OrologioDiProva orologio}. I
+     * contatori dei limiti vivono nel contesto, che i test della classe condividono: ognuno chiama {@link #giornoNuovo()}.
+     */
+    @TestConfiguration(proxyBeanMethods = false)
+    public static class Configurazione {
+        @Bean
+        @Primary
+        OrologioDiProva orologioDiProva() {
+            return new OrologioDiProva();
+        }
     }
+
+    private volatile Instant adesso = INIZIO;
+    private final AtomicReference<Runnable> allaProssimaLettura = new AtomicReference<>();
+    private int giorniUsati;
 
     /** Sposta l'orologio in avanti */
     public void avanza(Duration durata) {
         adesso = adesso.plus(durata);
     }
 
-    /**
-     * Rimette l'orologio sull'istante dato. Serve ai test che condividono il contesto di Spring, e quindi i contatori dei
-     * limiti: ognuno parte da un giorno diverso dagli altri, in un minuto e in un giorno che nessun altro ha ancora usato.
-     */
+    /** Rimette l'orologio sull'istante dato, anche indietro: l'orologio di sistema può tornare indietro */
     public void imposta(Instant istante) {
         adesso = istante;
+    }
+
+    /**
+     * Riparte da INIZIO di un giorno che questo orologio non ha ancora usato: il minuto e il giorno dei contatori sono nuovi,
+     * e il test non trova i conteggi di quelli che l'hanno preceduto nello stesso contesto di Spring.
+     */
+    public void giornoNuovo() {
+        imposta(INIZIO.plus(Duration.ofDays(++giorniUsati)));
     }
 
     /**

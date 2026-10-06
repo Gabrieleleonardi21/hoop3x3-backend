@@ -10,16 +10,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
 
 import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
@@ -34,23 +30,10 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 @TestDiIntegrazione(webEnvironment = RANDOM_PORT)
 @TestPropertySource(properties = {"server.address=127.0.0.1", // il server di prova non è raggiungibile da altri computer
         "server.forward-headers-strategy=native", "limite.auth-al-minuto=3"})
+@Import(OrologioDiProva.Configurazione.class)
 class LimiteRichiesteProxyIT {
 
-    private static final Instant INIZIO = Instant.parse("2026-10-06T10:00:20Z");
     private static final String LOGIN = "{\"email\":\"mario@test.it\",\"password\":\"password123\"}";
-
-    /** Ogni test parte da un giorno diverso: i contatori vivono nel contesto di Spring, che i test della classe condividono */
-    private static int giorniUsati;
-
-    /** È questo l'orologio dei limiti: sostituisce quello vero, perché non sia il minuto vero a dire quando si riparte */
-    @TestConfiguration
-    static class OrologioFinto {
-        @Bean
-        @Primary
-        OrologioDiProva orologioDiProva() {
-            return new OrologioDiProva(INIZIO.toString());
-        }
-    }
 
     @LocalServerPort int porta;
     @Autowired UtenteRepository utenti;
@@ -66,7 +49,7 @@ class LimiteRichiesteProxyIT {
 
     @BeforeEach
     void giornoNuovoEUtente() {
-        orologio.imposta(INIZIO.plus(Duration.ofDays(++giorniUsati)));
+        orologio.giornoNuovo();
         client = new ClientHttp(porta);
         log = new LogCatturato(LimiteRichiesteFilter.class);
         // Il costo del BCrypt sta dentro l'hash e il login lo rispetta: con 4 al posto di 12 gli accessi del test sono rapidi

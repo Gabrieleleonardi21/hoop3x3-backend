@@ -35,7 +35,7 @@ class LimiteRichiesteTest {
     private static final String INDIRIZZO = "203.0.113.9";
     private static final long SECONDI_A_MEZZANOTTE = 13 * 3600 + 59 * 60 + 40;
 
-    private final OrologioDiProva orologio = new OrologioDiProva("2026-10-06T10:00:20Z");
+    private final OrologioDiProva orologio = new OrologioDiProva();
 
     private LimiteRichieste alMinuto(int massimo) {
         return new LimiteRichieste(massimo, MINUTO, orologio);

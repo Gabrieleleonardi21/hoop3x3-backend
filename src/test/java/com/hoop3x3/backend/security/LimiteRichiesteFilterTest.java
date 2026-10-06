@@ -3,7 +3,6 @@ package com.hoop3x3.backend.security;
 import ch.qos.logback.classic.Level;
 import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.OrologioDiProva;
-import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.TroppeRichiesteException;
 import jakarta.servlet.FilterChain;
@@ -16,15 +15,14 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.ModelAndView;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
+import static com.hoop3x3.backend.UtenteDiProva.conId;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -41,7 +39,7 @@ class LimiteRichiesteFilterTest {
     private static final String COACH = "/api/coach/chat";
     private static final String INDIRIZZO = "203.0.113.9";
 
-    private final OrologioDiProva orologio = new OrologioDiProva("2026-10-06T10:00:20Z");
+    private final OrologioDiProva orologio = new OrologioDiProva();
     private final List<Exception> errori = new ArrayList<>();
     private final HandlerExceptionResolver resolver = (richiesta, risposta, gestore, errore) -> {
         errori.add(errore);
@@ -90,12 +88,6 @@ class LimiteRichiesteFilterTest {
     private TroppeRichiesteException ultimoRifiuto() {
         assertThat(errori).isNotEmpty();
         return (TroppeRichiesteException) errori.getLast();
-    }
-
-    private static Utente utente(String email) {
-        Utente utente = new Utente(email, "hash", "Nome", Ruolo.USER);
-        ReflectionTestUtils.setField(utente, "id", UUID.randomUUID()); // il database lo assegnerebbe al salvataggio
-        return utente;
     }
 
     /** Da qui in poi la richiesta è di questo utente, come dopo il JwtFilter */
@@ -174,7 +166,7 @@ class LimiteRichiesteFilterTest {
 
     @Test
     void laTerzaRichiestaDelCoachNelMinuto_nonProseguePerLaStradaDegliErrori() throws Exception {
-        accediComeUtente(utente("mario@x.it"));
+        accediComeUtente(conId("mario@x.it"));
         postPassano(COACH, INDIRIZZO, 2);
 
         assertThat(postPassa(COACH, INDIRIZZO)).isFalse();
@@ -188,8 +180,8 @@ class LimiteRichiesteFilterTest {
     // non si tolgono le richieste a vicenda, e lo stesso utente da due indirizzi ha un contatore solo
     @Test
     void utentiDiversi_hannoQuoteSeparateEDaDueIndirizziLUtenteEUno() throws Exception {
-        Utente mario = utente("mario@x.it");
-        Utente luca = utente("luca@x.it");
+        Utente mario = conId("mario@x.it");
+        Utente luca = conId("luca@x.it");
 
         accediComeUtente(mario);
         assertThat(postPassa(COACH, "203.0.113.1")).isTrue();
@@ -220,7 +212,7 @@ class LimiteRichiesteFilterTest {
     // Solo la chat chiama Groq: lo stato del Coach, che il frontend legge a ogni avvio, non consuma la quota
     @Test
     void soloLaChatDelCoachSiConta() throws Exception {
-        accediComeUtente(utente("mario@x.it"));
+        accediComeUtente(conId("mario@x.it"));
         for (int i = 0; i < 10; i++) {
             assertThat(passa("GET", "/api/coach/status", INDIRIZZO)).isTrue();
             assertThat(passa("GET", COACH, INDIRIZZO)).isTrue();
@@ -229,7 +221,7 @@ class LimiteRichiesteFilterTest {
 
     @Test
     void laQuotaGiornalieraDelCoach_finisceAMezzanotteUtc() throws Exception {
-        accediComeUtente(utente("mario@x.it"));
+        accediComeUtente(conId("mario@x.it"));
         postPassano(COACH, INDIRIZZO, 2); // 10:00:20
         orologio.avanza(Duration.ofMinutes(1));
         postPassano(COACH, INDIRIZZO, 2); // 10:01:20: 4 richieste nel giorno, le sue 4
@@ -249,7 +241,7 @@ class LimiteRichiesteFilterTest {
     // respinte, altrimenti pochi secondi di insistenza gli costerebbero la giornata
     @Test
     void leRichiesteRespinteDalMinuto_nonConsumanoLaQuotaGiornaliera() throws Exception {
-        accediComeUtente(utente("mario@x.it"));
+        accediComeUtente(conId("mario@x.it"));
         postPassano(COACH, INDIRIZZO, 2);
         for (int i = 0; i < 20; i++) {
             assertThat(postPassa(COACH, INDIRIZZO)).isFalse();
@@ -308,7 +300,7 @@ class LimiteRichiesteFilterTest {
 
     @Test
     void ilCoach_nelLogHaLUtenteELaQuotaSuperata() throws Exception {
-        Utente mario = utente("mario@x.it");
+        Utente mario = conId("mario@x.it");
         accediComeUtente(mario);
         postPassano(COACH, INDIRIZZO, 2);
         assertThat(postPassa(COACH, INDIRIZZO)).isFalse(); // oltre il minuto

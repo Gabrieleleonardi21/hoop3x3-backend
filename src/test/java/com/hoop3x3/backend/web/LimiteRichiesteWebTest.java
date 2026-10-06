@@ -4,7 +4,6 @@ import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.OrologioDiProva;
 import com.hoop3x3.backend.controllers.AuthController;
 import com.hoop3x3.backend.controllers.CoachController;
-import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ExceptionsHandler;
 import com.hoop3x3.backend.repositories.UtenteRepository;
@@ -26,18 +25,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
@@ -46,10 +41,9 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Optional;
-import java.util.UUID;
 
+import static com.hoop3x3.backend.UtenteDiProva.conId;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.matchesPattern;
@@ -72,29 +66,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = {AuthController.class, CoachController.class})
 @Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JWTtools.class, JsonAuthEntryPoint.class,
-        AuthCookies.class, ExceptionsHandler.class})
+        AuthCookies.class, ExceptionsHandler.class, OrologioDiProva.Configurazione.class})
 @TestPropertySource(properties = {"jwt.secret=0123456789abcdef0123456789abcdef", "cors.origins=http://localhost:5173"})
 class LimiteRichiesteWebTest {
 
-    /** Il secondo 20 di un minuto, a metà giornata: al minuto dopo mancano 40 secondi, a mezzanotte UTC 13 ore, 59 minuti e 40 */
-    private static final Instant INIZIO = Instant.parse("2026-10-06T10:00:20Z");
     private static final String INDIRIZZO = "203.0.113.9";
     private static final String CORPO_LOGIN = "{\"email\":\"mario@x.it\",\"password\":\"password-valida\"}";
     private static final String MESSAGGIO_ACCESSO = "Troppi tentativi di accesso: riprova tra 40 secondi";
     private static final String MESSAGGIO_COACH = "Troppe richieste al Coach AI: riprova tra 40 secondi";
-
-    /** Ogni test parte da un giorno diverso: i contatori vivono nel contesto di Spring, che i test della classe condividono */
-    private static int giorniUsati;
-
-    /** È questo l'orologio dei limiti: sostituisce quello vero, perché non sia il minuto vero a dire quando si riparte */
-    @TestConfiguration
-    static class OrologioFinto {
-        @Bean
-        @Primary
-        OrologioDiProva orologioDiProva() {
-            return new OrologioDiProva(INIZIO.toString());
-        }
-    }
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
@@ -106,8 +85,8 @@ class LimiteRichiesteWebTest {
     @MockitoBean CoachAiService coachAiService;
     @MockitoBean UtenteRepository utenteRepository;
 
-    private final Utente mario = utente("mario@x.it");
-    private final Utente luca = utente("luca@x.it");
+    private final Utente mario = conId("mario@x.it");
+    private final Utente luca = conId("luca@x.it");
 
     private LogCatturato log;
 
@@ -123,7 +102,7 @@ class LimiteRichiesteWebTest {
 
     @BeforeEach
     void giornoNuovoEServiziCheRispondonoBene() {
-        orologio.imposta(INIZIO.plus(Duration.ofDays(++giorniUsati)));
+        orologio.giornoNuovo();
         when(authenticationManager.authenticate(any()))
                 .thenReturn(new UsernamePasswordAuthenticationToken(mario, null, mario.getAuthorities()));
         when(utenteService.register(any())).thenReturn(mario);
@@ -136,12 +115,6 @@ class LimiteRichiesteWebTest {
     }
 
     /* ── Aiuti ── */
-
-    private static Utente utente(String email) {
-        Utente utente = new Utente(email, "hash", "Nome", Ruolo.USER);
-        ReflectionTestUtils.setField(utente, "id", UUID.randomUUID()); // il database lo assegnerebbe al salvataggio
-        return utente;
-    }
 
     /** MockMvc fa partire ogni richiesta da 127.0.0.1: questo la fa arrivare dall'indirizzo dato */
     private static RequestPostProcessor da(String indirizzo) {
