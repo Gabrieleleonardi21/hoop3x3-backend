@@ -4,14 +4,21 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/** Contenitore di tappe; ogni lega appartiene a un solo utente. */
+/**
+ * Contenitore di tappe; ogni lega appartiene a un solo utente.
+ * DynamicUpdate: l'UPDATE contiene solo le colonne cambiate. Salvare o eliminare una tappa chiama touch() e cambia solo
+ * modificato_il: senza, Hibernate riscrive anche il nome letto all'inizio della richiesta, e una rinomina confermata nel
+ * frattempo da un altro dispositivo tornerebbe com'era.
+ */
 @Entity
+@DynamicUpdate
 @Table(name = "leghe")
 @Getter
 @Setter

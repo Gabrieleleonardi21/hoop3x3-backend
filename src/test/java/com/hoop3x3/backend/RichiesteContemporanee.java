@@ -6,10 +6,15 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Richieste che si intrecciano sul database vero, provate senza pause scelte a caso: il test sa quando una richiesta è ferma
@@ -52,6 +57,32 @@ public final class RichiesteContemporanee {
         long scadenza = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         while (!richiesta.isDone() && !unaRichiestaAspettaUnLock() && System.nanoTime() < scadenza) {
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(10)); // pausa di 10 ms tra una lettura e l'altra
+        }
+    }
+
+    /**
+     * L'intreccio di due dispositivi: una richiesta che legge prima che l'altro confermi e scrive dopo. `scrittura` è la
+     * transazione dell'altro dispositivo: gira nel thread del test e scrive una riga, che resta bloccata fino al commit.
+     * `richiesta` parte in un altro thread, legge il database com'era prima di quella scrittura e si ferma quando prova a
+     * scrivere la stessa riga. Solo allora la transazione del test conferma e la richiesta riprende: se non si fermasse, il
+     * test cadrebbe qui, e non passerebbe senza aver provato l'intreccio.
+     *
+     * @return ciò che restituisce la richiesta, dopo il commit dell'altra transazione
+     */
+    public <T> T mentreUnaTransazioneTieneUnaRiga(Runnable scrittura, Callable<T> richiesta) throws Exception {
+        ExecutorService altroThread = Executors.newSingleThreadExecutor();
+        try {
+            Future<T> inCorso = new TransactionTemplate(transazioni).execute(transazione -> {
+                scrittura.run();
+                Future<T> invio = altroThread.submit(richiesta);
+                aspettaFinitaOFermaSuUnLock(invio);
+                assertThat(unaRichiestaAspettaUnLock()).as("la richiesta aspetta che l'altra transazione confermi").isTrue();
+                return invio;
+            });
+            // Il commit della transazione di sopra ha liberato la richiesta
+            return inCorso.get(30, TimeUnit.SECONDS);
+        } finally {
+            altroThread.shutdownNow();
         }
     }
 }
