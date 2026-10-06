@@ -119,6 +119,8 @@ Giocatori e squadre dell'anagrafe sono condivisi: leggerli non chiede l'account,
 
 Il `ts` (millisecondi dell'ultima modifica) è lo stesso nelle due forme.
 
+**Ordine di pubblicazione.** Questo backend e il frontend che svuota la cache dell'anagrafe al login e al logout vanno online insieme, o il frontend per primo (con il backend precedente non cambia niente: tutti ricevono già la forma completa). Con un frontend che non la svuota, chi accede dopo aver aperto l'anagrafe da ospite si tiene la forma pubblica finché non ricarica la pagina, e un ADMIN che in quel caso modifica una scheda rimanda al server i campi riservati vuoti, che li sovrascrivono.
+
 ## Sessioni e refresh token
 
 Il JWT di accesso dura poco e il client lo rinnova con un refresh token tenuto in un cookie httpOnly: chi torna dopo giorni non deve rifare il login, e il logout revoca il refresh token.
