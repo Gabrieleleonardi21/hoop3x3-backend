@@ -21,6 +21,7 @@ psql -d hoop3x3 -f db/schema.sql
 - `JWT_SECRET` (obbligatorio) — almeno 32 caratteri casuali, per esempio generati con `openssl rand -base64 48`. Se manca, è più corto o è ancora il valore d'esempio del vecchio `env.properties.example` (`cambia-questa-stringa-...`), il server non parte e spiega perché; il valore del secret non finisce mai nei log. Cambiarlo invalida i JWT già emessi: gli utenti rifanno il login.
 - `ADMIN_EMAIL` e `ADMIN_PASSWORD` — l'ADMIN creato al primo avvio. La password deve avere almeno 8 caratteri ed essere diversa da `admin123`: altrimenti, anche se è vuota, l'admin non viene creato e nei log compare un avviso (senza admin neanche `SEED_DEMO` carica i dati di prova). Con l'email vuota il seeder è spento: nessun admin e nessun avviso. Un admin già presente nel database non viene toccato, quindi neanche il controllo lo riguarda.
 - `DB_USERNAME`, `DB_PASSWORD` e, facoltativa, `GROQ_API_KEY` per il Coach AI.
+- Facoltative: `DB_HOST`, `DB_PORT`, `DB_NAME` (default `localhost`, `5432`, `hoop3x3`), `PORT` (default `3001`) e `DB_INIT_MODE=always`, che esegue `db/schema.sql` a ogni avvio al posto del passo 1.
 
 **3. Server**
 
@@ -79,6 +80,22 @@ Su origini diverse l'origine del frontend deve comunque stare in `CORS_ORIGINS`:
 - Il logout revoca il refresh token del browser da cui parte: un JWT già emesso resta valido fino alla sua scadenza (al massimo 30 minuti) e le sessioni aperte su altri dispositivi non vengono toccate.
 - Non c'è rilevamento del riuso di un refresh token già ruotato né un «esci da tutti i dispositivi»: chi ruba il cookie e lo usa per primo ottiene una sessione che si rinnova finché non scade o non viene revocata.
 - Il vecchio refresh token smette di valere appena il server lo ruota: se la risposta non arriva al browser (pagina chiusa o rete caduta durante il rinnovo), al rinnovo successivo si torna al login. Un periodo di grazia di qualche decina di secondi lo eviterebbe.
+
+## Deploy su Render
+
+Il deploy completo (frontend, questo backend e PostgreSQL) è descritto dal Blueprint `render.yaml` nel repository del [frontend](https://github.com/Gabrieleleonardi21/Hoops-3x3), con i passi nella sezione «Deploy su Render» del suo README. Da questo lato servono:
+
+- **`Dockerfile`** — Render non ha un runtime Java nativo, quindi il backend gira in un container: la prima fase compila il jar con il Maven Wrapper (senza test, che girano in CI), la seconda tiene solo il JRE 25, il jar e `db/schema.sql`, con un utente senza privilegi. `.dockerignore` tiene fuori `target/` e soprattutto `env.properties`.
+- **Variabili d'ambiente** al posto di `env.properties`: `PORT` la imposta Render, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME` e `DB_PASSWORD` arrivano dal database collegato, `JWT_SECRET` lo genera Render. `DB_INIT_MODE=always` crea le tabelle al primo avvio (non c'è pgAdmin) e alle successive non fa nulla, perché lo schema è tutto `IF NOT EXISTS`.
+- **Stessa origine** — il frontend inoltra `/api/*` a questo servizio con una regola di rewrite di Render, quindi per il browser pagina e API hanno la stessa origine: il cookie di refresh funziona con la configurazione attuale (`SameSite=Lax`), basta `AUTH_COOKIE_SECURE=true` e l'origine pubblica del frontend in `CORS_ORIGINS` (vedi «Sessioni e refresh token»).
+
+Per provare l'immagine in locale (serve Docker e un PostgreSQL raggiungibile dal container):
+
+```bash
+docker build -t hoop3x3-backend .
+docker run --rm -p 3001:3001 -e DB_HOST=host.docker.internal -e DB_USERNAME=postgres -e DB_PASSWORD=... \
+  -e JWT_SECRET="$(openssl rand -base64 48)" -e DB_INIT_MODE=always hoop3x3-backend
+```
 
 ## Limiti dell'API
 
