@@ -22,6 +22,8 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -96,7 +98,7 @@ class DemoSeederIT {
         long squadreDemo = squadre.count();
         assertThat(giocatoriDemo).isPositive();
         assertThat(squadreDemo).isPositive();
-        // Un task successivo cambierà i nomi dei dati demo: il segno non deve dipendere da nessuno di loro
+        // I nomi dei dati demo cambiano (sono diventati di fantasia, TR-4): il segno non deve dipendere da nessuno di loro
         jdbc.update("update anagrafe_giocatori set nome = 'Nome', cognome = 'Cognome'");
         jdbc.update("update anagrafe_squadre set nome = 'Squadra'");
         jdbc.update("update leghe set nome = 'Lega'");
@@ -130,6 +132,30 @@ class DemoSeederIT {
         assertThat(squadre.count()).isEqualTo(squadreDemo);
         assertThat(tappe.count()).isEqualTo(tappeDemo);
         assertThat(segni()).containsExactly("demo");
+    }
+
+    // I dati demo sono di fantasia e coerenti (TR-4): nell'archivio ogni giocatore delle squadre delle tappe ha il nome con cui
+    // il seed l'ha scritto nell'anagrafe (la stessa persona non ha due nomi), e il referente di ogni squadra è una persona
+    @Test
+    void iGiocatoriDelleTappeInArchivioHannoIlNomeDellAnagrafe() throws Exception {
+        accendiIlSeed();
+
+        seeder.run();
+
+        Set<String> nomiInAnagrafe = giocatori.findAll().stream()
+                .map(g -> g.getNome() + " " + g.getCognome()).collect(Collectors.toSet());
+        assertThat(nomiInAnagrafe).as("32 giocatori, tutti con un nome diverso").hasSize(32);
+        int letti = 0;
+        for (PubTappaMetaDTO voce : archivioService.tutte()) {
+            for (JsonNode squadra : archivioService.una(voce.tappaId()).tappa().squadre()) {
+                for (JsonNode giocatore : squadra.path("giocatori")) {
+                    assertThat(nomiInAnagrafe).contains(giocatore.path("nome").asString());
+                    letti++;
+                }
+            }
+        }
+        assertThat(letti).as("giocatori letti nelle tappe in archivio").isEqualTo(128);
+        assertThat(squadre.findAll()).allSatisfy(s -> assertThat(s.getReferente()).contains(" "));
     }
 
     /** Come all'avvio con SEED_DEMO=true e ADMIN_EMAIL: un admin nel database e il seeder acceso su di lui */

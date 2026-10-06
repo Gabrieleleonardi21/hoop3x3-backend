@@ -251,7 +251,7 @@ src/main/java/com/hoop3x3/backend/
 
 ## Dati di prova
 
-Con `SEED_DEMO=true` (e `ADMIN_EMAIL` di un admin che esiste) il primo avvio carica il circuito Estathé 2025 (`resources/seed/estathe25.json`) intestandolo all'admin. Si carica **una volta sola**: alla fine il seeder scrive il segno `demo` nella tabella `seed_eseguiti` (migrazione V3) e gli avvii successivi lo riconoscono da lì, anche se nel frattempo hai eliminato la lega demo (perché serve il segno lo spiega il commento di `SeedEseguito`). Il segno è il nome dell'operazione e non dipende dai dati inseriti, quindi vale anche se un giorno i nomi dei dati demo cambiano.
+Con `SEED_DEMO=true` (e `ADMIN_EMAIL` di un admin che esiste) il primo avvio carica il circuito Estathé 2025 (`resources/seed/estathe25.json`) intestandolo all'admin. Le squadre, le tappe e i risultati sono quelli del circuito, ma **le persone sono di fantasia**: nome, cognome, soprannome, data di nascita e note dei 32 giocatori e il referente delle 8 squadre sono inventati, in modo coerente in tutto il file (anagrafe, squadre delle tappe, referenti; le statistiche richiamano i giocatori per id). Il file sta nel jar anche con `SEED_DEMO=false`, quindi non deve contenere dati di persone reali: `DatiDiProvaTest` controlla che i nomi siano gli stessi ovunque compaiano. Si carica **una volta sola**: alla fine il seeder scrive il segno `demo` nella tabella `seed_eseguiti` (migrazione V3) e gli avvii successivi lo riconoscono da lì, anche se nel frattempo hai eliminato la lega demo (perché serve il segno lo spiega il commento di `SeedEseguito`). Il segno è il nome dell'operazione e non dipende dai dati inseriti, quindi vale anche dopo il cambio dei nomi dei dati demo.
 
 Un database seminato prima del segno non ce l'ha, ma ha ancora la prima tappa demo: al primo avvio **con `SEED_DEMO=true`** il seeder la riconosce, non inserisce niente e scrive il segno (con `SEED_DEMO=false` il seeder non fa niente e il segno non arriva). Quindi **prima di eliminare la lega demo, avvia una volta con `SEED_DEMO=true`**.
 
@@ -259,6 +259,18 @@ Per rifare il seed su un database che l'ha già eseguito si cancellano il segno 
 
 ```sql
 DELETE FROM seed_eseguiti WHERE nome = 'demo';
+```
+
+**Un database già seminato conserva i nomi di prima.** Il segno `demo` non dipende dai dati, quindi con i nomi di fantasia il seed non ricarica niente: giocatori, squadre, tappe e archivio già presenti restano com'erano, con le persone dei vecchi dati. Vanno ripuliti a mano, oppure il database va ricreato. A mano, con `SEED_DEMO=true` e l'admin configurato:
+
+1. elimina la lega demo dall'app: con lei spariscono le sue tappe e le loro pubblicazioni in archivio;
+2. elimina i giocatori e le squadre demo (32 giocatori e 8 squadre intestati all'admin) dall'app, oppure con l'SQL qui sotto (`admin@esempio.it` è l'email dell'admin), che cancella **tutte** le schede dell'anagrafe dell'admin: usalo solo se non ne ha altre (il roster di una squadra si cancella con lei);
+3. cancella il segno `demo` (l'SQL qui sopra);
+4. riavvia: il seeder rifà il seed con i dati di fantasia.
+
+```sql
+DELETE FROM anagrafe_squadre WHERE autore_id = (SELECT id FROM utenti WHERE email = 'admin@esempio.it');
+DELETE FROM anagrafe_giocatori WHERE autore_id = (SELECT id FROM utenti WHERE email = 'admin@esempio.it');
 ```
 
 Se invece la lega demo era già stata eliminata prima di questa versione, nel database non resta niente da cui riconoscere il seed: con `SEED_DEMO=true` il primo avvio lo rifarebbe una volta (poi il segno lo protegge). Per evitarlo avvia la prima volta con `SEED_DEMO=false`, così la migrazione crea la tabella senza che il seed parta, e scrivi il segno a mano prima di riaccendere `SEED_DEMO`:
