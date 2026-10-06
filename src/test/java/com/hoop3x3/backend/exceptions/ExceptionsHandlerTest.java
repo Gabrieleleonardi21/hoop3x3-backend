@@ -179,6 +179,18 @@ class ExceptionsHandlerTest {
         assertThat(logCatturato.list).isEmpty();
     }
 
+    // Due dispositivi salvano la stessa tappa: il servizio o Hibernate rifiutano il secondo con un errore di versione. È un conflitto
+    // normale e non un guasto: 409 con il messaggio che dice di ricaricare, senza dettagli del database e senza righe nei log
+    @Test
+    void conflittoDiVersioneDellaTappa_rispondeConflittoSenzaScrivereNelLog() {
+        ResponseEntity<ErrorsDTO> esito = gestore.handleConflittoDiVersione();
+
+        assertThat(esito.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(esito.getBody().message()).isEqualTo("La tappa è stata modificata da un altro dispositivo: ricaricala");
+        assertThat(esito.getBody().timestamp()).isNotNull();
+        assertThat(logCatturato.list).isEmpty();
+    }
+
     // Ogni errore esce con il Content-Type JSON fissato, qualunque Accept mandi il client: senza, Spring sceglie il tipo in base
     // ad Accept e per text/html o application/xml non riesce a scrivere il corpo (le richieste vere sono in ErroriWebTest)
     @Test
@@ -191,6 +203,7 @@ class ExceptionsHandlerTest {
                 gestore.handleForbidden(new ForbiddenException("x")),
                 gestore.handleNotFound(new NotFoundException("x")),
                 gestore.handleConflict(new ConflictException("x")),
+                gestore.handleConflittoDiVersione(),
                 gestore.handleUpstream(new UpstreamException(HttpStatus.BAD_GATEWAY, "x")),
                 gestore.handleTroppeRichieste(new TroppeRichiesteException("x", 1)),
                 gestore.handleDataIntegrity(new DataIntegrityViolationException("x")),
@@ -200,7 +213,7 @@ class ExceptionsHandlerTest {
                 gestore.handleHttpMessageNotReadable(new HttpMessageNotReadableException("x", mock(HttpInputMessage.class)),
                         new HttpHeaders(), HttpStatus.BAD_REQUEST, richiesta));
 
-        assertThat(risposte).hasSize(13).allSatisfy(risposta ->
+        assertThat(risposte).hasSize(14).allSatisfy(risposta ->
                 assertThat(risposta.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_JSON));
     }
 }

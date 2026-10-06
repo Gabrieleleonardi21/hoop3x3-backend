@@ -411,6 +411,30 @@ class LogApplicativiTest {
         assertThat(messaggi(output, "INFO", "AccessGuard")).isEmpty();
     }
 
+    // Senza la versione la PUT non sa se sovrascrive il lavoro di un altro dispositivo: 400, e il controllo viene prima della riga
+    @Test
+    void unAdminCheModificaUnaTappaSenzaVersione_nonLasciaNessunaRiga(CapturedOutput output) throws Exception {
+        Map<String, Object> senzaVersione = tappa(ID_TAPPA);
+        senzaVersione.remove("versione");
+
+        invia(PUT, "/api/tappe/" + ID_TAPPA, senzaVersione, admin).andExpect(status().isBadRequest());
+
+        assertThat(messaggi(output, "INFO", "AccessGuard")).isEmpty();
+    }
+
+    // La tappa di prova è alla versione 0: una PUT con un'altra versione ha letto una tappa che nel frattempo è cambiata, 409
+    @Test
+    void unAdminCheModificaUnaTappaConUnaVersioneVecchia_nonLasciaNessunaRiga(CapturedOutput output) throws Exception {
+        Map<String, Object> versioneVecchia = tappa(ID_TAPPA);
+        versioneVecchia.put("versione", 5);
+
+        invia(PUT, "/api/tappe/" + ID_TAPPA, versioneVecchia, admin)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("La tappa è stata modificata da un altro dispositivo: ricaricala"));
+
+        assertThat(messaggi(output, "INFO", "AccessGuard")).isEmpty();
+    }
+
     @Test
     void unAdminChePubblicaUnaTappaNonConclusa_nonLasciaNessunaRiga(CapturedOutput output) throws Exception {
         tappaDiMario.setConclusa(false);
@@ -447,6 +471,7 @@ class LogApplicativiTest {
         t.put("regole", Map.of("target", 21, "durata", 10, "ot", 2, "shot", 12));
         t.put("squadre", List.of());
         t.put("partite", List.of());
+        t.put("versione", 0); // quella della tappa di prova nel database: la PUT la pretende, la POST la ignora
         return t;
     }
 

@@ -4,6 +4,7 @@ import com.hoop3x3.backend.dto.ErrorsDTO;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -108,6 +109,15 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ErrorsDTO> handleConflict(ConflictException ex) {
         return risposta(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    // Un altro dispositivo ha salvato la tappa dopo che questo l'ha letta: lo dice la versione. L'eccezione la lancia
+    // LegaService.aggiornaTappa se la versione della PUT è già vecchia, e Hibernate al flush se la tappa cambia mentre si
+    // salva (due richieste insieme): per il client è lo stesso conflitto, con lo stesso messaggio. Solo Tappa ha @Version:
+    // se un giorno l'avrà un'altra entity, il messaggio andrà distinto. Non è un guasto: niente riga nei log
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorsDTO> handleConflittoDiVersione() {
+        return risposta(HttpStatus.CONFLICT, "La tappa è stata modificata da un altro dispositivo: ricaricala");
     }
 
     // Servizio esterno (Groq) non raggiungibile o in errore

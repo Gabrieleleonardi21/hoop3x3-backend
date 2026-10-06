@@ -5,7 +5,9 @@ import com.hoop3x3.backend.controllers.LegaController;
 import com.hoop3x3.backend.controllers.TappaController;
 import com.hoop3x3.backend.controllers.UtenteController;
 import com.hoop3x3.backend.LogCatturato;
+import com.hoop3x3.backend.TappaDiProva;
 import com.hoop3x3.backend.entities.Ruolo;
+import com.hoop3x3.backend.entities.Tappa;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ExceptionsHandler;
 import com.hoop3x3.backend.exceptions.NotFoundException;
@@ -30,6 +32,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.test.context.TestPropertySource;
@@ -37,6 +40,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -59,6 +63,7 @@ class ErroriWebTest {
 
     @Autowired MockMvc mvc;
     @Autowired JWTtools jwt;
+    @Autowired ObjectMapper mapper;
     @MockitoBean LegaService legaService;
     @MockitoBean AnagrafeService anagrafeService;
     @MockitoBean UtenteService utenteService;
@@ -119,6 +124,21 @@ class ErroriWebTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Operazione in conflitto con i dati già salvati"))
                 .andExpect(content().string(not(containsString("varying"))));
+    }
+
+    // Due dispositivi salvano la stessa tappa: il servizio, o Hibernate al flush, rifiuta la seconda con un errore di versione. Non è
+    // un guasto e non dice niente del database: 409, con un messaggio che dice di ricaricare
+    @Test
+    void conflittoDiVersioneDellaTappa_risponde409ConIlMessaggio() throws Exception {
+        UUID tappa = UUID.randomUUID();
+        when(legaService.aggiornaTappa(any(), any(), any())).thenThrow(new ObjectOptimisticLockingFailureException(Tappa.class, tappa));
+
+        mvc.perform(put("/api/tappe/" + tappa).header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(TappaDiProva.tappa().id(tappa).build())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("La tappa è stata modificata da un altro dispositivo: ricaricala"))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(content().string(not(containsString("optimistic"))));
     }
 
     @Test

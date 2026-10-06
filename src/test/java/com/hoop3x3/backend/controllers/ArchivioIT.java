@@ -169,7 +169,7 @@ class ArchivioIT {
         archivio.save(riga);
 
         // La tappa cambia dopo la prima pubblicazione: la copia pubblica resta com'era finché non si ripubblica
-        legaService.aggiornaTappa(mario, tappa.id(), tappaDto(tappa.id(), "Tappa di Roma (finale)", true));
+        salvaDiNuovo(tappa, "Tappa di Roma (finale)", true, 0);
         assertThat(letta(tappa.id()).at("/tappa/nome").asString()).isEqualTo("Tappa di Roma");
 
         pubblica(tappa.id(), mario).andExpect(status().isOk())
@@ -244,7 +244,7 @@ class ArchivioIT {
         TappaDTO tappa = tappaDto("Tappa di Roma", true);
         lega(mario, "Circuito 2026", tappa);
         pubblica(tappa.id(), mario).andExpect(status().isOk());
-        legaService.aggiornaTappa(mario, tappa.id(), tappaDto(tappa.id(), "Tappa di Roma (riaperta)", false));
+        salvaDiNuovo(tappa, "Tappa di Roma (riaperta)", false, 0);
 
         pubblica(tappa.id(), mario).andExpect(status().isConflict());
         // La copia pubblica è ancora quella dell'ultima pubblicazione
@@ -255,7 +255,7 @@ class ArchivioIT {
         mvc.perform(delete("/api/archivio/" + tappa.id()).header(AUTHORIZATION, bearer(mario)))
                 .andExpect(status().isNoContent());
         // Quando la tappa torna conclusa si può pubblicare di nuovo
-        legaService.aggiornaTappa(mario, tappa.id(), tappaDto(tappa.id(), "Tappa di Roma (riaperta)", true));
+        salvaDiNuovo(tappa, "Tappa di Roma (riaperta)", true, 1);
         pubblica(tappa.id(), mario).andExpect(status().isOk())
                 .andExpect(jsonPath("$.tappa.nome").value("Tappa di Roma (riaperta)"));
     }
@@ -398,6 +398,14 @@ class ArchivioIT {
     private TappaDTO tappaDto(UUID id, String nome, String luogo, String data, String squadre, boolean conclusa) {
         return TappaDiProva.tappa().id(id).nome(nome).luogo(luogo).data(data).squadre(squadre).partite(PARTITE)
                 .conclusa(conclusa).build();
+    }
+
+    /**
+     * Mario salva di nuovo la tappa (PUT) con un altro nome e un altro stato, rimandando la versione che ha letto: 0 dopo
+     * l'import, una in più a ogni salvataggio
+     */
+    private void salvaDiNuovo(TappaDTO tappa, String nome, boolean conclusa, long versione) {
+        legaService.aggiornaTappa(mario, tappa.id(), TappaDiProva.da(tappa).nome(nome).conclusa(conclusa).versione(versione).build());
     }
 
     /** Crea la lega di `proprietario` con le tappe indicate, come fa l'import di una lega da file */

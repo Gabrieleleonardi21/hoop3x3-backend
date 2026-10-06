@@ -4,10 +4,12 @@ import com.hoop3x3.backend.dto.*;
 import com.hoop3x3.backend.entities.Lega;
 import com.hoop3x3.backend.entities.Tappa;
 import com.hoop3x3.backend.entities.Utente;
+import com.hoop3x3.backend.exceptions.BadRequestException;
 import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.NotFoundException;
 import com.hoop3x3.backend.repositories.LegaRepository;
 import com.hoop3x3.backend.repositories.TappaRepository;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -98,10 +100,24 @@ public class LegaService {
         return toDto(t);
     }
 
-    /** Sostituzione completa della tappa (il frontend manda sempre l'oggetto intero) */
+    /**
+     * Sostituzione completa della tappa (il frontend manda sempre l'oggetto intero). La PUT porta la versione che il client
+     * ha letto: se non è più quella del database, un altro dispositivo ha salvato nel frattempo e sovrascrivere ne
+     * cancellerebbe il lavoro (BE-9), quindi 409.
+     */
     @Transactional
     public TappaDTO aggiornaTappa(Utente utente, UUID tappaId, TappaDTO dto) {
+        // Senza la versione non si può sapere se si sovrascrive il lavoro di un altro dispositivo: niente salvataggio silenzioso
+        if (dto.versione() == null) {
+            throw new BadRequestException("Manca la versione della tappa (campo versione): ricarica la pagina e riprova");
+        }
         Tappa t = trovaTappa(utente, tappaId);
+        // Hibernate controlla solo la versione che ha letto lui dal database, non quella scritta nel DTO: il confronto con la
+        // versione del client è qui, prima di cambiare la tappa e di lasciare la riga dell'ADMIN. Lancia ciò che lancerebbe
+        // Hibernate al flush se la tappa cambiasse mentre si salva, così le due strade hanno un solo gestore (ExceptionsHandler)
+        if (!dto.versione().equals(t.getVersione())) {
+            throw new ObjectOptimisticLockingFailureException(Tappa.class, tappaId);
+        }
         applica(dto, t);
         guard.tracciaModifica(utente, t.getLega().getOwner().getId(), "tappa", tappaId);
         t.getLega().touch();

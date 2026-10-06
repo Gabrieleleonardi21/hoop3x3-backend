@@ -20,11 +20,19 @@ public final class TappaDiProva {
     private String squadre = "[]";
     private String partite = "[]";
     private boolean conclusa = false;
+    private Long versione = null; // come una tappa che il client non ha ancora letto dal server
 
     private TappaDiProva() {}
 
     public static TappaDiProva tappa() {
         return new TappaDiProva();
+    }
+
+    /** Parte da un'altra tappa, per esempio quella che il client ha letto: stessi campi, e il test cambia quelli che gli servono */
+    public static TappaDiProva da(TappaDTO modello) {
+        return tappa().id(modello.id()).nome(modello.nome()).luogo(modello.luogo()).data(modello.data())
+                .squadre(modello.squadre().toString()).partite(modello.partite().toString())
+                .conclusa(Boolean.TRUE.equals(modello.conclusa())).versione(modello.versione());
     }
 
     public TappaDiProva id(UUID id) {
@@ -63,10 +71,16 @@ public final class TappaDiProva {
         return this;
     }
 
+    /** La versione che il client ha letto e rimanda con la PUT; null: il client non la manda */
+    public TappaDiProva versione(Long versione) {
+        this.versione = versione;
+        return this;
+    }
+
     public TappaDTO build() {
         // La lettura di una stringa JSON non dipende dalla configurazione del mapper: basta quello condiviso di Jackson
         JsonMapper json = JsonMapper.shared();
         return new TappaDTO(id, nome, luogo, data, 1, new RegoleDTO(21, 10, 2, 12),
-                json.readTree(squadre), null, json.readTree(partite), json.readTree("[]"), conclusa, null, null);
+                json.readTree(squadre), null, json.readTree(partite), json.readTree("[]"), conclusa, null, versione);
     }
 }

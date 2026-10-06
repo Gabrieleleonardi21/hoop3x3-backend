@@ -52,7 +52,7 @@ class LegaConcorrenzaIT {
         UUID lega = legaService.crea(mario, new NuovaLegaDTO("Circuito 2026", List.of(tappa))).id();
 
         mentreLaLegaVieneRinominata(lega, () -> legaService.aggiornaTappa(mario, tappa.id(),
-                TappaDiProva.tappa().id(tappa.id()).nome("Tappa salvata").build()));
+                TappaDiProva.da(tappa).nome("Tappa salvata").versione(0L).build()));
 
         assertThat(nomeDellaLega(lega)).isEqualTo(NOME_NUOVO);
         // Il salvataggio della tappa è andato a buon fine: il test non passa perché la richiesta è fallita
