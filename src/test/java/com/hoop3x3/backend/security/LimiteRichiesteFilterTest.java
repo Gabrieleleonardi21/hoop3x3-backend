@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Il filtro da solo, senza Spring: richieste finte, orologio finto che si sposta a comando, e un resolver finto che
- * ricorda gli errori che il filtro gli affida (come in JwtFilterTest). Con i limiti abbassati: 3 accessi al minuto, e per
+ * ricorda gli errori che il filtro gli affida. Con i limiti abbassati: 3 accessi al minuto, e per
  * il Coach 2 al minuto e 4 al giorno. La stessa regola dentro la catena vera, con i valori di produzione, è in
  * LimiteRichiesteWebTest.
  */
@@ -147,9 +147,10 @@ class LimiteRichiesteFilterTest {
         postPassano(RINNOVO, INDIRIZZO, 3);
     }
 
-    // Il limite è del tentativo di accesso: le altre richieste, e le POST di altri indirizzi, non si contano mai
+    // Si contano solo le POST agli endpoint limitati: la GET dello stesso percorso, il logout, le altre API e un percorso che
+    // somiglia soltanto a «/api/auth/login» passano sempre
     @Test
-    void soloLePostAiTreEndpointSiContano() throws Exception {
+    void ilRestoNonSiContaMai() throws Exception {
         for (int i = 0; i < 10; i++) {
             assertThat(passa("GET", LOGIN, INDIRIZZO)).isTrue();
             assertThat(postPassa("/api/auth/logout", INDIRIZZO)).isTrue();

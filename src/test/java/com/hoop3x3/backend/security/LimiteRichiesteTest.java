@@ -70,8 +70,9 @@ class LimiteRichiesteTest {
             for (int i = 0; i < thread; i++) {
                 esiti.add(pool.submit(allaPartenza));
             }
-            assertThat(pronti.await(10, TimeUnit.SECONDS)).as("i thread sono partiti").isTrue();
-            via.set(true);
+            boolean partiti = pronti.await(10, TimeUnit.SECONDS);
+            via.set(true); // sempre, anche se qualcuno non è partito: i thread in attesa attiva devono poter finire
+            assertThat(partiti).as("i thread sono partiti").isTrue();
             for (Future<Void> esito : esiti) {
                 esito.get(30, TimeUnit.SECONDS); // rilancia l'errore di un thread, invece di nasconderlo
             }

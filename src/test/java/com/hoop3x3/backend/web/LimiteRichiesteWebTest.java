@@ -38,6 +38,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import tools.jackson.databind.ObjectMapper;
 
@@ -75,6 +76,7 @@ class LimiteRichiesteWebTest {
     /** Il secondo 20 di un minuto, a metà giornata: al minuto dopo mancano 40 secondi, a mezzanotte UTC 13 ore, 59 minuti e 40 */
     private static final Instant INIZIO = Instant.parse("2026-10-06T10:00:20Z");
     private static final String INDIRIZZO = "203.0.113.9";
+    private static final String CORPO_LOGIN = "{\"email\":\"mario@x.it\",\"password\":\"password-valida\"}";
     private static final String MESSAGGIO_ACCESSO = "Troppi tentativi di accesso: riprova tra 40 secondi";
     private static final String MESSAGGIO_COACH = "Troppe richieste al Coach AI: riprova tra 40 secondi";
 
@@ -147,8 +149,12 @@ class LimiteRichiesteWebTest {
     }
 
     private ResultActions login(String indirizzo) throws Exception {
-        return mvc.perform(post("/api/auth/login").with(da(indirizzo)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\":\"mario@x.it\",\"password\":\"password-valida\"}"));
+        return loginCon(post("/api/auth/login"), indirizzo);
+    }
+
+    /** Un login fatto con la richiesta data (percorso e intestazioni a scelta) dall'indirizzo dato */
+    private ResultActions loginCon(MockHttpServletRequestBuilder richiesta, String indirizzo) throws Exception {
+        return mvc.perform(richiesta.with(da(indirizzo)).contentType(MediaType.APPLICATION_JSON).content(CORPO_LOGIN));
     }
 
     private ResultActions registrazione(String indirizzo) throws Exception {
@@ -271,15 +277,10 @@ class LimiteRichiesteWebTest {
     @Test
     void unXForwardedForSpecificatoDalClient_nonCambiaIlContatore() throws Exception {
         for (int i = 0; i < 10; i++) {
-            mvc.perform(post("/api/auth/login").with(da(INDIRIZZO)).header("X-Forwarded-For", "198.51.100." + i)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"email\":\"mario@x.it\",\"password\":\"password-valida\"}"))
-                    .andExpect(status().isOk());
+            loginCon(post("/api/auth/login").header("X-Forwarded-For", "198.51.100." + i), INDIRIZZO).andExpect(status().isOk());
         }
 
-        mvc.perform(post("/api/auth/login").with(da(INDIRIZZO)).header("X-Forwarded-For", "198.51.100.200")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"mario@x.it\",\"password\":\"password-valida\"}"))
+        loginCon(post("/api/auth/login").header("X-Forwarded-For", "198.51.100.200"), INDIRIZZO)
                 .andExpect(status().isTooManyRequests());
     }
 
@@ -289,9 +290,7 @@ class LimiteRichiesteWebTest {
     void il429PortaGliHeaderCors() throws Exception {
         ilLoginPassa(10, INDIRIZZO);
 
-        mvc.perform(post("/api/auth/login").with(da(INDIRIZZO)).header(HttpHeaders.ORIGIN, "http://localhost:5173")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"mario@x.it\",\"password\":\"password-valida\"}"))
+        loginCon(post("/api/auth/login").header(HttpHeaders.ORIGIN, "http://localhost:5173"), INDIRIZZO)
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"));
     }
@@ -301,9 +300,7 @@ class LimiteRichiesteWebTest {
     @Test
     void unPercorsoConUnaLetteraCodificata_contaComeIlLogin() throws Exception {
         for (int i = 0; i < 10; i++) {
-            mvc.perform(post(URI.create("/api/auth/%6Cogin")).with(da(INDIRIZZO)).contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"email\":\"mario@x.it\",\"password\":\"password-valida\"}"))
-                    .andExpect(status().isOk());
+            loginCon(post(URI.create("/api/auth/%6Cogin")), INDIRIZZO).andExpect(status().isOk());
         }
 
         assert429(login(INDIRIZZO), 40, MESSAGGIO_ACCESSO);
