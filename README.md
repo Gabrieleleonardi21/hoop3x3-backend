@@ -184,7 +184,7 @@ Con `SEED_DEMO=true` (e `ADMIN_EMAIL` di un admin che esiste) il primo avvio car
 
 Un database seminato prima del segno non ce l'ha, ma ha ancora la prima tappa demo: al primo avvio **con `SEED_DEMO=true`** il seeder la riconosce, non inserisce niente e scrive il segno (con `SEED_DEMO=false` il seeder non fa niente e il segno non arriva). Quindi **prima di eliminare la lega demo, avvia una volta con `SEED_DEMO=true`**.
 
-Per rifare il seed su un database che l'ha già eseguito si cancellano il segno **e la lega demo** (dall'app, come ogni lega dell'admin): finché c'è la sua prima tappa il seed risulta fatto, e il seeder riscrive il segno. I giocatori e le squadre demo restano nell'anagrafe: cancellali se non li vuoi doppi.
+Per rifare il seed su un database che l'ha già eseguito si cancellano il segno **e la lega demo** (dall'app, come ogni lega dell'admin): finché c'è la sua prima tappa il seed risulta fatto, e il seeder riscrive il segno. I giocatori e le squadre demo restano nell'anagrafe: cancellali se non li vuoi doppi. Il segno si cancella così:
 
 ```sql
 DELETE FROM seed_eseguiti WHERE nome = 'demo';
