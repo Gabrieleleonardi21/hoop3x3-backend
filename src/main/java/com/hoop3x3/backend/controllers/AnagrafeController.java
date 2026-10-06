@@ -14,7 +14,11 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 
-/** Anagrafe circuito. Le GET sono pubbliche (vedi SecurityConfig), le scritture richiedono il login. */
+/**
+ * Anagrafe circuito. Le GET sono pubbliche (vedi SecurityConfig) ma i dati personali sono riservati a chi ha un account:
+ * senza un utente autenticato rispondono con la forma pubblica (stesse chiavi JSON, campi riservati vuoti). Un token
+ * scaduto o non valido non è «nessun token»: il JwtFilter risponde già 401. Le scritture richiedono il login.
+ */
 @RestController
 @RequestMapping("/api/anagrafe")
 public class AnagrafeController {
@@ -28,7 +32,9 @@ public class AnagrafeController {
     /* ── Giocatori ── */
 
     @GetMapping("/giocatori")
-    public List<GiocatoreDTO> giocatori() {
+    public List<GiocatoreDTO> giocatori(@AuthenticationPrincipal Utente utente) {
+        // Senza utente (ospite) la forma pubblica; con un account qualsiasi, non solo l'autore, quella completa
+        if (utente == null) return anagrafeService.tuttiGiocatoriPubblici();
         return anagrafeService.tuttiGiocatori();
     }
 
@@ -53,7 +59,9 @@ public class AnagrafeController {
     /* ── Squadre ── */
 
     @GetMapping("/squadre")
-    public List<SquadraDTO> squadre() {
+    public List<SquadraDTO> squadre(@AuthenticationPrincipal Utente utente) {
+        // Come per i giocatori: ospite → forma pubblica, utente autenticato → forma completa
+        if (utente == null) return anagrafeService.tutteSquadrePubbliche();
         return anagrafeService.tutteSquadre();
     }
 

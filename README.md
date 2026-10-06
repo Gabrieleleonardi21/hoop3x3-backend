@@ -105,6 +105,20 @@ DELETE FROM archivio_tappe a WHERE NOT EXISTS (SELECT 1 FROM tappe t WHERE t.id 
 ALTER TABLE archivio_tappe VALIDATE CONSTRAINT archivio_tappe_tappa_id_fkey;
 ```
 
+## Anagrafe del circuito
+
+Giocatori e squadre dell'anagrafe sono condivisi: leggerli non chiede l'account, ma i **dati personali sono riservati a chi ha un account**. Scrivere (`POST`, `PUT`, `DELETE`) chiede il login, e modifica o elimina solo l'autore della scheda o un ADMIN.
+
+- `GET /api/anagrafe/giocatori` e `GET /api/anagrafe/squadre` hanno **due forme con le stesse chiavi JSON**, scelte in base all'utente autenticato. Non esistono GET di dettaglio: gli elenchi sono le uniche letture.
+  - **Con un token valido** (un utente qualsiasi, non serve esserne l'autore) la forma completa: tutti i campi.
+  - **Senza token** la forma pubblica: i campi riservati sono stringhe vuote (`""`) e `autoreId` è `null`.
+    - Giocatore: restano `id`, `nome`, `cognome`, `soprannome`, `ruolo`, `numero`, `squadra` e `ts`; sono vuoti `nascita`, `citta`, `nazionalita`, `altezza`, `peso`, `esperienza`, `note` e `autore`.
+    - Squadra: restano tutti i campi tranne `referente` e `autore`, che sono vuoti (il `roster` è sempre la lista degli id dei giocatori).
+- **Token scaduto o non valido**: non equivale a nessun token. Il `JwtFilter` risponde 401 («Sessione scaduta o token non valido: accedi di nuovo») a ogni richiesta con un `Authorization: Bearer` che non si verifica, anche sulle rotte pubbliche, quindi la forma pubblica arriva solo a chi non manda nessun Bearer. Il frontend rinnova il token con il refresh token e riprova.
+- Le due forme si leggono con le stesse query: la forma pubblica non legge l'autore della scheda, ma non costa né più né meno.
+
+Il `ts` (millisecondi dell'ultima modifica) è lo stesso nelle due forme.
+
 ## Sessioni e refresh token
 
 Il JWT di accesso dura poco e il client lo rinnova con un refresh token tenuto in un cookie httpOnly: chi torna dopo giorni non deve rifare il login, e il logout revoca il refresh token.

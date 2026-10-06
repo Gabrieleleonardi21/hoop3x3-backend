@@ -20,7 +20,10 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/** Anagrafe condivisa del circuito: lettura pubblica, scrittura di autore o ADMIN. */
+/**
+ * Anagrafe condivisa del circuito: lettura pubblica, scrittura di autore o ADMIN. Gli elenchi hanno due forme: la completa
+ * per chi ha un account e la pubblica, senza i dati personali, per l'ospite (sceglie il controller).
+ */
 @Service
 public class AnagrafeService {
 
@@ -39,6 +42,12 @@ public class AnagrafeService {
     @Transactional(readOnly = true)
     public List<GiocatoreDTO> tuttiGiocatori() {
         return giocatori.findAllByOrderByModificatoIlDesc().stream().map(GiocatoreDTO::from).toList();
+    }
+
+    /** Come {@link #tuttiGiocatori} nella forma pubblica: senza i dati personali */
+    @Transactional(readOnly = true)
+    public List<GiocatoreDTO> tuttiGiocatoriPubblici() {
+        return giocatori.findAllByOrderByModificatoIlDesc().stream().map(GiocatoreDTO::pubblico).toList();
     }
 
     @Transactional
@@ -77,6 +86,12 @@ public class AnagrafeService {
     @Transactional(readOnly = true)
     public List<SquadraDTO> tutteSquadre() {
         return squadre.findAllByOrderByModificatoIlDesc().stream().map(SquadraDTO::from).toList();
+    }
+
+    /** Come {@link #tutteSquadre} nella forma pubblica: senza referente e autore */
+    @Transactional(readOnly = true)
+    public List<SquadraDTO> tutteSquadrePubbliche() {
+        return squadre.findAllByOrderByModificatoIlDesc().stream().map(SquadraDTO::pubblica).toList();
     }
 
     @Transactional

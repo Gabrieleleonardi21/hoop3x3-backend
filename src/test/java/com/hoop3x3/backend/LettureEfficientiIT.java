@@ -177,6 +177,21 @@ class LettureEfficientiIT {
         assertThat(conCinque.query()).as("query dell'elenco dei giocatori").isEqualTo(1);
     }
 
+    // Le forme pubbliche usano la stessa lettura delle complete: una query sola per elenco, anche con più righe e più autori
+    @Test
+    void leFormePubblicheSiLeggonoConUnaQuery() {
+        aggiungiSquadre(3); // ognuna con un autore diverso e tre giocatori nel roster
+
+        var squadrePubbliche = misura(anagrafeService::tutteSquadrePubbliche);
+        var giocatoriPubblici = misura(anagrafeService::tuttiGiocatoriPubblici);
+
+        assertThat(squadrePubbliche.risultato()).hasSize(3).allSatisfy(squadra -> assertThat(squadra.autore()).isEmpty());
+        assertThat(giocatoriPubblici.risultato()).hasSize(9).allSatisfy(giocatore -> assertThat(giocatore.autore()).isEmpty());
+        assertAll(
+                () -> assertThat(squadrePubbliche.query()).as("query dell'elenco pubblico delle squadre").isEqualTo(1),
+                () -> assertThat(giocatoriPubblici.query()).as("query dell'elenco pubblico dei giocatori").isEqualTo(1));
+    }
+
     /* ── eliminaGiocatore: carica solo le squadre che lo contengono, non tutte ── */
 
     // Il giocatore esce dai roster che lo contengono. Gli altri restano dov'erano e nello stesso ordine, senza buchi nelle
