@@ -163,7 +163,7 @@ Il server conta le richieste e, oltre il limite, risponde 429 senza farle arriva
 - **Coach AI** (`POST /api/coach/chat`) — 20 richieste al minuto e 300 al giorno per utente (l'id dell'account, da qualunque indirizzo arrivi). Valgono tutte e due. La quota conta ogni richiesta autenticata alla chat, anche quelle che poi falliscono (per esempio con 400 o 413, perché il limite sta prima della validazione e del tetto dei 2 MB); non la consumano solo quelle respinte dal limite del minuto. Senza token risponde il 401 e niente si conta. Lo stato del Coach (`GET /api/coach/status`), il logout e le altre API non sono limitati.
 - **Finestre fisse**, allineate all'orologio: il minuto finisce al secondo 0, il giorno a mezzanotte UTC (le 2 in Italia d'estate, l'1 d'inverno). Chi insiste oltre il limite non allunga l'attesa, ma a cavallo di due finestre si possono fare fino al doppio delle richieste in pochi secondi.
 
-**Risposta oltre il limite** — 429 con lo stesso corpo `{message, timestamp}` degli altri errori e l'intestazione `Retry-After`, cioè i secondi fino all'inizio della finestra successiva (da 1 alla lunghezza della finestra). Il messaggio dice l'attesa a parole:
+**Risposta oltre il limite** — 429 con lo stesso corpo `{message, timestamp}` degli altri errori e l'intestazione `Retry-After`, cioè i secondi fino all'inizio della finestra successiva: da 1 alla lunghezza della finestra, più al massimo 60 se l'orologio del server è tornato indietro di poco. Se è tornato indietro di molto (una macchina virtuale ripristinata, la data cambiata a mano) il contatore riparte da una finestra vuota, invece di tenere gli indirizzi bloccati per ore. Il messaggio dice l'attesa a parole:
 
 ```http
 HTTP/1.1 429
