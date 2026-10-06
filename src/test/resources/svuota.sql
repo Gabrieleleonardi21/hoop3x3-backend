@@ -10,5 +10,5 @@ BEGIN
   IF current_database() NOT LIKE '%test%' THEN
     RAISE EXCEPTION 'svuota.sql gira solo su un database di prova, non su %', current_database();
   END IF;
-  TRUNCATE utenti, refresh_tokens, leghe, tappe, anagrafe_giocatori, anagrafe_squadre, anagrafe_squadre_roster, archivio_tappe CASCADE;
+  TRUNCATE utenti, refresh_tokens, leghe, tappe, anagrafe_giocatori, anagrafe_squadre, anagrafe_squadre_roster, archivio_tappe, seed_eseguiti CASCADE;
 END $$;

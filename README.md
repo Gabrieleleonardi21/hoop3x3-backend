@@ -12,7 +12,7 @@ createdb hoop3x3
 
 Le tabelle le crea il server al primo avvio con le migrazioni di [Flyway](https://flywaydb.org) (`src/main/resources/db/migration`): non c'è nessuno script da eseguire. Flyway segna le migrazioni applicate nella tabella `flyway_schema_history`, accanto alle altre. L'utente del database (`DB_USERNAME`) deve poter creare e modificare tabelle nello schema `public`, per esempio perché è il proprietario del database: Flyway crea `flyway_schema_history` e applica le migrazioni, e con un utente che può solo leggere e scrivere i dati il primo avvio fallisce.
 
-Un database già esistente, creato a mano con il vecchio `db/schema.sql`, non va ricreato né toccato: al primo avvio Flyway trova le tabelle ma non lo storico e lo segna come versione 1 (`V1__schema_iniziale.sql` è quello schema) senza rieseguire niente, quindi i dati restano com'erano. Da quel momento ogni cambio di schema arriva come migrazione nuova (V2, V3…) e il server la applica da solo all'avvio: la V2 lega le pubblicazioni dell'archivio alle loro tappe e lascia dove sono le eventuali pubblicazioni orfane di un database già in uso (vedi «Archivio circuito»). Il database deve avere lo schema attuale, compresa la tabella `refresh_tokens`: se manca, il server non parte e dice quale tabella manca (`Schema validation: missing table [refresh_tokens]`). In quel caso riesegui il file intero, che è idempotente (tutto `IF NOT EXISTS`, i dati non si toccano, i messaggi `already exists, skipping` sono normali), e riavvia:
+Un database già esistente, creato a mano con il vecchio `db/schema.sql`, non va ricreato né toccato: al primo avvio Flyway trova le tabelle ma non lo storico e lo segna come versione 1 (`V1__schema_iniziale.sql` è quello schema) senza rieseguire niente, quindi i dati restano com'erano. Da quel momento ogni cambio di schema arriva come migrazione nuova (V2, V3…) e il server la applica da solo all'avvio: la V2 lega le pubblicazioni dell'archivio alle loro tappe e lascia dove sono le eventuali pubblicazioni orfane di un database già in uso (vedi «Archivio circuito»); la V3 aggiunge `seed_eseguiti`, il segno dei seed già eseguiti (vedi «Dati di prova»). Il database deve avere lo schema attuale, compresa la tabella `refresh_tokens`: se manca, il server non parte e dice quale tabella manca (`Schema validation: missing table [refresh_tokens]`). In quel caso riesegui il file intero, che è idempotente (tutto `IF NOT EXISTS`, i dati non si toccano, i messaggi `already exists, skipping` sono normali), e riavvia:
 
 ```bash
 psql -d hoop3x3 -f src/main/resources/db/migration/V1__schema_iniziale.sql
@@ -23,7 +23,7 @@ Va bene sia prima del primo avvio sia dopo un primo avvio fallito.
 **2. Configurazione** — copia `env.properties.example` in `env.properties` (ignorato da git) e compila i valori. I segreti si controllano all'avvio, perché un esempio lasciato com'è renderebbe nota a tutti la chiave dei token o la password dell'amministratore:
 
 - `JWT_SECRET` (obbligatorio) — almeno 32 caratteri casuali, per esempio generati con `openssl rand -base64 48`. Se manca, è più corto o è ancora il valore d'esempio del vecchio `env.properties.example` (`cambia-questa-stringa-...`), il server non parte e spiega perché; il valore del secret non finisce mai nei log. Cambiarlo invalida i JWT già emessi: gli utenti rifanno il login.
-- `ADMIN_EMAIL` e `ADMIN_PASSWORD` — l'ADMIN creato al primo avvio. La password deve avere almeno 8 caratteri ed essere diversa da `admin123`: altrimenti, anche se è vuota, l'admin non viene creato e nei log compare un avviso (senza admin neanche `SEED_DEMO` carica i dati di prova). Con l'email vuota il seeder è spento: nessun admin e nessun avviso. Un admin già presente nel database non viene toccato, quindi neanche il controllo lo riguarda.
+- `ADMIN_EMAIL` e `ADMIN_PASSWORD` — l'ADMIN creato al primo avvio. La password deve avere almeno 8 caratteri ed essere diversa da `admin123`: altrimenti, anche se è vuota, l'admin non viene creato e nei log compare un avviso (senza admin neanche `SEED_DEMO` carica i dati di prova). Con l'email vuota il seeder è spento e una riga INFO nei log lo dice; se però la password c'è, compare un avviso, perché di solito è l'email dimenticata. Un admin già presente nel database non viene toccato (una riga INFO lo dice), quindi neanche il controllo sulla password lo riguarda.
 - `DB_USERNAME`, `DB_PASSWORD` e, facoltativa, `GROQ_API_KEY` per il Coach AI.
 
 **3. Server**
@@ -41,7 +41,7 @@ Il frontend in sviluppo inoltra `/api` verso `http://localhost:3001` tramite il 
 
 ## Migrazioni del database
 
-Lo schema cambia solo con le migrazioni di Flyway in `src/main/resources/db/migration`: un file SQL per ogni modifica, chiamato `V<numero>__<descrizione>.sql` (due underscore dopo il numero, per esempio `V3__versione_tappe.sql`), con il numero successivo all'ultimo. All'avvio il server applica in ordine quelle che il database non ha ancora, poi Hibernate (`ddl-auto=validate`) controlla che le entity combacino con le tabelle: nessuno deve più applicare SQL a mano su un ambiente.
+Lo schema cambia solo con le migrazioni di Flyway in `src/main/resources/db/migration`: un file SQL per ogni modifica, chiamato `V<numero>__<descrizione>.sql` (due underscore dopo il numero, per esempio `V4__versione_tappe.sql`), con il numero successivo all'ultimo. All'avvio il server applica in ordine quelle che il database non ha ancora, poi Hibernate (`ddl-auto=validate`) controlla che le entity combacino con le tabelle: nessuno deve più applicare SQL a mano su un ambiente.
 
 - **Una migrazione già applicata non si modifica**, nemmeno nei commenti: Flyway ne confronta il checksum e il server non parte (`Migration checksum mismatch`). Un errore si corregge con una migrazione nuova.
 - **Il nome del file conta**: con un nome sbagliato (per esempio `V2_x.sql`, con un solo underscore) il server non parte e dice quale file è sbagliato, invece di ignorare in silenzio quella migrazione (`spring.flyway.validate-migration-naming`).
@@ -152,22 +152,44 @@ Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 
 Fanno eccezione le richieste respinte prima di Spring MVC, dal container o dal firewall di Spring Security (un indirizzo malformato: 400 con il corpo di Spring Boot `{timestamp, status, error, path}` oppure con la pagina di errore di Tomcat), e il 403 «Invalid CORS request», che è solo testo (vedi Deploy).
 
+## Log
+
+L'applicazione scrive nei log (console) ciò che serve a capire un problema in produzione. Le righe sono in italiano e non contengono mai password, token o chiavi.
+
+- **Login fallito** (WARN) — `Login fallito per mario@x.it`: l'email normalizzata, mai la password. Un'email con a capo dentro non arriva fin lì: la validazione la rifiuta con 400, e nei log non si possono inventare righe.
+- **Registrazione** (INFO) — `Nuovo utente registrato: mario@x.it (id ...)`.
+- **Intervento di un ADMIN su dati di un altro utente** (INFO) — `Intervento ADMIN: admin@x.it (id ...): modifica lega <id> di proprietà dell'utente <id>`, oppure `eliminazione`. Solo per le modifiche e le eliminazioni di leghe, tappe, schede dell'anagrafe e pubblicazioni, e solo se la richiesta è andata oltre i controlli (una 404, 409 o 400 non lascia niente). Né le letture, per esempio un ADMIN che apre la lega di un altro, né i dati propri lasciano una riga. Contiene l'email dell'ADMIN e gli id, mai nomi scritti da altri utenti.
+- **Errori 500** (ERROR) — `Errore non gestito su GET /api/leghe`, con lo stack sotto: metodo e percorso della richiesta (senza la query, che può contenere dati personali; CR e LF sono scritti per esteso, così il percorso non può inventare righe). Gli errori di Groq li scrive una volta sola il Coach AI (vedi la sezione omonima).
+- **Seeder** — ogni volta che non creano i dati lo dicono, con il motivo: INFO se è la configurazione normale (`Admin non creato: ADMIN_EMAIL non è impostata`, `... esiste già un utente con l'email di ADMIN_EMAIL`, `Seed demo saltato: SEED_DEMO non è true`, `Seed demo saltato: già eseguito`), WARN se la configurazione non permette ciò che chi l'ha scritta si aspetta (password debole o mancante, `ADMIN_PASSWORD` impostata con `ADMIN_EMAIL` vuota, `SEED_DEMO` acceso senza `ADMIN_EMAIL` o senza l'admin nel database).
+
 ## Struttura
 
 ```
 env.properties.example          # segreti: copiare in env.properties
-src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 = archivio legato alle tappe), applicate all'avvio
+src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 = archivio legato alle tappe, V3 = segno dei seed eseguiti), applicate all'avvio
 src/main/java/com/hoop3x3/backend/
 ├── controllers/  # REST (auth, utenti, leghe, tappe, anagrafe, archivio, coach)
 ├── dto/          # record con validazione Bean Validation
-├── entities/     # JPA: Utente, RefreshToken, Lega, Tappa (+Regole), AnagrafeGiocatore/Squadra, ArchivioTappa
+├── entities/     # JPA: Utente, RefreshToken, Lega, Tappa (+Regole), AnagrafeGiocatore/Squadra, ArchivioTappa, SeedEseguito
 ├── exceptions/   # eccezioni tipizzate + ExceptionsHandler (corpo uniforme {message, timestamp})
 ├── repositories/ # Spring Data JPA
-├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/estathe25.json)
+├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/estathe25.json, una volta sola)
 ├── security/     # SecurityConfig, JwtFilter, JWTtools, JwtProperties (secret e durata del JWT, validati all'avvio), AuthCookies, CorsConfig, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB)
 └── services/     # logica: proprietà (AccessGuard), JSON delle tappe, proxy Groq, refresh token (RefreshTokenService)
 ```
 
 ## Dati di prova
 
-Con `SEED_DEMO=true` il primo avvio carica il circuito Estathé 2025 (`resources/seed/estathe25.json`) intestandolo all'admin; gli avvii successivi non lo duplicano.
+Con `SEED_DEMO=true` (e `ADMIN_EMAIL` di un admin che esiste) il primo avvio carica il circuito Estathé 2025 (`resources/seed/estathe25.json`) intestandolo all'admin. Si carica **una volta sola**: alla fine il seeder scrive il segno `demo` nella tabella `seed_eseguiti` (migrazione V3) e gli avvii successivi lo riconoscono da lì, anche se nel frattempo hai eliminato la lega demo. Con la lega spariscono le sue tappe e l'archivio, ma non i giocatori e le squadre demo (hanno id generati dal database): senza il segno, al riavvio sarebbero stati inseriti una seconda volta. Il segno è il nome dell'operazione e non dipende dai dati inseriti, quindi vale anche se un giorno i nomi dei dati demo cambiano.
+
+Un database seminato prima del segno non ce l'ha, ma ha ancora la prima tappa demo: al primo avvio il seeder la riconosce, non inserisce niente e scrive il segno. Per rifare il seed su un database che l'ha già eseguito si cancella il segno (e i dati demo vecchi, se non li vuoi doppi):
+
+```sql
+DELETE FROM seed_eseguiti WHERE nome = 'demo';
+```
+
+Se invece la lega demo era già stata eliminata prima di questa versione, nel database non resta niente da cui riconoscere il seed: con `SEED_DEMO=true` il primo avvio lo rifarebbe una volta (poi il segno lo protegge). Per evitarlo avvia la prima volta con `SEED_DEMO=false`, così la migrazione crea la tabella senza che il seed parta, e scrivi il segno a mano prima di riaccendere `SEED_DEMO`:
+
+```sql
+INSERT INTO seed_eseguiti (nome, eseguito_il) VALUES ('demo', now());
+```

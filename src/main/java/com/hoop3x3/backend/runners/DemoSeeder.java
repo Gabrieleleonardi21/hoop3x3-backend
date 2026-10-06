@@ -23,8 +23,10 @@ import java.util.UUID;
 /**
  * Dati di prova del circuito Estathé 3x3 2025 (anagrafe, lega con 4 tappe concluse e archivio),
  * letti da resources/seed/estathe25.json. Attivo solo con SEED_DEMO=true e con l'admin configurato
- * (i dati vengono intestati a lui). Gli id corti del file ("p01", "s01", "t01") diventano UUID:
- * quelli delle tappe sono deterministici, così un secondo avvio riconosce i dati già inseriti.
+ * (i dati vengono intestati a lui). Si esegue una sola volta: alla fine scrive il segno «demo» in seed_eseguiti, e al
+ * riavvio lo riconosce anche se la lega demo è stata eliminata (con lei spariscono tappe e archivio, ma non giocatori e
+ * squadre, che hanno id generati). Gli id corti del file ("p01", "s01", "t01") diventano UUID: quelli delle tappe sono
+ * deterministici, e per i database seminati prima del segno la prima tappa demo dice che il seed è già stato fatto.
  * L'archivio lo riempie ArchivioService.pubblica, lo stesso metodo che usa l'app.
  */
 @Slf4j
@@ -33,12 +35,18 @@ import java.util.UUID;
 public class DemoSeeder implements CommandLineRunner {
 
     private static final String FILE = "/seed/estathe25.json";
+    /**
+     * Il nome del segno in seed_eseguiti è quello dell'operazione, non dei dati demo (nome della lega, delle squadre, del
+     * file): i dati possono cambiare e il segno deve restare riconoscibile.
+     */
+    private static final String SEGNO = "demo";
 
     private final UtenteRepository utenti;
     private final AnagrafeGiocatoreRepository giocatori;
     private final AnagrafeSquadraRepository squadre;
     private final LegaRepository leghe;
     private final TappaRepository tappe;
+    private final SeedEseguitoRepository seedEseguiti;
     private final ArchivioService archivioService;
     private final ObjectMapper mapper;
 
@@ -48,13 +56,14 @@ public class DemoSeeder implements CommandLineRunner {
     private String adminEmail;
 
     public DemoSeeder(UtenteRepository utenti, AnagrafeGiocatoreRepository giocatori, AnagrafeSquadraRepository squadre,
-                      LegaRepository leghe, TappaRepository tappe, ArchivioService archivioService,
-                      ObjectMapper mapper) {
+                      LegaRepository leghe, TappaRepository tappe, SeedEseguitoRepository seedEseguiti,
+                      ArchivioService archivioService, ObjectMapper mapper) {
         this.utenti = utenti;
         this.giocatori = giocatori;
         this.squadre = squadre;
         this.leghe = leghe;
         this.tappe = tappe;
+        this.seedEseguiti = seedEseguiti;
         this.archivioService = archivioService;
         this.mapper = mapper;
     }
@@ -77,17 +86,29 @@ public class DemoSeeder implements CommandLineRunner {
             return;
         }
 
+        if (seedEseguiti.existsById(SEGNO)) {
+            log.info("Seed demo saltato: già eseguito");
+            return;
+        }
+
         JsonNode dati;
         try (InputStream in = getClass().getResourceAsStream(FILE)) {
             dati = mapper.readTree(in);
         }
-        // La prima tappa già presente vuol dire che il seed è già stato eseguito
-        if (tappe.existsById(uuidPer(dati.path("tappe").path(0).path("id").asString()))) return;
+        // Un database seminato prima del segno non ce l'ha, ma ha ancora la prima tappa demo: il seed è già stato eseguito.
+        // Il segno si scrive adesso, così da ora regge anche se la lega demo viene eliminata
+        if (tappe.existsById(uuidPer(dati.path("tappe").path(0).path("id").asString()))) {
+            seedEseguiti.save(new SeedEseguito(SEGNO));
+            log.info("Seed demo saltato: già eseguito prima del segno (la prima tappa demo c'è), segno scritto");
+            return;
+        }
 
         Map<String, AnagrafeGiocatore> giocatoriPerId = creaGiocatori(admin, dati.path("giocatori"));
         Map<String, AnagrafeSquadra> squadrePerId = creaSquadre(admin, dati.path("squadre"), giocatoriPerId);
         Lega lega = creaLega(admin, dati, squadrePerId);
         pubblicaInArchivio(admin, lega);
+        // Per ultimo: se qualcosa va storto la transazione annulla anche il segno, e il prossimo avvio riprova da capo
+        seedEseguiti.save(new SeedEseguito(SEGNO));
 
         log.info("Seed demo completato: {} giocatori, {} squadre, {} tappe → lega \"{}\"",
                 giocatoriPerId.size(), squadrePerId.size(), lega.getTappe().size(), lega.getNome());
