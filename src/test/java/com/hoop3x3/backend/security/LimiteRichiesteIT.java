@@ -138,6 +138,23 @@ class LimiteRichiesteIT {
         assertThat(client.post("/api/auth/login", LOGIN, "X-Forwarded-For", "198.51.100.200").statusCode()).isEqualTo(429);
     }
 
+    // Con il frontend su un'altra origine (CORS_ORIGINS) il browser lascia leggere al JavaScript solo gli header che il server
+    // espone: il 429 deve dire quanto aspettare anche a lui
+    @Test
+    void il429DiUnaOrigineAmmessa_esponeIlRetryAfterAlJavaScript() throws Exception {
+        salvaUtente();
+        for (int i = 0; i < 3; i++) {
+            assertThat(login().statusCode()).isEqualTo(200);
+        }
+
+        HttpResponse<String> respinta = client.post("/api/auth/login", LOGIN, "Origin", "http://localhost:5173");
+
+        assert429(respinta, 40, MESSAGGIO_ACCESSO);
+        assertThat(respinta.headers().firstValue("Access-Control-Allow-Origin")).contains("http://localhost:5173");
+        assertThat(respinta.headers().firstValue("Access-Control-Expose-Headers"))
+                .hasValueSatisfying(esposti -> assertThat(esposti).contains("Retry-After"));
+    }
+
     @Test
     void laTerzaRichiestaAlCoachNelMinuto_risponde429SenzaChiamareGroq() throws Exception {
         String bearer = "Bearer " + jwt.generateToken(salvaUtente());

@@ -173,7 +173,7 @@ Content-Type: application/json
 {"message":"Troppi tentativi di accesso: riprova tra 40 secondi","timestamp":"2026-10-06T10:00:20.123456"}
 ```
 
-Gli altri messaggi sono «Troppe richieste di registrazione», «Troppi rinnovi della sessione», «Troppe richieste al Coach AI» e, per la quota del giorno, «Quota giornaliera del Coach AI esaurita: riprova tra 14 ore».
+Gli altri messaggi sono «Troppe richieste di registrazione», «Troppi rinnovi della sessione», «Troppe richieste al Coach AI» e, per la quota del giorno, «Quota giornaliera del Coach AI esaurita: riprova tra 14 ore». Con il frontend su un'altra origine (`CORS_ORIGINS`) `Retry-After` è tra gli header che `CorsConfig` espone al JavaScript (`Access-Control-Expose-Headers`): il client legge quanto aspettare anche da lì, senza ricavarlo dal messaggio.
 
 **Proprietà** — in `application.properties`, validate all'avvio (un valore sotto 1 ferma il server e dice quale è sbagliato):
 

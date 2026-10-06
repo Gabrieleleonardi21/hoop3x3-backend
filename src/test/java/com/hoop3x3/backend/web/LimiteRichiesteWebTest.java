@@ -49,6 +49,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
@@ -285,14 +286,18 @@ class LimiteRichiesteWebTest {
     }
 
     // Il 429 passa dalla catena di sicurezza dopo il filtro CORS, come il 413 e il 401: da un'origine ammessa il browser lo
-    // può leggere, e il frontend può mostrare il messaggio invece di un generico «errore di rete»
+    // può leggere, e il frontend può mostrare il messaggio invece di un generico «errore di rete». Il JavaScript di un'altra
+    // origine legge però solo gli header che il server espone: Retry-After deve essere tra questi, o il client non sa quanto
+    // aspettare
     @Test
-    void il429PortaGliHeaderCors() throws Exception {
+    void il429DiUnaOrigineAmmessa_portaGliHeaderCorsEEsponeIlRetryAfter() throws Exception {
         ilLoginPassa(10, INDIRIZZO);
 
         loginCon(post("/api/auth/login").header(HttpHeaders.ORIGIN, "http://localhost:5173"), INDIRIZZO)
                 .andExpect(status().isTooManyRequests())
-                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"));
+                .andExpect(header().string(HttpHeaders.RETRY_AFTER, "40"))
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, containsString("Retry-After")));
     }
 
     // Spring MVC decodifica il percorso prima di scegliere il controller: «/api/auth/%6Cogin» è il login. Se il filtro non
