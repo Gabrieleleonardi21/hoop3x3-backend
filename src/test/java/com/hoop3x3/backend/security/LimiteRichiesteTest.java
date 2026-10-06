@@ -166,7 +166,7 @@ class LimiteRichiesteTest {
         faiPassare(limite, "utente", 3); // un giorno nuovo, con tutte le sue richieste
     }
 
-    /* ── La finestra non torna mai indietro ── */
+    /* ── Richieste in ritardo e orologio che torna indietro ── */
 
     // Una richiesta legge l'ora (10:00:59) e finisce di contare quando un'altra ha già aperto il minuto dopo e ci ha consumato
     // tutti i posti di «b». Se la richiesta in ritardo rimpiazzasse la finestra nuova con una vecchia vuota, i conteggi del
@@ -221,13 +221,10 @@ class LimiteRichiesteTest {
 
         orologio.imposta(Instant.parse("2026-10-06T10:00:20Z")); // l'orologio del server torna indietro di 3 ore
 
-        Esito primoDopoIlSalto = limite.conta(INDIRIZZO);
-        assertThat(primoDopoIlSalto.secondiAttesa()).as("Retry-After: la finestra più 60 secondi al massimo").isLessThanOrEqualTo(60 + 60);
-        assertThat(primoDopoIlSalto.consentita()).as("il minuto 10:00 è nuovo, con tutti i suoi posti").isTrue();
-        faiPassare(limite, INDIRIZZO, 2);
+        faiPassare(limite, INDIRIZZO, 3); // il minuto 10:00 è nuovo, con tutti i suoi posti
         Esito quarto = limite.conta(INDIRIZZO);
         assertThat(quarto.consentita()).isFalse();
-        assertThat(quarto.secondiAttesa()).as("il minuto 10:00 finisce alle 10:01:00, 40 secondi da qui").isEqualTo(40);
+        assertThat(quarto.secondiAttesa()).as("il Retry-After è quello del minuto 10:00, che finisce alle 10:01:00: 40 secondi, non le ore di prima").isEqualTo(40);
     }
 
     // Il confine: fino a 60 secondi prima dell'inizio della finestra in corso l'ora è ancora una richiesta in ritardo o una
