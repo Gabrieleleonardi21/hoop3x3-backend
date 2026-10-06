@@ -38,7 +38,8 @@ public class AccessGuard {
     private static void traccia(Utente corrente, UUID ownerId, String azione, String risorsa, UUID id) {
         // Sui dati propri un ADMIN è un utente come gli altri
         if (!corrente.isAdmin() || corrente.getId().equals(ownerId)) return;
-        // Solo id e l'email dell'ADMIN (validata alla registrazione): niente testo scritto da altri utenti, come i nomi
+        // Solo id ed email dell'ADMIN, mai testo scritto da altri utenti (come i nomi). Un ADMIN non passa dalla registrazione:
+        // nasce solo da DataSeeder, con l'ADMIN_EMAIL della configurazione, ed è per questo che qui non serve perLog
         log.info("Intervento ADMIN: {} (id {}): {} {} {} di proprietà dell'utente {}",
                 corrente.getEmail(), corrente.getId(), azione, risorsa, id, ownerId);
     }
