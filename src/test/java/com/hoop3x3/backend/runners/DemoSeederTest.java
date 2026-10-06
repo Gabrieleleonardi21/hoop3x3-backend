@@ -36,6 +36,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -154,7 +155,7 @@ class DemoSeederTest {
 
         InOrder ordine = inOrder(leghe, archivioService, seedEseguiti);
         ordine.verify(leghe).save(any(Lega.class));
-        ordine.verify(archivioService, org.mockito.Mockito.times(4)).pubblica(any(Utente.class), any(UUID.class));
+        ordine.verify(archivioService, times(4)).pubblica(any(Utente.class), any(UUID.class));
         ordine.verify(seedEseguiti).save(any(SeedEseguito.class));
         assertSegnoScritto();
     }
