@@ -154,12 +154,12 @@ Fanno eccezione le richieste respinte prima di Spring MVC, dal container o dal f
 
 ## Log
 
-L'applicazione scrive nei log (console) ciò che serve a capire un problema in produzione. Le righe sono in italiano e non contengono mai password, token o chiavi.
+L'applicazione scrive nei log (console) ciò che serve a capire un problema in produzione. Le righe sono in italiano e non contengono mai password, token o chiavi. I valori scelti da chi manda la richiesta (l'email del login e della registrazione, il percorso di un errore 500, il messaggio del database quando un vincolo è violato) passano da `LogSupport.perLog`: a capo, separatori di riga di Unicode (U+2028, U+2029) e caratteri di controllo si scrivono per esteso (`\r`, `\n`, ` `...), così nessun valore può chiudere una riga e inventarne una sua, e il tentativo si vede.
 
-- **Login fallito** (WARN) — `Login fallito per mario@x.it`: l'email normalizzata, mai la password. Un'email con a capo dentro non arriva fin lì: la validazione la rifiuta con 400, e nei log non si possono inventare righe.
+- **Login fallito** (WARN) — `Login fallito per mario@x.it`: l'email normalizzata, mai la password. Un'email con CR o LF dentro non arriva fin lì: la validazione la rifiuta con 400.
 - **Registrazione** (INFO) — `Nuovo utente registrato: mario@x.it (id ...)`.
 - **Intervento di un ADMIN su dati di un altro utente** (INFO) — `Intervento ADMIN: admin@x.it (id ...): modifica lega <id> di proprietà dell'utente <id>`, oppure `eliminazione`. Solo per le modifiche e le eliminazioni di leghe, tappe, schede dell'anagrafe e pubblicazioni, e solo se la richiesta è andata oltre i controlli (una 404, 409 o 400 non lascia niente). Né le letture, per esempio un ADMIN che apre la lega di un altro, né i dati propri lasciano una riga. Contiene l'email dell'ADMIN e gli id, mai nomi scritti da altri utenti.
-- **Errori 500** (ERROR) — `Errore non gestito su GET /api/leghe`, con lo stack sotto: metodo e percorso della richiesta (senza la query, che può contenere dati personali; CR e LF sono scritti per esteso, così il percorso non può inventare righe). Gli errori di Groq li scrive una volta sola il Coach AI (vedi la sezione omonima).
+- **Errori 500** (ERROR) — `Errore non gestito su GET /api/leghe`, con lo stack sotto: metodo e percorso della richiesta (senza la query, che può contenere dati personali). Gli errori di Groq li scrive una volta sola il Coach AI (vedi la sezione omonima).
 - **Seeder** — ogni volta che non creano i dati lo dicono, con il motivo: INFO se è la configurazione normale (`Admin non creato: ADMIN_EMAIL non è impostata`, `... esiste già un utente con l'email di ADMIN_EMAIL`, `Seed demo saltato: SEED_DEMO non è true`, `Seed demo saltato: già eseguito`), WARN se la configurazione non permette ciò che chi l'ha scritta si aspetta (password debole o mancante, `ADMIN_PASSWORD` impostata con `ADMIN_EMAIL` vuota, `SEED_DEMO` acceso senza `ADMIN_EMAIL` o senza l'admin nel database).
 
 ## Struttura
@@ -180,9 +180,11 @@ src/main/java/com/hoop3x3/backend/
 
 ## Dati di prova
 
-Con `SEED_DEMO=true` (e `ADMIN_EMAIL` di un admin che esiste) il primo avvio carica il circuito Estathé 2025 (`resources/seed/estathe25.json`) intestandolo all'admin. Si carica **una volta sola**: alla fine il seeder scrive il segno `demo` nella tabella `seed_eseguiti` (migrazione V3) e gli avvii successivi lo riconoscono da lì, anche se nel frattempo hai eliminato la lega demo. Con la lega spariscono le sue tappe e l'archivio, ma non i giocatori e le squadre demo (hanno id generati dal database): senza il segno, al riavvio sarebbero stati inseriti una seconda volta. Il segno è il nome dell'operazione e non dipende dai dati inseriti, quindi vale anche se un giorno i nomi dei dati demo cambiano.
+Con `SEED_DEMO=true` (e `ADMIN_EMAIL` di un admin che esiste) il primo avvio carica il circuito Estathé 2025 (`resources/seed/estathe25.json`) intestandolo all'admin. Si carica **una volta sola**: alla fine il seeder scrive il segno `demo` nella tabella `seed_eseguiti` (migrazione V3) e gli avvii successivi lo riconoscono da lì, anche se nel frattempo hai eliminato la lega demo (perché serve il segno lo spiega il commento di `SeedEseguito`). Il segno è il nome dell'operazione e non dipende dai dati inseriti, quindi vale anche se un giorno i nomi dei dati demo cambiano.
 
-Un database seminato prima del segno non ce l'ha, ma ha ancora la prima tappa demo: al primo avvio il seeder la riconosce, non inserisce niente e scrive il segno. Per rifare il seed su un database che l'ha già eseguito si cancella il segno (e i dati demo vecchi, se non li vuoi doppi):
+Un database seminato prima del segno non ce l'ha, ma ha ancora la prima tappa demo: al primo avvio **con `SEED_DEMO=true`** il seeder la riconosce, non inserisce niente e scrive il segno (con `SEED_DEMO=false` il seeder non fa niente e il segno non arriva). Quindi **prima di eliminare la lega demo, avvia una volta con `SEED_DEMO=true`**.
+
+Per rifare il seed su un database che l'ha già eseguito si cancellano il segno **e la lega demo** (dall'app, come ogni lega dell'admin): finché c'è la sua prima tappa il seed risulta fatto, e il seeder riscrive il segno. I giocatori e le squadre demo restano nell'anagrafe: cancellali se non li vuoi doppi.
 
 ```sql
 DELETE FROM seed_eseguiti WHERE nome = 'demo';
