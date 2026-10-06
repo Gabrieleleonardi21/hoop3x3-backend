@@ -119,10 +119,13 @@ public class LegaService {
             throw new ObjectOptimisticLockingFailureException(Tappa.class, tappaId);
         }
         applica(dto, t);
-        guard.tracciaModifica(utente, t.getLega().getOwner().getId(), "tappa", tappaId);
         t.getLega().touch();
-        // saveAndFlush: Hibernate aumenta la versione quando scrive l'UPDATE, e la risposta deve portare quella nuova
-        return toDto(tappaRepository.saveAndFlush(t));
+        // saveAndFlush: Hibernate aumenta la versione quando scrive l'UPDATE, e la risposta deve portare quella nuova. È anche
+        // il momento in cui il flush può respingere la richiesta, se un altro dispositivo ha salvato la tappa mentre questa
+        // era in corso (409): la riga dell'ADMIN viene dopo, perché dice che l'intervento c'è stato
+        Tappa salvata = tappaRepository.saveAndFlush(t);
+        guard.tracciaModifica(utente, t.getLega().getOwner().getId(), "tappa", tappaId);
+        return toDto(salvata);
     }
 
     @Transactional

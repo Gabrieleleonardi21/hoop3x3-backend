@@ -1,5 +1,6 @@
 package com.hoop3x3.backend.controllers;
 
+import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.RichiesteContemporanee;
 import com.hoop3x3.backend.TappaDiProva;
 import com.hoop3x3.backend.TestDiIntegrazione;
@@ -8,6 +9,7 @@ import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.services.AccessGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -258,6 +260,29 @@ class VersioneTappeIT {
 
         eliminazione.andExpect(status().isConflict()).andExpect(jsonPath("$.message").value(TAPPA_MODIFICATA));
         leggi(lega).andExpect(jsonPath("$.tappe[0].nome").value("Dal primo dispositivo"));
+    }
+
+    // La riga «Intervento ADMIN» dice che l'intervento c'è stato. Se la PUT dell'ADMIN perde la gara con un altro salvataggio, il 409
+    // lo dà il flush: la modifica è respinta e la riga non va scritta. Con la versione giusta la riga c'è, una sola: è la prova che
+    // il test legge la riga giusta, altrimenti «nessuna riga in più» passerebbe anche con un log che non cattura niente
+    @Test
+    void unAdminChePerdeLaGaraTraDueSalvataggi_nonLasciaLaRigaDiIntervento() throws Exception {
+        UUID lega = nuovaLega();
+        TappaDTO tappa = TappaDiProva.tappa().build();
+        aggiungi(lega, tappa, null).andExpect(status().isCreated());
+        Utente admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
+
+        try (LogCatturato log = new LogCatturato(AccessGuard.class)) {
+            salva(admin, tappa.id(), TappaDiProva.da(tappa).nome("Dell'admin").build(), 0L).andExpect(status().isOk());
+            assertThat(log.righe()).singleElement().asString().contains("modifica tappa " + tappa.id());
+
+            ResultActions persa = insieme.mentreUnaTransazioneTieneUnaRiga(
+                    primoDispositivoSalva(tappa.id()),
+                    () -> salva(admin, tappa.id(), TappaDiProva.da(tappa).nome("Persa").build(), 1L));
+
+            persa.andExpect(status().isConflict());
+            assertThat(log.righe()).as("righe di intervento dopo la gara persa").hasSize(1);
+        }
     }
 
     /* ── Le altre entity: lo stesso errore di Hibernate, ma il messaggio non parla di una tappa ── */

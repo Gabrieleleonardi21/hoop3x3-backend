@@ -21,8 +21,11 @@ public class AccessGuard {
     /**
      * Lascia una riga INFO nei log quando un ADMIN modifica i dati di un altro utente. La chiamano le operazioni che
      * scrivono, dopo checkOwner e subito prima di scrivere, quando ogni verifica che può respingere la richiesta (404,
-     * 409, 400) è già passata: la riga dice che l'intervento c'è stato. Non sta dentro checkOwner perché lo attraversano
-     * anche le letture (il dettaglio di una lega): un ADMIN che apre i dati di un altro non deve riempire i log.
+     * 409, 400) è già passata: la riga dice che l'intervento c'è stato. Se è la scrittura stessa a poterla respingere (il
+     * salvataggio di una tappa: il flush dà il 409 quando un altro dispositivo ha salvato nel frattempo) la chiamano dopo il
+     * flush. Un conflitto che Hibernate scopre solo al commit (un'eliminazione) arriva comunque dopo la riga. Non sta
+     * dentro checkOwner perché lo attraversano anche le letture (il dettaglio di una lega): un ADMIN che apre i dati di un
+     * altro non deve riempire i log.
      *
      * @param risorsa che cosa si modifica («lega», «tappa», «giocatore»...), non il suo nome: i nomi li scrivono gli utenti
      */
