@@ -56,7 +56,7 @@ Proxy verso [Groq](https://console.groq.com/) (`POST /api/coach/chat`, autentica
 
 La richiesta è controllata prima di arrivare a Groq, altrimenti 400: `messages` da 1 a 60 messaggi, ognuno con ruolo `system`, `user`, `assistant` o `tool`, per al massimo 100.000 caratteri; `tools` al massimo 20 strumenti (50.000 caratteri). Modello e limite di token li fissa il server. Groq ha 5 secondi per accettare la connessione e 60 per mandare l'intera risposta.
 
-Gli errori di Groq arrivano al client senza dettagli interni: 429 se Groq limita le richieste, 400 se rifiuta la richiesta (anche perché troppo lunga), 502 per tutto il resto (errore di Groq, chiave non valida, rete, timeout, risposta che non è un oggetto JSON), 503 se la chiave manca. Nei log del server ogni 502 e 503 ha la sua riga `WARN` con la causa: stato e corpo della risposta di Groq (troncato a 500 caratteri) oppure l'eccezione di rete. La chiave non viene mai scritta nei log.
+Gli errori di Groq arrivano al client senza dettagli interni: 429 se Groq limita le richieste, 400 se rifiuta la richiesta (anche perché troppo lunga), 502 per tutto il resto (errore di Groq, chiave non valida, rete, timeout, risposta che non è un oggetto JSON), 503 se la chiave manca. Nei log del server ogni 502 e 503 ha la sua riga `WARN` con la causa: stato e corpo della risposta di Groq (troncato a 500 caratteri e su una riga sola: a capo e caratteri di controllo sono scritti per esteso) oppure l'eccezione di rete. La chiave non viene mai scritta nei log.
 
 ## Archivio circuito
 
@@ -154,7 +154,7 @@ Fanno eccezione le richieste respinte prima di Spring MVC, dal container o dal f
 
 ## Log
 
-L'applicazione scrive nei log (console) ciò che serve a capire un problema in produzione. Le righe sono in italiano e non contengono mai password, token o chiavi. I valori scelti da chi manda la richiesta (l'email del login e della registrazione, il percorso di un errore 500, il messaggio del database quando un vincolo è violato) passano da `LogSupport.perLog`: a capo, separatori di riga di Unicode (U+2028, U+2029) e caratteri di controllo si scrivono per esteso (`\r`, `\n`, `\u2028`...), così nessun valore può chiudere una riga e inventarne una sua, e il tentativo si vede.
+L'applicazione scrive nei log (console) ciò che serve a capire un problema in produzione. Le righe sono in italiano e non contengono mai password, token o chiavi. I valori scelti da chi manda la richiesta (l'email del login e della registrazione, il percorso di un errore 500, il messaggio del database quando un vincolo è violato, il corpo di una risposta di Groq) passano da `LogSupport.perLog`: a capo, separatori di riga di Unicode (U+2028, U+2029) e caratteri di controllo si scrivono per esteso (`\r`, `\n`, `\u2028`...), così nessun valore può chiudere una riga e inventarne una sua, e il tentativo si vede.
 
 - **Login fallito** (WARN) — `Login fallito per mario@x.it`: l'email normalizzata, mai la password. Un'email con CR o LF dentro non arriva fin lì: la validazione la rifiuta con 400.
 - **Registrazione** (INFO) — `Nuovo utente registrato: mario@x.it (id ...)`.
