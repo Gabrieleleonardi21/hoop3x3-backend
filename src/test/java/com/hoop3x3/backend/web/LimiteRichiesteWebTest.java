@@ -15,6 +15,7 @@ import com.hoop3x3.backend.security.CorsConfig;
 import com.hoop3x3.backend.security.JWTtools;
 import com.hoop3x3.backend.security.JsonAuthEntryPoint;
 import com.hoop3x3.backend.security.JwtFilter;
+import com.hoop3x3.backend.security.LimiteDimensioneFilter;
 import com.hoop3x3.backend.security.LimiteRichiesteFilter;
 import com.hoop3x3.backend.security.SecurityConfig;
 import com.hoop3x3.backend.services.CoachAiService;
@@ -319,6 +320,20 @@ class LimiteRichiesteWebTest {
         }
 
         assert429(login(INDIRIZZO), 40, MESSAGGIO_ACCESSO);
+    }
+
+    // Il limite gira prima di LimiteDimensioneFilter: anche le richieste da 413 si contano, e oltre il limite l'indirizzo riceve
+    // il 429 invece di costringere il server a esaminare un altro corpo di troppo
+    @Test
+    void leRichiesteOltre2MbSiContano_eOltreIlLimiteRispondeIl429() throws Exception {
+        byte[] enorme = new byte[LimiteDimensioneFilter.LIMITE_BYTE + 1]; // un byte oltre il tetto
+        for (int i = 0; i < 10; i++) {
+            mvc.perform(post("/api/auth/login").with(da(INDIRIZZO)).contentType(MediaType.APPLICATION_JSON).content(enorme))
+                    .andExpect(status().isContentTooLarge());
+        }
+
+        assert429(mvc.perform(post("/api/auth/login").with(da(INDIRIZZO)).contentType(MediaType.APPLICATION_JSON).content(enorme)),
+                40, MESSAGGIO_ACCESSO);
     }
 
     /* ── Coach AI ── */
