@@ -14,7 +14,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 /**
  * I valori scritti da chi manda la richiesta (email, percorso) non devono poter chiudere una riga di log e inventarne
  * una sua: la validazione ferma solo una parte dei casi (@Email rifiuta CR e LF ma lascia passare i separatori di riga di
- * Unicode), quindi prima di scriverli si tolgono a capo e caratteri di controllo.
+ * Unicode), quindi prima di scriverli a capo e caratteri di controllo si scrivono per esteso, come sequenze di escape.
  */
 class LogSupportTest {
 
