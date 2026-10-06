@@ -1,6 +1,7 @@
 package com.hoop3x3.backend.exceptions;
 
 import com.hoop3x3.backend.dto.ErrorsDTO;
+import com.hoop3x3.backend.entities.Tappa;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -111,13 +113,19 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
         return risposta(HttpStatus.CONFLICT, ex.getMessage());
     }
 
-    // Un altro dispositivo ha salvato la tappa dopo che questo l'ha letta: lo dice la versione. L'eccezione la lancia
-    // LegaService.aggiornaTappa se la versione della PUT è già vecchia, e Hibernate al flush se la tappa cambia mentre si
-    // salva (due richieste insieme): per il client è lo stesso conflitto, con lo stesso messaggio. Solo Tappa ha @Version:
-    // se un giorno l'avrà un'altra entity, il messaggio andrà distinto. Non è un guasto: niente riga nei log
+    // Una richiesta ha trovato i dati cambiati o spariti per mano di un'altra. Hibernate lancia questa eccezione quando un UPDATE o
+    // un DELETE non trova più la riga che si aspettava, per qualunque entity: versione cambiata (solo Tappa ha @Version) oppure
+    // riga eliminata (due eliminazioni insieme, una rinomina mentre la lega viene eliminata). La lancia anche
+    // LegaService.aggiornaTappa quando la versione della PUT è già vecchia. Per una tappa è il conflitto tra dispositivi: un
+    // messaggio suo, lo stesso per le due strade. Per le altre entity uno generico, perché dire «la tappa» di una lega o di una
+    // scheda dell'anagrafe sarebbe sbagliato (prima erano 500). Non è un guasto: niente riga nei log
     @ExceptionHandler(OptimisticLockingFailureException.class)
-    public ResponseEntity<ErrorsDTO> handleConflittoDiVersione() {
-        return risposta(HttpStatus.CONFLICT, "La tappa è stata modificata da un altro dispositivo: ricaricala");
+    public ResponseEntity<ErrorsDTO> handleModificaConcorrente(OptimisticLockingFailureException ex) {
+        if (ex instanceof ObjectOptimisticLockingFailureException oggetto
+                && Tappa.class.getName().equals(oggetto.getPersistentClassName())) {
+            return risposta(HttpStatus.CONFLICT, "La tappa è stata modificata da un altro dispositivo: ricaricala");
+        }
+        return risposta(HttpStatus.CONFLICT, "I dati sono stati modificati o eliminati da un'altra richiesta: ricarica");
     }
 
     // Servizio esterno (Groq) non raggiungibile o in errore

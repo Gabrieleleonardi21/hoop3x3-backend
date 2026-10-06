@@ -6,6 +6,7 @@ import com.hoop3x3.backend.controllers.TappaController;
 import com.hoop3x3.backend.controllers.UtenteController;
 import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.TappaDiProva;
+import com.hoop3x3.backend.entities.Lega;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Tappa;
 import com.hoop3x3.backend.entities.Utente;
@@ -137,6 +138,21 @@ class ErroriWebTest {
                         .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(TappaDiProva.tappa().id(tappa).build())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("La tappa è stata modificata da un altro dispositivo: ricaricala"))
+                .andExpect(jsonPath("$.timestamp").exists())
+                .andExpect(content().string(not(containsString("optimistic"))));
+    }
+
+    // Hibernate lancia lo stesso errore per ogni UPDATE o DELETE che non trova la riga, anche su una entity senza versione (qui una
+    // rinomina arrivata mentre la lega veniva eliminata): è un conflitto come per la tappa, ma il messaggio non può parlare di una tappa
+    @Test
+    void conflittoSuUnaLega_risponde409ConUnMessaggioGenerico() throws Exception {
+        UUID lega = UUID.randomUUID();
+        when(legaService.rinomina(any(), any(), any())).thenThrow(new ObjectOptimisticLockingFailureException(Lega.class, lega));
+
+        mvc.perform(patch("/api/leghe/" + lega).header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"Nuovo nome\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("I dati sono stati modificati o eliminati da un'altra richiesta: ricarica"))
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(content().string(not(containsString("optimistic"))));
     }

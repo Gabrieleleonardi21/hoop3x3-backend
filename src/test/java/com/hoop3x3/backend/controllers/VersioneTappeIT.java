@@ -24,10 +24,12 @@ import tools.jackson.databind.node.ObjectNode;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -46,6 +48,8 @@ class VersioneTappeIT {
     // I messaggi che il client legge: il frontend li mostra e li distingue per metodo e stato, quindi il testo è un contratto
     private static final String TAPPA_MODIFICATA = "La tappa è stata modificata da un altro dispositivo: ricaricala";
     private static final String SENZA_VERSIONE = "Manca la versione della tappa (campo versione): ricarica la pagina e riprova";
+    // Per ogni altra entity che due richieste si pestano: UPDATE o DELETE che non trova più la riga
+    private static final String ALTRA_RICHIESTA = "I dati sono stati modificati o eliminati da un'altra richiesta: ricarica";
     // Una partita giocata: Team Rome batte Team Milan 21-17
     private static final String PARTITA_GIOCATA = "[{\"id\":\"m1\",\"a\":\"s1\",\"b\":\"s2\",\"sa\":21,\"sb\":17,\"done\":true}]";
 
@@ -254,6 +258,26 @@ class VersioneTappeIT {
 
         eliminazione.andExpect(status().isConflict()).andExpect(jsonPath("$.message").value(TAPPA_MODIFICATA));
         leggi(lega).andExpect(jsonPath("$.tappe[0].nome").value("Dal primo dispositivo"));
+    }
+
+    /* ── Le altre entity: lo stesso errore di Hibernate, ma il messaggio non parla di una tappa ── */
+
+    // Hibernate lancia l'errore di versione per ogni UPDATE o DELETE che non trova la riga, anche su una entity senza versione: qui
+    // una rinomina arriva mentre la lega viene eliminata. Prima era un 500: ora è un 409, ma «La tappa è stata modificata» sarebbe
+    // un messaggio sbagliato per una lega
+    @Test
+    void rinominareUnaLegaMentreVieneEliminata_risponde409ConUnMessaggioGenerico() throws Exception {
+        UUID lega = nuovaLega();
+
+        ResultActions rinomina = insieme.mentreUnaTransazioneTieneUnaRiga(
+                () -> jdbc.update("delete from leghe where id = ?", lega),
+                () -> mvc.perform(patch("/api/leghe/" + lega).header(AUTHORIZATION, bearer(mario))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"nome\": \"Nuovo nome\"}")));
+
+        rinomina.andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value(ALTRA_RICHIESTA))
+                .andExpect(jsonPath("$.timestamp").exists());
+        assertThat(jdbc.queryForObject("select count(*) from leghe where id = ?", Integer.class, lega)).isZero();
     }
 
     /* ── Richieste e dati di prova ── */

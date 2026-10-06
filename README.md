@@ -71,6 +71,7 @@ Salvare una tappa (`PUT /api/tappe/{id}`) sostituisce la tappa intera, partite c
   - I controlli vanno in quest'ordine: 400 (versione mancante), poi 404 e 403 (tappa inesistente o di un altro utente), poi 409. Chi non è il proprietario non può scoprire la versione di una tappa altrui provando dei numeri.
 - Il 409 della PUT non è quello della POST («Esiste già una tappa con id …»): il client li distingue dal metodo.
 - `DELETE /api/tappe/{id}` non porta la versione. Se un altro dispositivo salva la tappa nello stesso istante in cui la si elimina, risponde con lo stesso 409 e la tappa resta com'è stata salvata. Lo stesso vale per `DELETE /api/leghe/{id}`, che elimina anche le tappe: se una di loro viene salvata in quel momento, la lega resta e la risposta è il 409.
+- **Le altre risorse.** Hibernate dà lo stesso tipo di errore ogni volta che un UPDATE o un DELETE non trova più la riga, anche per una entity senza versione: due eliminazioni insieme della stessa scheda dell'anagrafe o della stessa pubblicazione, una rinomina mentre la lega viene eliminata. Anche questi sono un **409**, con un messaggio generico che non parla di una tappa: «I dati sono stati modificati o eliminati da un'altra richiesta: ricarica» (prima erano un 500).
 - Le tappe in archivio portano la `versione` che avevano quando sono state pubblicate (lo snapshot è la tappa come la restituiscono le API): è una fotografia e non serve a salvare. Le pubblicazioni fatte prima della V4 non ce l'hanno (`versione: null`).
 - **Ordine di pubblicazione.** Prima il frontend che manda la versione, poi questo backend. Il backend precedente ignora la `versione` che riceve (i campi sconosciuti del corpo si ignorano), quindi il frontend nuovo può andare online per primo, purché non la pretenda nelle risposte; un frontend vecchio con questo backend, invece, riceve 400 a ogni salvataggio di tappa finché la pagina non si ricarica con il frontend nuovo.
 
@@ -160,7 +161,7 @@ Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 - **403** — ruolo insufficiente, oppure risorsa di un altro utente.
 - **404** — risorsa o percorso inesistente.
 - **405** — metodo non consentito per quell'indirizzo.
-- **409** — conflitto con dati già salvati (email già registrata, tappa con lo stesso id, vincolo del database), tappa salvata da un altro dispositivo dopo che il client l'ha letta (versione della PUT non più quella del database), tappa non ancora conclusa che si prova a pubblicare in archivio, oppure sessione già rinnovata da un'altra richiesta.
+- **409** — conflitto con dati già salvati (email già registrata, tappa con lo stesso id, vincolo del database), tappa salvata da un altro dispositivo dopo che il client l'ha letta (versione della PUT non più quella del database), dati modificati o eliminati da un'altra richiesta nello stesso istante, tappa non ancora conclusa che si prova a pubblicare in archivio, oppure sessione già rinnovata da un'altra richiesta.
 - **413** — richiesta oltre 2 MB.
 - **415** — corpo che non è JSON.
 - **429** — troppe richieste: il limite di frequenza di login, registrazione, rinnovo del token e Coach AI, con `Retry-After` (vedi «Limiti di frequenza»). Per il Coach AI è 429 anche quando è Groq a limitare le richieste, con un altro messaggio e senza `Retry-After`.

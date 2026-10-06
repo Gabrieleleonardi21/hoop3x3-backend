@@ -5,11 +5,14 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.hoop3x3.backend.dto.ErrorsDTO;
+import com.hoop3x3.backend.entities.Lega;
+import com.hoop3x3.backend.entities.Tappa;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpStatus;
@@ -19,10 +22,12 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -182,12 +187,32 @@ class ExceptionsHandlerTest {
     // Due dispositivi salvano la stessa tappa: il servizio o Hibernate rifiutano il secondo con un errore di versione. È un conflitto
     // normale e non un guasto: 409 con il messaggio che dice di ricaricare, senza dettagli del database e senza righe nei log
     @Test
-    void conflittoDiVersioneDellaTappa_rispondeConflittoSenzaScrivereNelLog() {
-        ResponseEntity<ErrorsDTO> esito = gestore.handleConflittoDiVersione();
+    void conflittoSuUnaTappa_rispondeConflittoConIlMessaggioDellaTappaSenzaScrivereNelLog() {
+        ResponseEntity<ErrorsDTO> esito = gestore.handleModificaConcorrente(
+                new ObjectOptimisticLockingFailureException(Tappa.class, UUID.randomUUID()));
 
         assertThat(esito.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(esito.getBody().message()).isEqualTo("La tappa è stata modificata da un altro dispositivo: ricaricala");
         assertThat(esito.getBody().timestamp()).isNotNull();
+        assertThat(logCatturato.list).isEmpty();
+    }
+
+    // Hibernate lancia lo stesso errore per ogni UPDATE o DELETE che non trova la riga, anche su entity senza versione: il messaggio
+    // della tappa sarebbe sbagliato per una lega. Vale anche quando l'eccezione non dice su quale entity è nata (Hibernate
+    // lancia uno StaleStateException senza nome) o non è nemmeno una ObjectOptimisticLockingFailureException
+    @Test
+    void conflittoSuUnAltraEntityOSenzaEntity_rispondeConflittoConUnMessaggioGenerico() {
+        List<OptimisticLockingFailureException> conflitti = List.of(
+                new ObjectOptimisticLockingFailureException(Lega.class, UUID.randomUUID()),
+                new ObjectOptimisticLockingFailureException("Unexpected row count", null),
+                new OptimisticLockingFailureException("x"));
+
+        assertThat(conflitti).allSatisfy(conflitto -> {
+            ResponseEntity<ErrorsDTO> esito = gestore.handleModificaConcorrente(conflitto);
+
+            assertThat(esito.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(esito.getBody().message()).isEqualTo("I dati sono stati modificati o eliminati da un'altra richiesta: ricarica");
+        });
         assertThat(logCatturato.list).isEmpty();
     }
 
@@ -203,7 +228,8 @@ class ExceptionsHandlerTest {
                 gestore.handleForbidden(new ForbiddenException("x")),
                 gestore.handleNotFound(new NotFoundException("x")),
                 gestore.handleConflict(new ConflictException("x")),
-                gestore.handleConflittoDiVersione(),
+                gestore.handleModificaConcorrente(new ObjectOptimisticLockingFailureException(Tappa.class, UUID.randomUUID())),
+                gestore.handleModificaConcorrente(new ObjectOptimisticLockingFailureException(Lega.class, UUID.randomUUID())),
                 gestore.handleUpstream(new UpstreamException(HttpStatus.BAD_GATEWAY, "x")),
                 gestore.handleTroppeRichieste(new TroppeRichiesteException("x", 1)),
                 gestore.handleDataIntegrity(new DataIntegrityViolationException("x")),
@@ -213,7 +239,7 @@ class ExceptionsHandlerTest {
                 gestore.handleHttpMessageNotReadable(new HttpMessageNotReadableException("x", mock(HttpInputMessage.class)),
                         new HttpHeaders(), HttpStatus.BAD_REQUEST, richiesta));
 
-        assertThat(risposte).hasSize(14).allSatisfy(risposta ->
+        assertThat(risposte).hasSize(15).allSatisfy(risposta ->
                 assertThat(risposta.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_JSON));
     }
 }
