@@ -21,6 +21,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
+import static com.hoop3x3.backend.services.LogSupport.perLog;
+
 /**
  * Tutte le risposte di errore hanno lo stesso corpo {message, timestamp}: il frontend legge un solo formato.
  * Estende ResponseEntityExceptionHandler così anche gli errori standard di Spring MVC (405, 415, 404,
@@ -116,7 +118,9 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
     // Vincolo del database violato (doppione, valore troppo lungo…): il dettaglio SQL resta nei log
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorsDTO> handleDataIntegrity(DataIntegrityViolationException ex) {
-        log.warn("Vincolo del database violato: {}", ex.getMostSpecificCause().getMessage());
+        // Il messaggio del database può contenere il valore che ha violato il vincolo (l'email di un doppione), cioè qualcosa
+        // che ha scritto un utente
+        log.warn("Vincolo del database violato: {}", perLog(ex.getMostSpecificCause().getMessage()));
         return risposta(HttpStatus.CONFLICT, "Operazione in conflitto con i dati già salvati");
     }
 
@@ -141,14 +145,14 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
 
     /**
      * «GET /api/leghe»: la richiesta che ha dato l'errore, per le righe ERROR dei log (senza la query, che può contenere
-     * dati personali). Il percorso lo sceglie chi manda la richiesta: CR e LF si scrivono per esteso («\r», «\n»), così non
-     * può chiudere la riga e inventarne una sua.
+     * dati personali). Il percorso lo sceglie chi manda la richiesta, quindi passa da perLog: a capo e caratteri di
+     * controllo si scrivono per esteso e non possono chiudere la riga per inventarne una sua.
      */
     private static String richiestaPerLog(WebRequest request) {
         // Con Spring MVC la richiesta è sempre un ServletWebRequest: un gestore di errori che lanciasse nasconderebbe l'errore vero
         if (!(request instanceof ServletWebRequest web)) return "una richiesta sconosciuta";
         HttpServletRequest richiesta = web.getRequest();
-        return (richiesta.getMethod() + " " + richiesta.getRequestURI()).replace("\r", "\\r").replace("\n", "\\n");
+        return perLog(richiesta.getMethod() + " " + richiesta.getRequestURI());
     }
 
     /** I primi byte della risposta sono già partiti verso il client: non si può più scriverle sopra un corpo d'errore */

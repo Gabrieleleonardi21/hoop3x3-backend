@@ -9,6 +9,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -107,6 +108,34 @@ class ExceptionsHandlerTest {
         assertThat(logCatturato.list).hasSize(2).allSatisfy(riga ->
                 assertThat(riga.getFormattedMessage()).doesNotContain("\r", "\n")
                         .endsWith("GET /api/leghe/x\\r\\nERROR riga inventata"));
+    }
+
+    // La pulizia non si ferma a CR e LF: i separatori di riga di Unicode e i caratteri di controllo si scrivono per esteso
+    @Test
+    void percorsoConSeparatoriDiRigaUnicode_nonPuoInventareRigheDiLog() {
+        ServletWebRequest ostile = new ServletWebRequest(
+                new MockHttpServletRequest("GET", "/api/leghe/x\u2028ERROR riga inventata\u0085\u001b[2J"), risposta);
+
+        gestore.handleImprevisto(new IllegalStateException("x"), ostile);
+
+        assertThat(logCatturato.list).singleElement().satisfies(riga ->
+                assertThat(riga.getFormattedMessage()).doesNotContainPattern("[\\p{Cc}\\p{Zl}\\p{Zp}]")
+                        .endsWith("GET /api/leghe/x\\u2028ERROR riga inventata\\u0085\\u001b[2J"));
+    }
+
+    // Il messaggio del database può contenere il valore che ha violato un vincolo (per esempio l'email di un doppione):
+    // lo ha scritto un utente, quindi passa dalla stessa pulizia
+    @Test
+    void vincoloDelDatabaseViolato_ilMessaggioDelDatabaseNonPuoInventareRigheDiLog() {
+        ResponseEntity<ErrorsDTO> esito = gestore.handleDataIntegrity(new DataIntegrityViolationException(
+                "duplicate key value violates unique constraint \"utenti_email_key\" Detail: Key (email)=(ma\u2028rio@x.it\r\nINFO riga inventata) already exists."));
+
+        assertThat(esito.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(logCatturato.list).singleElement().satisfies(riga -> {
+            assertThat(riga.getLevel()).isEqualTo(Level.WARN);
+            assertThat(riga.getFormattedMessage()).doesNotContainPattern("[\\p{Cc}\\p{Zl}\\p{Zp}]")
+                    .contains("Key (email)=(ma\\u2028rio@x.it\\r\\nINFO riga inventata) already exists.");
+        });
     }
 
     // Un gestore di errori che a sua volta lancia nasconderebbe l'errore vero: una richiesta di un tipo imprevisto non lo rompe

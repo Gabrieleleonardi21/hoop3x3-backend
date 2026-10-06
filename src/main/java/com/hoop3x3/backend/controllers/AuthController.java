@@ -22,6 +22,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import static com.hoop3x3.backend.services.LogSupport.perLog;
+
 /**
  * Autenticazione: il JWT di accesso (30 minuti) viaggia nel corpo JSON, il refresh token (30 giorni)
  * in un cookie httpOnly che il browser rimanda solo a questi endpoint. Vedi AuthCookies e RefreshTokenService.
@@ -51,7 +53,7 @@ public class AuthController {
     @ResponseStatus(HttpStatus.CREATED)
     public AuthResponseDTO register(@RequestBody @Validated RegisterRequestDTO dto, HttpServletResponse response) {
         Utente utente = utenteService.register(dto);
-        log.info("Nuovo utente registrato: {} (id {})", utente.getEmail(), utente.getId());
+        log.info("Nuovo utente registrato: {} (id {})", perLog(utente.getEmail()), utente.getId());
         return accedi(utente, response);
     }
 
@@ -63,9 +65,9 @@ public class AuthController {
             auth = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, dto.password()));
         } catch (BadCredentialsException e) {
             // Email sconosciuta o password sbagliata (Spring non li distingue): l'email dice chi sbaglia o chi prova a
-            // indovinare. La password non va mai nei log. L'email arriva già validata (@Email non ammette CR e LF), quindi
-            // non può inventare righe false. La risposta 401 la dà ExceptionsHandler
-            log.warn("Login fallito per {}", email);
+            // indovinare. La password non va mai nei log. L'email la sceglie chi fa il login: @Email ferma CR e LF ma non i
+            // separatori di riga di Unicode, quindi passa da perLog. La risposta 401 la dà ExceptionsHandler
+            log.warn("Login fallito per {}", perLog(email));
             throw e;
         }
         return accedi((Utente) auth.getPrincipal(), response);

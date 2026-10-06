@@ -99,6 +99,9 @@ class LogApplicativiTest {
 
     // Una password che non può comparire per caso in nessun'altra riga dell'output
     private static final String PASSWORD = "Segreta-da-non-scrivere-nei-log-42";
+    // Un'email valida per @Email con U+2028, U+2029 e U+0085 dentro, e come deve comparire nei log
+    private static final String EMAIL_CON_SEPARATORI_UNICODE = "ma\u2028r\u2029i\u0085o@test.it";
+    private static final String EMAIL_CON_SEPARATORI_PER_ESTESO = "ma\\u2028r\\u2029i\\u0085o@test.it";
 
     // Gli utenti e i dati di prova: id fissi, così le righe di log attese si scrivono per intero
     private static final UUID ID_MARIO = UUID.fromString("00000000-0000-4000-8000-00000000000a");
@@ -234,6 +237,21 @@ class LogApplicativiTest {
         assertThat(uscita(output)).doesNotContain("riga inventata").doesNotContain(PASSWORD);
     }
 
+    // Il resto non lo ferma la validazione: @Email lascia passare i separatori di riga e di paragrafo di Unicode (U+2028 e
+    // U+2029) e U+0085, un carattere di controllo che alcuni lettori di log trattano da a capo. Arrivano al log, e lì si
+    // scrivono per esteso (LogSupport.perLog). Un'email con tutti e tre: ogni carattere da solo lo prova LogSupportTest
+    @Test
+    void emailConSeparatoriUnicodeNelLogin_nelLogSiScrivePerEsteso(CapturedOutput output) throws Exception {
+        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
+
+        postPubblico("/api/auth/login", Map.of("email", EMAIL_CON_SEPARATORI_UNICODE, "password", PASSWORD))
+                .andExpect(status().isUnauthorized());
+
+        assertThat(messaggi(output, "WARN", "AuthController"))
+                .containsExactly("Login fallito per " + EMAIL_CON_SEPARATORI_PER_ESTESO);
+        assertThat(uscita(output)).doesNotContain("\u2028", "\u2029", "\u0085");
+    }
+
     /* ── Registrazione ── */
 
     @Test
@@ -262,6 +280,19 @@ class LogApplicativiTest {
                 .andExpect(status().isConflict());
 
         assertThat(messaggi(output, "INFO", "AuthController")).isEmpty();
+    }
+
+    // Come per il login: i separatori di riga di Unicode passano la validazione e nel log si scrivono per esteso
+    @Test
+    void emailConSeparatoriUnicodeNellaRegistrazione_nelLogSiScrivePerEsteso(CapturedOutput output) throws Exception {
+        when(utenteRepository.save(any(Utente.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
+
+        postPubblico("/api/auth/register", Map.of("name", "Mario", "email", EMAIL_CON_SEPARATORI_UNICODE, "password", PASSWORD))
+                .andExpect(status().isCreated());
+
+        assertThat(messaggi(output, "INFO", "AuthController")).singleElement()
+                .isEqualTo("Nuovo utente registrato: " + EMAIL_CON_SEPARATORI_PER_ESTESO + " (id null)");
+        assertThat(uscita(output)).doesNotContain("\u2028", "\u2029", "\u0085");
     }
 
     // Come per il login: l'email della registrazione finisce nel log, e la validazione ferma i CR e LF prima
