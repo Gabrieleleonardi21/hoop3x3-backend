@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -173,8 +172,7 @@ public class LegaService {
     }
 
     private static LegaMetaDTO toMeta(UUID id, String nome, LocalDateTime modificatoIl, int nTappe) {
-        long ts = modificatoIl.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
-        return new LegaMetaDTO(id, nome, ts, nTappe);
+        return new LegaMetaDTO(id, nome, TempoSupport.inMillisecondi(modificatoIl), nTappe);
     }
 
     private Tappa fromDto(TappaDTO dto, Lega lega, int posizione) {

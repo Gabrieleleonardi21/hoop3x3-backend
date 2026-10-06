@@ -3,6 +3,7 @@ package com.hoop3x3.backend.services;
 import com.hoop3x3.backend.dto.PubTappaDTO;
 import com.hoop3x3.backend.dto.PubTappaMetaDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
+import com.hoop3x3.backend.dto.TempoSupport;
 import com.hoop3x3.backend.entities.ArchivioTappa;
 import com.hoop3x3.backend.entities.Lega;
 import com.hoop3x3.backend.entities.Tappa;
@@ -15,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -43,7 +43,7 @@ public class ArchivioService {
     public List<PubTappaMetaDTO> tutte() {
         return repo.elenco().stream()
                 .map(v -> new PubTappaMetaDTO(v.getTappaId(), v.getNome(), v.getLuogo(), v.getData(),
-                        v.getNumeroSquadre(), v.getLega(), v.getAutore(), ts(v.getPubblicatoIl())))
+                        v.getNumeroSquadre(), v.getLega(), v.getAutore(), TempoSupport.inMillisecondi(v.getPubblicatoIl())))
                 .toList();
     }
 
@@ -93,11 +93,7 @@ public class ArchivioService {
 
     private PubTappaDTO toDto(ArchivioTappa a) {
         TappaDTO tappa = mapper.readValue(a.getContenuto(), TappaDTO.class);
-        return new PubTappaDTO(tappa, a.getLegaNome(), a.getAutore().getNome(), a.getAutore().getId(), ts(a.getPubblicatoIl()));
-    }
-
-    /** I millisecondi epoch di una data del database: il `ts` dell'API */
-    private static long ts(LocalDateTime pubblicatoIl) {
-        return pubblicatoIl.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        return new PubTappaDTO(tappa, a.getLegaNome(), a.getAutore().getNome(), a.getAutore().getId(),
+                TempoSupport.inMillisecondi(a.getPubblicatoIl()));
     }
 }
