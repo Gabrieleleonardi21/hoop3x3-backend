@@ -22,10 +22,6 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -168,19 +164,8 @@ class PosizioneTappeIT {
     @Test
     void dueTappeNuoveInParalleloNellaStessaLegaPrendonoPosizioniDiverse() throws Exception {
         UUID lega = legaVuota();
-        ExecutorService altroThread = Executors.newSingleThreadExecutor();
-        try {
-            Future<TappaDTO> seconda = new TransactionTemplate(transazioni).execute(transazione -> {
-                aggiungi(lega, "Prima");
-                Future<TappaDTO> richiesta = altroThread.submit(() -> aggiungi(lega, "Seconda"));
-                insieme.aspettaFinitaOFermaSuUnLock(richiesta);
-                assertThat(insieme.unaRichiestaAspettaUnLock()).as("la seconda richiesta aspetta che la prima confermi").isTrue();
-                return richiesta;
-            });
-            seconda.get(30, TimeUnit.SECONDS);
-        } finally {
-            altroThread.shutdownNow();
-        }
+
+        insieme.mentreUnaTransazioneTieneUnaRiga(() -> aggiungi(lega, "Prima"), () -> aggiungi(lega, "Seconda"));
 
         assertThat(posizioni(lega)).containsExactly(0, 1);
     }

@@ -43,7 +43,7 @@ public final class RichiesteContemporanee {
     }
 
     /** Se una richiesta al database è ferma ad aspettare un lock. Guarda tutto il database di prova */
-    public boolean unaRichiestaAspettaUnLock() {
+    private boolean unaRichiestaAspettaUnLock() {
         int inAttesa = daUnAltraConnessione(() -> jdbc.queryForObject(
                 "select count(*) from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'", Integer.class));
         return inAttesa > 0;
@@ -53,7 +53,7 @@ public final class RichiesteContemporanee {
      * Aspetta, al massimo 10 secondi, che la richiesta sia finita o ferma su un lock: se non aspetta nessun lock finisce da
      * sola, e così il test non resta ad aspettare invano né dipende da una pausa scelta a caso.
      */
-    public void aspettaFinitaOFermaSuUnLock(Future<?> richiesta) {
+    private void aspettaFinitaOFermaSuUnLock(Future<?> richiesta) {
         long scadenza = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         while (!richiesta.isDone() && !unaRichiestaAspettaUnLock() && System.nanoTime() < scadenza) {
             LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(10)); // pausa di 10 ms tra una lettura e l'altra
