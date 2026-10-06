@@ -7,6 +7,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -48,7 +49,7 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
         if (status.is5xxServerError()) {
             log.error("Errore {} di Spring MVC su {}", status.value(), richiestaPerLog(request), ex);
         }
-        return ResponseEntity.status(status).headers(headers).body(errore(messaggioPer(status)));
+        return json(status).headers(headers).body(errore(messaggioPer(status)));
     }
 
     // Payload che non rispetta le regole @NotBlank/@Email/...: un messaggio per campo
@@ -58,14 +59,14 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
         String messaggi = ex.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .collect(Collectors.joining(", "));
-        return ResponseEntity.badRequest().body(errore(messaggi));
+        return json(HttpStatus.BAD_REQUEST).body(errore(messaggi));
     }
 
     // JSON malformato o tipo sbagliato in un campo del body
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex, HttpHeaders headers,
                                                                   HttpStatusCode status, WebRequest request) {
-        return ResponseEntity.badRequest().body(errore("Corpo della richiesta non valido"));
+        return json(HttpStatus.BAD_REQUEST).body(errore("Corpo della richiesta non valido"));
     }
 
     /* ── Eccezioni dell'applicazione ── */
@@ -119,7 +120,7 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
     // Non è un guasto: niente riga nei log qui, il filtro ne scrive una per chiave e per finestra
     @ExceptionHandler(TroppeRichiesteException.class)
     public ResponseEntity<ErrorsDTO> handleTroppeRichieste(TroppeRichiesteException ex) {
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+        return json(HttpStatus.TOO_MANY_REQUESTS)
                 .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getSecondiAttesa()))
                 .body(errore(ex.getMessage()));
     }
@@ -149,7 +150,17 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
     }
 
     private static ResponseEntity<ErrorsDTO> risposta(HttpStatus status, String messaggio) {
-        return ResponseEntity.status(status).body(errore(messaggio));
+        return json(status).body(errore(messaggio));
+    }
+
+    /**
+     * Da qui nasce ogni risposta d'errore: il corpo {message, timestamp} è sempre JSON, qualunque Accept mandi il client.
+     * Senza il Content-Type fissato Spring sceglie il tipo in base ad Accept e per un client che non accetta JSON (text/html,
+     * application/xml) non trova un convertitore: il corpo resta vuoto e a ogni errore compare un WARN con più di cento righe
+     * di stack.
+     */
+    private static ResponseEntity.BodyBuilder json(HttpStatusCode status) {
+        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON);
     }
 
     /**

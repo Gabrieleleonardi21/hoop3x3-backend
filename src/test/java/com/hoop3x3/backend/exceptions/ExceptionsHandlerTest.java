@@ -11,13 +11,18 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpInputMessage;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -172,5 +177,30 @@ class ExceptionsHandlerTest {
         assertThat(esito.getBody().message()).isEqualTo("Troppi tentativi di accesso: riprova tra 40 secondi");
         assertThat(esito.getBody().timestamp()).isNotNull();
         assertThat(logCatturato.list).isEmpty();
+    }
+
+    // Ogni errore esce con il Content-Type JSON fissato, qualunque Accept mandi il client: senza, Spring sceglie il tipo in base
+    // ad Accept e per text/html o application/xml non riesce a scrivere il corpo (le richieste vere sono in ErroriWebTest)
+    @Test
+    void ogniErrore_escePerSempreInJson() {
+        List<ResponseEntity<?>> risposte = List.of(
+                gestore.handleBadRequest(new BadRequestException("x")),
+                gestore.handleBadCredentials(),
+                gestore.handleUnauthorized(new UnauthorizedException("x")),
+                gestore.handleAccessDenied(),
+                gestore.handleForbidden(new ForbiddenException("x")),
+                gestore.handleNotFound(new NotFoundException("x")),
+                gestore.handleConflict(new ConflictException("x")),
+                gestore.handleUpstream(new UpstreamException(HttpStatus.BAD_GATEWAY, "x")),
+                gestore.handleTroppeRichieste(new TroppeRichiesteException("x", 1)),
+                gestore.handleDataIntegrity(new DataIntegrityViolationException("x")),
+                gestore.handleImprevisto(new IllegalStateException("x"), richiesta),
+                // Gli errori di Spring MVC, che ExceptionsHandler ridefinisce
+                gestore.handleExceptionInternal(new IllegalStateException("x"), null, new HttpHeaders(), HttpStatus.NOT_FOUND, richiesta),
+                gestore.handleHttpMessageNotReadable(new HttpMessageNotReadableException("x", mock(HttpInputMessage.class)),
+                        new HttpHeaders(), HttpStatus.BAD_REQUEST, richiesta));
+
+        assertThat(risposte).hasSize(13).allSatisfy(risposta ->
+                assertThat(risposta.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_JSON));
     }
 }

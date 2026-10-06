@@ -4,9 +4,11 @@ import com.hoop3x3.backend.controllers.AnagrafeController;
 import com.hoop3x3.backend.controllers.LegaController;
 import com.hoop3x3.backend.controllers.TappaController;
 import com.hoop3x3.backend.controllers.UtenteController;
+import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ExceptionsHandler;
+import com.hoop3x3.backend.exceptions.NotFoundException;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.CorsConfig;
 import com.hoop3x3.backend.security.JWTtools;
@@ -34,6 +36,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -219,6 +222,74 @@ class ErroriWebTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{nome:"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Corpo della richiesta non valido"));
+    }
+
+    /* ── Un client che non accetta JSON riceve comunque l'errore nel formato di sempre ── */
+
+    @ParameterizedTest
+    @ValueSource(strings = {"text/html", "application/xml"})
+    void tokenAlterato_conAcceptNonJson_risponde401InJson(String accept) throws Exception {
+        erroreInJson(get("/api/leghe").header("Authorization", "Bearer abc.def.ghi"), accept, 401);
+    }
+
+    // Questo lo scrive JsonAuthEntryPoint per conto suo, non ExceptionsHandler: deve fissare anche lui il tipo
+    @ParameterizedTest
+    @ValueSource(strings = {"text/html", "application/xml"})
+    void senzaToken_conAcceptNonJson_risponde401InJson(String accept) throws Exception {
+        erroreInJson(get("/api/leghe"), accept, 401);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"text/html", "application/xml"})
+    void ruoloInsufficiente_conAcceptNonJson_risponde403InJson(String accept) throws Exception {
+        erroreInJson(get("/api/utenti").header("Authorization", bearer), accept, 403);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"text/html", "application/xml"})
+    void erroreDelServizio_conAcceptNonJson_risponde404InJson(String accept) throws Exception {
+        when(legaService.indice(any())).thenThrow(new NotFoundException("Lega non trovata"));
+
+        erroreInJson(get("/api/leghe").header("Authorization", bearer), accept, 404);
+    }
+
+    // Gli errori di Spring MVC passano da handleExceptionInternal e dagli altri metodi che ExceptionsHandler ridefinisce
+    @ParameterizedTest
+    @ValueSource(strings = {"text/html", "application/xml"})
+    void percorsoInesistente_conAcceptNonJson_risponde404InJson(String accept) throws Exception {
+        erroreInJson(get("/api/non-esiste").header("Authorization", bearer), accept, 404);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"text/html", "application/xml"})
+    void jsonMalformato_conAcceptNonJson_risponde400InJson(String accept) throws Exception {
+        erroreInJson(post("/api/leghe").header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON).content("{nome:"),
+                accept, 400);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"text/html", "application/xml"})
+    void corpoNonValido_conAcceptNonJson_risponde400InJson(String accept) throws Exception {
+        erroreInJson(post("/api/leghe").header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"\"}"),
+                accept, 400);
+    }
+
+    /**
+     * La richiesta con quell'Accept riceve lo stato atteso e il corpo {message, timestamp} in JSON, e Spring non scrive niente
+     * nei log. Senza il Content-Type fissato nella risposta Spring sceglieva il tipo in base ad Accept e per text/html o
+     * application/xml non trovava un convertitore: il corpo restava vuoto e ogni errore lasciava un WARN con più di cento
+     * righe di stack.
+     */
+    private void erroreInJson(MockHttpServletRequestBuilder richiesta, String accept, int stato) throws Exception {
+        try (LogCatturato springWeb = new LogCatturato("org.springframework.web")) {
+            mvc.perform(richiesta.accept(MediaType.parseMediaType(accept)))
+                    .andExpect(status().is(stato))
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                    .andExpect(jsonPath("$.message").isString())
+                    .andExpect(jsonPath("$.timestamp").exists());
+
+            assertThat(springWeb.righe()).as("righe di log di Spring").isEmpty();
+        }
     }
 
     /**

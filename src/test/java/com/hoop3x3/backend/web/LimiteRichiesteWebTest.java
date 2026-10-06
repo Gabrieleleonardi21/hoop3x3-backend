@@ -23,6 +23,8 @@ import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -298,6 +300,23 @@ class LimiteRichiesteWebTest {
                 .andExpect(header().string(HttpHeaders.RETRY_AFTER, "40"))
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:5173"))
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_EXPOSE_HEADERS, containsString("Retry-After")));
+    }
+
+    // Un client che non accetta JSON (Accept: text/html, application/xml) riceve comunque il 429 in JSON, e Spring non scrive
+    // niente nei log. Senza il Content-Type fissato nella risposta, Spring sceglieva il tipo in base ad Accept, non trovava un
+    // convertitore per il corpo, lo lasciava vuoto e a ogni 429 scriveva un WARN con più di cento righe di stack. Resta la
+    // sola riga del limite
+    @ParameterizedTest
+    @ValueSource(strings = {"text/html", "application/xml"})
+    void conUnAcceptCheNonEJson_il429ArrivaComunqueInJson(String accept) throws Exception {
+        ilLoginPassa(10, INDIRIZZO);
+
+        try (LogCatturato springWeb = new LogCatturato("org.springframework.web")) {
+            assert429(loginCon(post("/api/auth/login").accept(MediaType.parseMediaType(accept)), INDIRIZZO), 40, MESSAGGIO_ACCESSO);
+
+            assertThat(springWeb.righe()).as("righe di log di Spring").isEmpty();
+        }
+        assertThat(log.righe()).as("la riga del limite").hasSize(1);
     }
 
     // Spring MVC decodifica il percorso prima di scegliere il controller: «/api/auth/%6Cogin» è il login. Se il filtro non

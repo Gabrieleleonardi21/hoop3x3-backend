@@ -22,7 +22,12 @@ public final class LogCatturato implements AutoCloseable {
     private final ListAppender<ILoggingEvent> raccolta = new ListAppender<>();
 
     public LogCatturato(Class<?> classe) {
-        logger = (Logger) LoggerFactory.getLogger(classe);
+        this(classe.getName());
+    }
+
+    /** Un logger per nome: «org.springframework.web» raccoglie le righe di tutte le classi sotto quel pacchetto */
+    public LogCatturato(String nomeDelLogger) {
+        logger = (Logger) LoggerFactory.getLogger(nomeDelLogger);
         raccolta.start();
         logger.addAppender(raccolta);
         logger.setAdditive(false); // le righe non salgono al logger della console
