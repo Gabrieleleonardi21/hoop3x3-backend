@@ -52,6 +52,7 @@ class VersioneTappeIT {
     private static final String SENZA_VERSIONE = "Manca la versione della tappa (campo versione): ricarica la pagina e riprova";
     // Per ogni altra entity che due richieste si pestano: UPDATE o DELETE che non trova più la riga
     private static final String ALTRA_RICHIESTA = "I dati sono stati modificati o eliminati da un'altra richiesta: ricarica";
+    private static final String DUE_SQUADRE = "[{\"id\":\"s1\",\"nome\":\"Team Rome\"},{\"id\":\"s2\",\"nome\":\"Team Milan\"}]";
     // Una partita giocata: Team Rome batte Team Milan 21-17
     private static final String PARTITA_GIOCATA = "[{\"id\":\"m1\",\"a\":\"s1\",\"b\":\"s2\",\"sa\":21,\"sb\":17,\"done\":true}]";
 
@@ -128,6 +129,32 @@ class VersioneTappeIT {
 
         leggi(lega).andExpect(jsonPath("$.tappe[0].nome").value("Seconda modifica"))
                 .andExpect(jsonPath("$.tappe[0].versione").value(2));
+    }
+
+    /* ── Una PUT che non cambia niente non fa salire la versione ── */
+
+    // I blocchi della tappa sono testo, e il JSONB riletto dal database ha gli spazi dopo i due punti e le virgole e le chiavi in un
+    // altro ordine rispetto al JSON del client. Confrontati come testo, una PUT identica sembrava una modifica: la versione saliva
+    // e l'altro dispositivo, con una modifica sua da salvare, riceveva un 409 per niente (e ricaricando la perdeva). Confrontati
+    // come JSON, solo ciò che cambia davvero fa salire la versione. La tappa ha squadre, gironi e una partita, con le chiavi
+    // della partita in un ordine diverso da quello che usa il database
+    @Test
+    void unaPutIdentica_nonFaSalireLaVersione_cosiLAltroDispositivoNonRiceveUn409PerNiente() throws Exception {
+        UUID lega = nuovaLega();
+        TappaDTO tappa = TappaDiProva.tappa().squadre(DUE_SQUADRE).gironi("[[\"s1\",\"s2\"]]").partite(PARTITA_GIOCATA).build();
+        aggiungi(lega, tappa, null).andExpect(status().isCreated());
+
+        // Il primo dispositivo risalva la tappa così com'è: la versione resta quella
+        salva(tappa.id(), tappa, 0L).andExpect(status().isOk()).andExpect(jsonPath("$.versione").value(0));
+        // Il secondo, che ha letto la stessa versione, cambia un punteggio: nessun conflitto, e ora la versione sale
+        TappaDTO punteggioCambiato = TappaDiProva.da(tappa).partite(PARTITA_GIOCATA.replace("\"sa\":21", "\"sa\":22")).build();
+        salva(tappa.id(), punteggioCambiato, 0L)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.versione").value(1))
+                .andExpect(jsonPath("$.partite[0].sa").value(22));
+        // E rimandata com'è, con la versione nuova, resta alla 1
+        salva(tappa.id(), punteggioCambiato, 1L).andExpect(status().isOk()).andExpect(jsonPath("$.versione").value(1));
+        leggi(lega).andExpect(jsonPath("$.tappe[0].versione").value(1)).andExpect(jsonPath("$.tappe[0].gironi[0][1]").value("s2"));
     }
 
     /* ── La PUT deve portare la versione letta dal client ── */

@@ -194,11 +194,13 @@ public class LegaService {
         t.setNGironi(dto.nGironi());
         t.setConclusa(Boolean.TRUE.equals(dto.conclusa()));
         t.setRegole(dto.regole().toEntity());
-        t.setSquadre(json.arrayOrEmpty(dto.squadre(), "squadre"));
-        t.setGironi(json.arrayOrNull(dto.gironi(), "gironi"));
-        t.setPartite(json.arrayOrEmpty(dto.partite(), "partite"));
-        t.setBracket(json.arrayOrNull(dto.bracket(), "bracket"));
-        t.setVideo(json.arrayOrEmpty(dto.video(), "video"));
+        // Un blocco con lo stesso contenuto di quello salvato resta com'è (JsonSupport.testoDaSalvare): una PUT che non cambia niente
+        // non deve scrivere un UPDATE né far salire la versione
+        t.setSquadre(json.testoDaSalvare(t.getSquadre(), json.arrayOrEmpty(dto.squadre(), "squadre")));
+        t.setGironi(json.testoDaSalvare(t.getGironi(), json.arrayOrNull(dto.gironi(), "gironi")));
+        t.setPartite(json.testoDaSalvare(t.getPartite(), json.arrayOrEmpty(dto.partite(), "partite")));
+        t.setBracket(json.testoDaSalvare(t.getBracket(), json.arrayOrNull(dto.bracket(), "bracket")));
+        t.setVideo(json.testoDaSalvare(t.getVideo(), json.arrayOrEmpty(dto.video(), "video")));
     }
 
     public TappaDTO toDto(Tappa t) {
