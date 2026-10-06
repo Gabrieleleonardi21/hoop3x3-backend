@@ -1,9 +1,9 @@
 package com.hoop3x3.backend.security;
 
 import java.time.Clock;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Contatore di richieste in memoria, a finestra fissa: conta quante richieste fa ogni chiave (un indirizzo IP, un utente)
@@ -14,7 +14,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * Retry-After si calcola senza altro stato. Il prezzo è che a cavallo di due finestre una chiave può fare fino al doppio
  * del massimo in pochi secondi.
  * <p>
- * Regge le richieste contemporanee (ConcurrentHashMap e operazioni atomiche, nessun blocco). Vive nella memoria di questo
+ * Ogni finestra ha la sua mappa dei conteggi. Alla prima richiesta di una finestra nuova se ne apre una vuota e la
+ * precedente, con tutte le sue voci, si butta: la memoria non cresce con indirizzi sempre nuovi, e non serve nessun giro di
+ * pulizia voce per voce, che dovrebbe convivere con le richieste che contano nello stesso momento.
+ * <p>
+ * Regge le richieste contemporanee (ConcurrentHashMap e contatori atomici, nessun blocco). Vive nella memoria di questo
  * server: si azzera al riavvio e, con più istanze del server, ognuna conta per sé (vedi il README).
  */
 public class LimiteRichieste {
@@ -43,17 +47,15 @@ public class LimiteRichieste {
      */
     public record Esito(boolean consentita, long secondiAttesa, boolean primoSuperamento) {}
 
-    /** Le richieste di una chiave nella finestra con quel numero. Long: chi sfora il massimo continua a contare */
-    private record Conteggio(long finestra, long richieste) {}
+    /** I conteggi della finestra con quel numero. Long: chi sfora il massimo continua a contare */
+    private record FinestraInCorso(long numero, ConcurrentHashMap<String, AtomicLong> conteggi) {}
 
     private static final Esito CONSENTITA = new Esito(true, 0, false);
 
     private final int massimo;
     private final Finestra finestra;
     private final Clock orologio;
-    private final Map<String, Conteggio> conteggi = new ConcurrentHashMap<>();
-    /** Numero dell'ultima finestra in cui si sono tolte le voci scadute: la pulizia è una per finestra */
-    private final AtomicLong ultimaPulizia = new AtomicLong();
+    private final AtomicReference<FinestraInCorso> inCorso = new AtomicReference<>(new FinestraInCorso(-1, new ConcurrentHashMap<>()));
 
     public LimiteRichieste(int massimo, Finestra finestra, Clock orologio) {
         this.massimo = massimo;
@@ -64,34 +66,29 @@ public class LimiteRichieste {
     /** Conta una richiesta della chiave e dice se può passare */
     public Esito conta(String chiave) {
         long adesso = orologio.instant().getEpochSecond();
-        long corrente = adesso / finestra.secondi;
-        togliLeVociScadute(corrente);
-        // merge è atomico per chiave: due richieste contemporanee non si perdono e non contano due volte lo stesso posto
-        Conteggio conteggio = conteggi.merge(chiave, new Conteggio(corrente, 1), (attuale, nuovo) -> {
-            if (attuale.finestra() != corrente) return nuovo; // voce di una finestra passata: si riparte da 1
-            return new Conteggio(corrente, attuale.richieste() + 1);
-        });
-        if (conteggio.richieste() <= massimo) return CONSENTITA;
+        long numero = adesso / finestra.secondi;
+        // Il contatore è atomico: due richieste contemporanee non si perdono e non contano due volte lo stesso posto
+        long richieste = finestraInCorso(numero).conteggi().computeIfAbsent(chiave, _ -> new AtomicLong()).incrementAndGet();
+        if (richieste <= massimo) return CONSENTITA;
         // Conta anche chi sfora: la richiesta che porta il conteggio a massimo + 1 è la prima respinta, una per finestra
-        long attesa = (corrente + 1) * finestra.secondi - adesso;
-        return new Esito(false, attesa, conteggio.richieste() == massimo + 1L);
+        long attesa = (numero + 1) * finestra.secondi - adesso;
+        return new Esito(false, attesa, richieste == massimo + 1L);
     }
 
-    /**
-     * Toglie dalla mappa le voci delle finestre passate, una volta per finestra, alla prima richiesta di quella nuova:
-     * senza, con indirizzi sempre nuovi la mappa crescerebbe senza fine. removeIf toglie una voce solo se è ancora quella
-     * giudicata scaduta: se nel frattempo un'altra richiesta l'ha riscritta per la finestra nuova, quella resta.
-     */
-    private void togliLeVociScadute(long corrente) {
-        long ultima = ultimaPulizia.get();
-        if (corrente > ultima && ultimaPulizia.compareAndSet(ultima, corrente)) {
-            conteggi.values().removeIf(conteggio -> conteggio.finestra() < corrente);
-        }
+    /** La finestra con quel numero: se non è ancora quella in corso la apre vuota e butta la precedente con le sue voci */
+    private FinestraInCorso finestraInCorso(long numero) {
+        FinestraInCorso attuale = inCorso.get();
+        if (attuale.numero() == numero) return attuale; // il caso di quasi tutte le richieste: una sola lettura
+        // Se più richieste aprono la finestra nuova insieme ne resta una sola: le altre trovano già la sua mappa
+        return inCorso.updateAndGet(corrente -> {
+            if (corrente.numero() == numero) return corrente;
+            return new FinestraInCorso(numero, new ConcurrentHashMap<>());
+        });
     }
 
     /** Quante voci ci sono in memoria: lo guardano i test della pulizia */
     int dimensione() {
-        return conteggi.size();
+        return inCorso.get().conteggi().size();
     }
 
     /** «10 al minuto», «300 al giorno»: il limite come si scrive nei log */

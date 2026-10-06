@@ -14,11 +14,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.hoop3x3.backend.security.LimiteRichieste.Finestra.GIORNO;
@@ -51,11 +52,16 @@ class LimiteRichiesteTest {
         }
     }
 
-    /** Esegue `compito` su `thread` thread fatti partire insieme da una barriera e aspetta che finiscano tutti */
+    /**
+     * Esegue `compito` su `thread` thread e aspetta che finiscano tutti. Partono insieme: aspettano in attesa attiva che il
+     * test li liberi e riprendono nello stesso istante, così le gare di pochi nanosecondi si vedono davvero.
+     */
     private static void contemporaneamente(int thread, Runnable compito) throws Exception {
-        CyclicBarrier partenza = new CyclicBarrier(thread);
+        CountDownLatch pronti = new CountDownLatch(thread);
+        AtomicBoolean via = new AtomicBoolean();
         Callable<Void> allaPartenza = () -> {
-            partenza.await(10, TimeUnit.SECONDS);
+            pronti.countDown();
+            while (!via.get()) Thread.onSpinWait();
             compito.run();
             return null;
         };
@@ -64,6 +70,8 @@ class LimiteRichiesteTest {
             for (int i = 0; i < thread; i++) {
                 esiti.add(pool.submit(allaPartenza));
             }
+            assertThat(pronti.await(10, TimeUnit.SECONDS)).as("i thread sono partiti").isTrue();
+            via.set(true);
             for (Future<Void> esito : esiti) {
                 esito.get(30, TimeUnit.SECONDS); // rilancia l'errore di un thread, invece di nasconderlo
             }
@@ -228,29 +236,28 @@ class LimiteRichiesteTest {
         assertThat(primeRespinte).as("la riga di log di quel minuto è una sola").hasValue(1);
     }
 
-    // La pulizia parte dalla prima richiesta del minuto nuovo, mentre gli altri thread contano: non deve portarsi via il
-    // conteggio che stanno scrivendo, altrimenti chi insiste passerebbe oltre il limite
+    // La finestra nuova si apre alla prima richiesta del minuto, mentre altre contano già: se ognuna aprisse la sua, o se la
+    // finestra si aprisse due volte, i conteggi andrebbero persi e chi insiste passerebbe oltre il limite. La gara dura
+    // pochi nanosecondi: per vederla si ripete per 150 minuti di fila, ognuno con tanti thread quanti i core, che partono insieme
     @Test
-    void laPuliziaChePartePerCaso_nonFaPerdereIConteggiDelMinutoNuovo() throws Exception {
+    void ilPassaggioAlMinutoNuovoConRichiesteContemporanee_nonFaPerdereIConteggi() throws Exception {
         LimiteRichieste limite = alMinuto(25);
         List<String> chiavi = List.of("a", "b", "c", "d");
-        // Nel minuto che finisce: 1000 voci, tra cui le 4 chiavi che poi insistono
-        for (int i = 0; i < 1000; i++) {
-            limite.conta("vecchia-" + i);
+        int thread = Math.max(2, Runtime.getRuntime().availableProcessors()); // più thread dei core non partono davvero insieme
+        for (int minuto = 1; minuto <= 150; minuto++) {
+            orologio.avanza(Duration.ofMinutes(1));
+            Map<String, AtomicInteger> consentite = new ConcurrentHashMap<>();
+            chiavi.forEach(chiave -> consentite.put(chiave, new AtomicInteger()));
+
+            contemporaneamente(thread, () -> {
+                for (int i = 0; i < 100; i++) {
+                    String chiave = chiavi.get(i % 4);
+                    if (limite.conta(chiave).consentita()) consentite.get(chiave).incrementAndGet();
+                }
+            });
+
+            assertThat(consentite.values()).as("minuto %s", minuto).allSatisfy(passate -> assertThat(passate).hasValue(25));
+            assertThat(limite.dimensione()).as("restano le 4 chiavi del minuto, non quelle dei minuti passati").isEqualTo(4);
         }
-        chiavi.forEach(limite::conta);
-        Map<String, AtomicInteger> consentite = new ConcurrentHashMap<>();
-        chiavi.forEach(chiave -> consentite.put(chiave, new AtomicInteger()));
-        orologio.avanza(Duration.ofMinutes(1));
-
-        contemporaneamente(16, () -> {
-            for (int i = 0; i < 100; i++) {
-                String chiave = chiavi.get(i % 4);
-                if (limite.conta(chiave).consentita()) consentite.get(chiave).incrementAndGet();
-            }
-        });
-
-        assertThat(consentite.values()).allSatisfy(passate -> assertThat(passate).hasValue(25));
-        assertThat(limite.dimensione()).as("restano le 4 chiavi del minuto nuovo").isEqualTo(4);
     }
 }
