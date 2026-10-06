@@ -26,6 +26,7 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.contains;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -219,6 +220,24 @@ class VersioneTappeIT {
         // Resta il salvataggio del primo, e la richiesta respinta non ha lasciato niente
         leggi(lega).andExpect(jsonPath("$.tappe[0].nome").value("Dal primo dispositivo"))
                 .andExpect(jsonPath("$.tappe[0].versione").value(1));
+    }
+
+    // Eliminare una tappa mentre un altro dispositivo la sta salvando: il DELETE ha la stessa condizione sulla versione
+    // («where id = ? and versione = ?»), quindi non cancella il lavoro appena confermato e risponde con lo stesso 409. La
+    // DELETE non porta la versione: il conflitto lo rileva solo Hibernate, a transazione quasi finita, e solo se il salvataggio
+    // è arrivato dopo che la richiesta aveva letto la tappa
+    @Test
+    void eliminareUnaTappaMentreUnAltroDispositivoLaSalva_risponde409() throws Exception {
+        UUID lega = nuovaLega();
+        TappaDTO tappa = TappaDiProva.tappa().build();
+        aggiungi(lega, tappa, null).andExpect(status().isCreated());
+
+        ResultActions eliminazione = insieme.mentreUnaTransazioneTieneUnaRiga(
+                () -> jdbc.update("update tappe set nome = 'Dal primo dispositivo', versione = versione + 1 where id = ?", tappa.id()),
+                () -> mvc.perform(delete("/api/tappe/" + tappa.id()).header(AUTHORIZATION, bearer(mario))));
+
+        eliminazione.andExpect(status().isConflict()).andExpect(jsonPath("$.message").value(TAPPA_MODIFICATA));
+        leggi(lega).andExpect(jsonPath("$.tappe[0].nome").value("Dal primo dispositivo"));
     }
 
     /* ── Richieste e dati di prova ── */
