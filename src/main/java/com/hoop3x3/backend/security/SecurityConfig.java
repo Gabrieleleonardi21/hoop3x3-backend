@@ -48,6 +48,8 @@ public class SecurityConfig {
                                 "/api/auth/refresh", "/api/auth/logout").permitAll()
                         // anagrafe e archivio sono pubblici in lettura: l'ospite (senza account) li consulta
                         .requestMatchers(HttpMethod.GET, "/api/anagrafe/**", "/api/archivio/**").permitAll()
+                        // controllo di salute di Render: risponde solo {"status":"UP"} o {"status":"DOWN"}, senza dettagli
+                        .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         // il forward interno verso /error dopo un sendError va lasciato passare, altrimenti 403 vuoto
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated()
