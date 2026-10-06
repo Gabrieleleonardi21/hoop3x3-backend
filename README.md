@@ -265,15 +265,28 @@ DELETE FROM seed_eseguiti WHERE nome = 'demo';
 
 **Un database già seminato conserva i nomi di prima.** Il segno `demo` non dipende dai dati, quindi con i nomi di fantasia il seed non ricarica niente: giocatori, squadre, tappe e archivio già presenti restano com'erano, con le persone dei vecchi dati. Vanno ripuliti a mano, oppure il database va ricreato. A mano, con `SEED_DEMO=true` e l'admin configurato:
 
-1. elimina la lega demo dall'app: con lei spariscono le sue tappe e le loro pubblicazioni in archivio;
-2. elimina i giocatori e le squadre demo (32 giocatori e 8 squadre intestati all'admin) dall'app, oppure con l'SQL qui sotto (`admin@esempio.it` è l'email dell'admin), che cancella **tutte** le schede dell'anagrafe dell'admin: usalo solo se non ne ha altre (il roster di una squadra si cancella con lei);
-3. cancella il segno `demo` (l'SQL qui sopra);
-4. riavvia: il seeder rifà il seed con i dati di fantasia.
+1. **controlla prima di cancellare qualsiasi cosa** che nessun giocatore demo stia nel roster di una squadra di un altro utente (`admin@esempio.it` è l'email dell'admin). Questa query deve restituire **0 righe**:
 
-```sql
-DELETE FROM anagrafe_squadre WHERE autore_id = (SELECT id FROM utenti WHERE email = 'admin@esempio.it');
-DELETE FROM anagrafe_giocatori WHERE autore_id = (SELECT id FROM utenti WHERE email = 'admin@esempio.it');
-```
+   ```sql
+   SELECT s.id, s.nome
+   FROM anagrafe_squadre_roster r
+   JOIN anagrafe_squadre s ON s.id = r.squadra_id
+   JOIN anagrafe_giocatori g ON g.id = r.giocatore_id
+   WHERE g.autore_id = (SELECT id FROM utenti WHERE email = 'admin@esempio.it')
+     AND s.autore_id <> g.autore_id;
+   ```
+
+   Se restituisce righe, togli quei giocatori da quelle squadre **dall'app** (modifica della squadra) e ripeti il controllo. Il motivo: l'SQL del passo 3 toglie un giocatore dal roster di una squadra con la cascata del database e lascia un buco nelle posizioni del roster; la squadra non si legge più e `GET /api/anagrafe/squadre` risponde 500 **a tutti**, finché non si ripara il roster a mano. Dall'app non succede: eliminare un giocatore lo toglie dai roster e li ricompatta, quindi se preferisci puoi saltare i passi 1 e 3 ed eliminare dall'app i 32 giocatori e le 8 squadre demo;
+2. elimina la lega demo dall'app: con lei spariscono le sue tappe e le loro pubblicazioni in archivio. Se la lega demo era stata eliminata prima della migrazione V2, le sue pubblicazioni sono rimaste in archivio con i nomi di prima: trovale con la query «pubblicazioni orfane» della sezione «Archivio circuito» (le riconosci dal nome della lega) e cancellale come lì;
+3. elimina le schede demo dell'anagrafe con l'SQL qui sotto: cancella **tutte** le squadre e i giocatori dell'admin, quindi usalo solo se non ne ha altri oltre ai 32 giocatori e alle 8 squadre demo (il roster di una squadra si cancella con lei);
+
+   ```sql
+   DELETE FROM anagrafe_squadre WHERE autore_id = (SELECT id FROM utenti WHERE email = 'admin@esempio.it');
+   DELETE FROM anagrafe_giocatori WHERE autore_id = (SELECT id FROM utenti WHERE email = 'admin@esempio.it');
+   ```
+
+4. cancella il segno `demo` (l'SQL qui sopra, `DELETE FROM seed_eseguiti ...`);
+5. riavvia: il seeder rifà il seed con i dati di fantasia.
 
 Se invece la lega demo era già stata eliminata prima di questa versione, nel database non resta niente da cui riconoscere il seed: con `SEED_DEMO=true` il primo avvio lo rifarebbe una volta (poi il segno lo protegge). Per evitarlo avvia la prima volta con `SEED_DEMO=false`, così la migrazione crea la tabella senza che il seed parta, e scrivi il segno a mano prima di riaccendere `SEED_DEMO`:
 
