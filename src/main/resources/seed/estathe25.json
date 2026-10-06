@@ -7,10 +7,10 @@
       "cognome": "Vaccarello",
       "soprannome": "",
       "nascita": "1993-10-30",
-      "citta": "Ravenna",
+      "citta": "Catanzaro",
       "nazionalita": "ITA",
-      "altezza": "192",
-      "peso": "88",
+      "altezza": "187",
+      "peso": "83",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "Team Rome",
@@ -23,10 +23,10 @@
       "cognome": "Pescarolo",
       "soprannome": "",
       "nascita": "1998-02-03",
-      "citta": "Vigevano",
+      "citta": "Taranto",
       "nazionalita": "ITA",
-      "altezza": "194",
-      "peso": "90",
+      "altezza": "198",
+      "peso": "98",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "Team Rome",
@@ -39,10 +39,10 @@
       "cognome": "Ranzatelli",
       "soprannome": "",
       "nascita": "1995-07-14",
-      "citta": "Varese",
+      "citta": "Cagliari",
       "nazionalita": "ITA",
-      "altezza": "191",
-      "peso": "85",
+      "altezza": "180",
+      "peso": "78",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "Team Rome",
@@ -55,10 +55,10 @@
       "cognome": "Mortarino",
       "soprannome": "",
       "nascita": "2001-07-17",
-      "citta": "Roma",
+      "citta": "Savona",
       "nazionalita": "ITA",
-      "altezza": "193",
-      "peso": "89",
+      "altezza": "200",
+      "peso": "98",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "Team Rome",
@@ -71,10 +71,10 @@
       "cognome": "Talamonti",
       "soprannome": "",
       "nascita": "1992-08-09",
-      "citta": "Matera",
+      "citta": "Perugia",
       "nazionalita": "ITA",
-      "altezza": "196",
-      "peso": "93",
+      "altezza": "190",
+      "peso": "88",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "Concrete",
@@ -87,10 +87,10 @@
       "cognome": "Cerquetti",
       "soprannome": "Cerqua",
       "nascita": "2001-03-31",
-      "citta": "Ozzano dell'Emilia",
+      "citta": "Bergamo",
       "nazionalita": "ITA",
-      "altezza": "200",
-      "peso": "98",
+      "altezza": "196",
+      "peso": "90",
       "ruolo": "Centro",
       "numero": "",
       "squadra": "Concrete",
@@ -103,10 +103,10 @@
       "cognome": "Sanguinazzi",
       "soprannome": "",
       "nascita": "1991-08-17",
-      "citta": "Desio",
+      "citta": "Foggia",
       "nazionalita": "ITA",
-      "altezza": "188",
-      "peso": "84",
+      "altezza": "182",
+      "peso": "79",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "Concrete",
@@ -121,8 +121,8 @@
       "nascita": "1997-05-15",
       "citta": "",
       "nazionalita": "ITA",
-      "altezza": "190",
-      "peso": "86",
+      "altezza": "196",
+      "peso": "91",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "Concrete",
@@ -135,10 +135,10 @@
       "cognome": "Gambarotta",
       "soprannome": "Gamba",
       "nascita": "1991-08-21",
-      "citta": "Roma",
+      "citta": "Ancona",
       "nazionalita": "ITA",
-      "altezza": "190",
-      "peso": "86",
+      "altezza": "186",
+      "peso": "83",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "All Star 3×3",
@@ -147,14 +147,14 @@
     },
     {
       "id": "p10",
-      "nome": "Nicolò",
-      "cognome": "Ardizzone",
+      "nome": "Juniel",
+      "cognome": "Pichardo Lantigua",
       "soprannome": "",
       "nascita": "2000-09-07",
-      "citta": "Imola",
-      "nazionalita": "ITA",
-      "altezza": "195",
-      "peso": "91",
+      "citta": "Terni",
+      "nazionalita": "DOM",
+      "altezza": "191",
+      "peso": "88",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "All Star 3×3",
@@ -167,10 +167,10 @@
       "cognome": "Cuccarese",
       "soprannome": "",
       "nascita": "1998-03-18",
-      "citta": "Roma",
+      "citta": "Padova",
       "nazionalita": "ITA",
-      "altezza": "193",
-      "peso": "88",
+      "altezza": "190",
+      "peso": "92",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "All Star 3×3",
@@ -183,10 +183,10 @@
       "cognome": "Tremolada",
       "soprannome": "",
       "nascita": "1993-03-06",
-      "citta": "Casalpusterlengo",
+      "citta": "Forlì",
       "nazionalita": "ITA",
-      "altezza": "196",
-      "peso": "92",
+      "altezza": "192",
+      "peso": "89",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "All Star 3×3",
@@ -199,10 +199,10 @@
       "cognome": "Rinaldelli",
       "soprannome": "",
       "nascita": "2002-08-31",
-      "citta": "Torino",
+      "citta": "Pisa",
       "nazionalita": "ITA",
-      "altezza": "193",
-      "peso": "89",
+      "altezza": "184",
+      "peso": "79",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "The Goat Torino",
@@ -215,10 +215,10 @@
       "cognome": "Spinelloni",
       "soprannome": "",
       "nascita": "1991-02-01",
-      "citta": "Torino",
+      "citta": "Brescia",
       "nazionalita": "ITA",
-      "altezza": "196",
-      "peso": "92",
+      "altezza": "193",
+      "peso": "86",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "The Goat Torino",
@@ -231,10 +231,10 @@
       "cognome": "Perosino",
       "soprannome": "",
       "nascita": "1991-11-19",
-      "citta": "Torino",
+      "citta": "Siena",
       "nazionalita": "ITA",
-      "altezza": "190",
-      "peso": "85",
+      "altezza": "186",
+      "peso": "79",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "The Goat Torino",
@@ -243,14 +243,14 @@
     },
     {
       "id": "p16",
-      "nome": "Stefano",
-      "cognome": "Quaglieri",
+      "nome": "Lansana",
+      "cognome": "Fofanah",
       "soprannome": "",
       "nascita": "2000-05-01",
-      "citta": "Torino",
-      "nazionalita": "ITA",
-      "altezza": "202",
-      "peso": "100",
+      "citta": "Biella",
+      "nazionalita": "GUI",
+      "altezza": "206",
+      "peso": "103",
       "ruolo": "Centro",
       "numero": "",
       "squadra": "The Goat Torino",
@@ -263,10 +263,10 @@
       "cognome": "Cragnolini",
       "soprannome": "",
       "nascita": "1995-03-31",
-      "citta": "Legnano",
+      "citta": "Cremona",
       "nazionalita": "ITA",
-      "altezza": "194",
-      "peso": "89",
+      "altezza": "199",
+      "peso": "96",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "FDC Tunes 2.0",
@@ -275,14 +275,14 @@
     },
     {
       "id": "p18",
-      "nome": "Enrico",
-      "cognome": "Tomadini",
+      "nome": "Yunior",
+      "cognome": "Valdesco",
       "soprannome": "",
       "nascita": "1993-07-09",
-      "citta": "Pordenone",
-      "nazionalita": "ITA",
-      "altezza": "190",
-      "peso": "85",
+      "citta": "Sassari",
+      "nazionalita": "DOM",
+      "altezza": "193",
+      "peso": "93",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "FDC Tunes 2.0",
@@ -295,10 +295,10 @@
       "cognome": "Pitussi",
       "soprannome": "",
       "nascita": "2002-10-12",
-      "citta": "Pordenone",
+      "citta": "Parma",
       "nazionalita": "ITA",
-      "altezza": "192",
-      "peso": "87",
+      "altezza": "183",
+      "peso": "80",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "FDC Tunes 2.0",
@@ -311,10 +311,10 @@
       "cognome": "Dalmonego",
       "soprannome": "",
       "nascita": "1992-11-18",
-      "citta": "Venezia",
+      "citta": "Trento",
       "nazionalita": "ITA",
-      "altezza": "198",
-      "peso": "95",
+      "altezza": "203",
+      "peso": "100",
       "ruolo": "Centro",
       "numero": "",
       "squadra": "FDC Tunes 2.0",
@@ -327,10 +327,10 @@
       "cognome": "Brusutti",
       "soprannome": "",
       "nascita": "1992-01-29",
-      "citta": "Cividale del Friuli",
+      "citta": "Novara",
       "nazionalita": "ITA",
-      "altezza": "192",
-      "peso": "87",
+      "altezza": "196",
+      "peso": "95",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "FVG 3×3",
@@ -343,10 +343,10 @@
       "cognome": "Zorzenon",
       "soprannome": "",
       "nascita": "1991-11-19",
-      "citta": "Vigevano",
+      "citta": "Verona",
       "nazionalita": "ITA",
-      "altezza": "195",
-      "peso": "90",
+      "altezza": "198",
+      "peso": "99",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "FVG 3×3",
@@ -359,10 +359,10 @@
       "cognome": "Cargnelutti",
       "soprannome": "",
       "nascita": "2003-09-05",
-      "citta": "Treviso",
+      "citta": "Rimini",
       "nazionalita": "ITA",
-      "altezza": "190",
-      "peso": "85",
+      "altezza": "179",
+      "peso": "76",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "FVG 3×3",
@@ -375,10 +375,10 @@
       "cognome": "Romanut",
       "soprannome": "",
       "nascita": "1999-06-02",
-      "citta": "Jesi",
+      "citta": "Lodi",
       "nazionalita": "ITA",
-      "altezza": "198",
-      "peso": "96",
+      "altezza": "204",
+      "peso": "100",
       "ruolo": "Centro",
       "numero": "",
       "squadra": "FVG 3×3",
@@ -391,10 +391,10 @@
       "cognome": "Gozzoli",
       "soprannome": "",
       "nascita": "1999-03-21",
-      "citta": "Bologna",
+      "citta": "Salerno",
       "nazionalita": "ITA",
-      "altezza": "188",
-      "peso": "84",
+      "altezza": "179",
+      "peso": "72",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "UB Kings of Kings",
@@ -403,14 +403,14 @@
     },
     {
       "id": "p26",
-      "nome": "Yunior",
-      "cognome": "Valdesco",
+      "nome": "Enrico",
+      "cognome": "Tomadini",
       "soprannome": "",
       "nascita": "1994-04-01",
       "citta": "",
-      "nazionalita": "DOM",
-      "altezza": "192",
-      "peso": "88",
+      "nazionalita": "ITA",
+      "altezza": "182",
+      "peso": "82",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "UB Kings of Kings",
@@ -419,14 +419,14 @@
     },
     {
       "id": "p27",
-      "nome": "Lansana",
-      "cognome": "Fofanah",
+      "nome": "Stefano",
+      "cognome": "Quaglieri",
       "soprannome": "",
       "nascita": "2002-07-04",
       "citta": "",
-      "nazionalita": "GUI",
-      "altezza": "202",
-      "peso": "102",
+      "nazionalita": "ITA",
+      "altezza": "207",
+      "peso": "106",
       "ruolo": "Centro",
       "numero": "",
       "squadra": "UB Kings of Kings",
@@ -435,14 +435,14 @@
     },
     {
       "id": "p28",
-      "nome": "Juniel",
-      "cognome": "Pichardo Lantigua",
+      "nome": "Nicolò",
+      "cognome": "Ardizzone",
       "soprannome": "",
       "nascita": "1999-07-06",
       "citta": "",
-      "nazionalita": "DOM",
-      "altezza": "196",
-      "peso": "92",
+      "nazionalita": "ITA",
+      "altezza": "191",
+      "peso": "82",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "UB Kings of Kings",
@@ -455,13 +455,13 @@
       "cognome": "Bernardinello",
       "soprannome": "",
       "nascita": "1992-07-19",
-      "citta": "Iseo",
+      "citta": "Cuneo",
       "nazionalita": "ITA",
-      "altezza": "192",
-      "peso": "86",
+      "altezza": "186",
+      "peso": "82",
       "ruolo": "Guardia",
       "numero": "",
-      "squadra": "Tortona Evolution",
+      "squadra": "Tortona Evolution 3×3",
       "esperienza": "",
       "note": "Guardia giovane; referente della squadra"
     },
@@ -471,13 +471,13 @@
       "cognome": "Scardicchio",
       "soprannome": "",
       "nascita": "1996-02-29",
-      "citta": "Nardò",
+      "citta": "Bolzano",
       "nazionalita": "ITA",
-      "altezza": "190",
-      "peso": "83",
+      "altezza": "180",
+      "peso": "75",
       "ruolo": "Playmaker",
       "numero": "",
-      "squadra": "Tortona Evolution",
+      "squadra": "Tortona Evolution 3×3",
       "esperienza": "",
       "note": "Playmaker con un buon tiro dal palleggio"
     },
@@ -487,13 +487,13 @@
       "cognome": "Boccalatte",
       "soprannome": "",
       "nascita": "1995-07-31",
-      "citta": "Alessandria",
+      "citta": "Livorno",
       "nazionalita": "ITA",
-      "altezza": "194",
-      "peso": "88",
+      "altezza": "200",
+      "peso": "102",
       "ruolo": "Ala",
       "numero": "",
-      "squadra": "Tortona Evolution",
+      "squadra": "Tortona Evolution 3×3",
       "esperienza": "",
       "note": "Ala completa, utile in attacco e in difesa"
     },
@@ -503,13 +503,13 @@
       "cognome": "Garavelli",
       "soprannome": "",
       "nascita": "2000-11-12",
-      "citta": "Tortona",
+      "citta": "Lecce",
       "nazionalita": "ITA",
-      "altezza": "196",
-      "peso": "93",
+      "altezza": "207",
+      "peso": "102",
       "ruolo": "Centro",
       "numero": "",
-      "squadra": "Tortona Evolution",
+      "squadra": "Tortona Evolution 3×3",
       "esperienza": "",
       "note": "Centro giovane, in crescita"
     }
@@ -714,7 +714,7 @@
             },
             {
               "id": "p10",
-              "nome": "Nicolò Ardizzone"
+              "nome": "Juniel Pichardo Lantigua"
             },
             {
               "id": "p11",
@@ -773,7 +773,7 @@
             },
             {
               "id": "p16",
-              "nome": "Stefano Quaglieri"
+              "nome": "Lansana Fofanah"
             }
           ]
         },
@@ -789,7 +789,7 @@
             },
             {
               "id": "p18",
-              "nome": "Enrico Tomadini"
+              "nome": "Yunior Valdesco"
             },
             {
               "id": "p19",
@@ -837,15 +837,15 @@
             },
             {
               "id": "p26",
-              "nome": "Yunior Valdesco"
+              "nome": "Enrico Tomadini"
             },
             {
               "id": "p27",
-              "nome": "Lansana Fofanah"
+              "nome": "Stefano Quaglieri"
             },
             {
               "id": "p28",
-              "nome": "Juniel Pichardo Lantigua"
+              "nome": "Nicolò Ardizzone"
             }
           ]
         },
@@ -1641,7 +1641,7 @@
             },
             {
               "id": "p16",
-              "nome": "Stefano Quaglieri"
+              "nome": "Lansana Fofanah"
             }
           ]
         },
@@ -1708,7 +1708,7 @@
             },
             {
               "id": "p10",
-              "nome": "Nicolò Ardizzone"
+              "nome": "Juniel Pichardo Lantigua"
             },
             {
               "id": "p11",
@@ -1757,7 +1757,7 @@
             },
             {
               "id": "p18",
-              "nome": "Enrico Tomadini"
+              "nome": "Yunior Valdesco"
             },
             {
               "id": "p19",
@@ -1781,15 +1781,15 @@
             },
             {
               "id": "p26",
-              "nome": "Yunior Valdesco"
+              "nome": "Enrico Tomadini"
             },
             {
               "id": "p27",
-              "nome": "Lansana Fofanah"
+              "nome": "Stefano Quaglieri"
             },
             {
               "id": "p28",
-              "nome": "Juniel Pichardo Lantigua"
+              "nome": "Nicolò Ardizzone"
             }
           ]
         }
@@ -2529,7 +2529,7 @@
             },
             {
               "id": "p10",
-              "nome": "Nicolò Ardizzone"
+              "nome": "Juniel Pichardo Lantigua"
             },
             {
               "id": "p11",
@@ -2578,7 +2578,7 @@
             },
             {
               "id": "p18",
-              "nome": "Enrico Tomadini"
+              "nome": "Yunior Valdesco"
             },
             {
               "id": "p19",
@@ -2661,7 +2661,7 @@
             },
             {
               "id": "p16",
-              "nome": "Stefano Quaglieri"
+              "nome": "Lansana Fofanah"
             }
           ]
         },
@@ -2701,15 +2701,15 @@
             },
             {
               "id": "p26",
-              "nome": "Yunior Valdesco"
+              "nome": "Enrico Tomadini"
             },
             {
               "id": "p27",
-              "nome": "Lansana Fofanah"
+              "nome": "Stefano Quaglieri"
             },
             {
               "id": "p28",
-              "nome": "Juniel Pichardo Lantigua"
+              "nome": "Nicolò Ardizzone"
             }
           ]
         }
@@ -3474,7 +3474,7 @@
             },
             {
               "id": "p16",
-              "nome": "Stefano Quaglieri"
+              "nome": "Lansana Fofanah"
             }
           ]
         },
@@ -3492,7 +3492,7 @@
             },
             {
               "id": "p10",
-              "nome": "Nicolò Ardizzone"
+              "nome": "Juniel Pichardo Lantigua"
             },
             {
               "id": "p11",
@@ -3541,7 +3541,7 @@
             },
             {
               "id": "p18",
-              "nome": "Enrico Tomadini"
+              "nome": "Yunior Valdesco"
             },
             {
               "id": "p19",
@@ -3589,15 +3589,15 @@
             },
             {
               "id": "p26",
-              "nome": "Yunior Valdesco"
+              "nome": "Enrico Tomadini"
             },
             {
               "id": "p27",
-              "nome": "Lansana Fofanah"
+              "nome": "Stefano Quaglieri"
             },
             {
               "id": "p28",
-              "nome": "Juniel Pichardo Lantigua"
+              "nome": "Nicolò Ardizzone"
             }
           ]
         },
