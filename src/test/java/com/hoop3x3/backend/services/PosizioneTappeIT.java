@@ -1,8 +1,8 @@
 package com.hoop3x3.backend.services;
 
+import com.hoop3x3.backend.TappaDiProva;
 import com.hoop3x3.backend.TestDiIntegrazione;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
-import com.hoop3x3.backend.dto.RegoleDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
@@ -18,7 +18,6 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.DefaultTransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
-import tools.jackson.databind.ObjectMapper;
 
 import java.sql.SQLException;
 import java.time.LocalDateTime;
@@ -52,7 +51,6 @@ class PosizioneTappeIT {
     @Autowired UtenteRepository utenti;
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager transazioni;
-    @Autowired ObjectMapper mapper;
 
     private Utente mario; // proprietario delle leghe di prova
 
@@ -247,8 +245,7 @@ class PosizioneTappeIT {
 
     /** Una tappa qualsiasi, con un id nuovo */
     private TappaDTO tappa(String nome) {
-        return new TappaDTO(UUID.randomUUID(), nome, "Roma", "2026-06-14", 1, new RegoleDTO(21, 10, 2, 12),
-                mapper.readTree("[]"), null, mapper.readTree("[]"), mapper.readTree("[]"), false, null);
+        return TappaDiProva.tappa().nome(nome).build();
     }
 
     /* ── Un'altra connessione: il database come lo vedrebbe un'altra richiesta ── */

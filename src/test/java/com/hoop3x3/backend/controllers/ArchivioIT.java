@@ -1,8 +1,8 @@
 package com.hoop3x3.backend.controllers;
 
+import com.hoop3x3.backend.TappaDiProva;
 import com.hoop3x3.backend.TestDiIntegrazione;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
-import com.hoop3x3.backend.dto.RegoleDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.ArchivioTappa;
 import com.hoop3x3.backend.entities.Ruolo;
@@ -394,8 +394,8 @@ class ArchivioIT {
     }
 
     private TappaDTO tappaDto(UUID id, String nome, String luogo, String data, String squadre, boolean conclusa) {
-        return new TappaDTO(id, nome, luogo, data, 1, new RegoleDTO(21, 10, 2, 12),
-                mapper.readTree(squadre), null, mapper.readTree(PARTITE), mapper.readTree("[]"), conclusa, null);
+        return TappaDiProva.tappa().id(id).nome(nome).luogo(luogo).data(data).squadre(squadre).partite(PARTITE)
+                .conclusa(conclusa).build();
     }
 
     /** Crea la lega di `proprietario` con le tappe indicate, come fa l'import di una lega da file */

@@ -4,7 +4,6 @@ import com.hoop3x3.backend.dto.GiocatoreDTO;
 import com.hoop3x3.backend.dto.LegaMetaDTO;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
 import com.hoop3x3.backend.dto.PatchLegaDTO;
-import com.hoop3x3.backend.dto.RegoleDTO;
 import com.hoop3x3.backend.dto.SquadraDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.AnagrafeGiocatore;
@@ -27,7 +26,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.UUID;
@@ -53,7 +51,6 @@ class LettureEfficientiIT {
     @Autowired LegaService legaService;
     @Autowired ArchivioService archivioService;
     @Autowired JdbcTemplate jdbc;
-    @Autowired ObjectMapper mapper;
 
     private Statistics statistiche;
     private boolean eranoAccese; // com'erano le statistiche prima del test
@@ -325,9 +322,7 @@ class LettureEfficientiIT {
 
     /** Una tappa qualsiasi, con un id nuovo */
     private TappaDTO tappa() {
-        return new TappaDTO(UUID.randomUUID(), "Tappa", "Roma", "2026-06-14", 1, new RegoleDTO(21, 10, 2, 12),
-                mapper.readTree("[{\"id\":\"s1\"},{\"id\":\"s2\"}]"), null, mapper.readTree("[]"), mapper.readTree("[]"),
-                true, null);
+        return TappaDiProva.tappa().squadre("[{\"id\":\"s1\"},{\"id\":\"s2\"}]").conclusa(true).build();
     }
 
     /* ── Misure ── */
