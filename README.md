@@ -72,6 +72,7 @@ Salvare una tappa (`PUT /api/tappe/{id}`) sostituisce la tappa intera, partite c
 - Il 409 della PUT non è quello della POST («Esiste già una tappa con id …»): il client li distingue dal metodo.
 - `DELETE /api/tappe/{id}` non porta la versione. Se un altro dispositivo salva la tappa nello stesso istante in cui la si elimina, risponde con lo stesso 409 e la tappa resta com'è stata salvata. Lo stesso vale per `DELETE /api/leghe/{id}`, che elimina anche le tappe: se una di loro viene salvata in quel momento, la lega resta e la risposta è il 409.
 - Le tappe in archivio portano la `versione` che avevano quando sono state pubblicate (lo snapshot è la tappa come la restituiscono le API): è una fotografia e non serve a salvare. Le pubblicazioni fatte prima della V4 non ce l'hanno (`versione: null`).
+- **Ordine di pubblicazione.** Prima il frontend che manda la versione, poi questo backend. Il backend precedente ignora la `versione` che riceve (i campi sconosciuti del corpo si ignorano), quindi il frontend nuovo può andare online per primo, purché non la pretenda nelle risposte; un frontend vecchio con questo backend, invece, riceve 400 a ogni salvataggio di tappa finché la pagina non si ricarica con il frontend nuovo.
 
 ## Archivio circuito
 
