@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
  * dati che un seed inserisce possono sparire senza che il seed debba ripartire: eliminando la lega demo spariscono le sue
  * tappe e l'archivio, ma i giocatori e le squadre demo restano (hanno id generati), e senza il segno al riavvio il seed li
  * inserirebbe una seconda volta. Il nome è quello dell'operazione («demo»), non dei dati: regge anche se i dati cambiano.
+ * È l'unico punto in cui il perché è scritto per intero: DemoSeeder, la migrazione V3, il README e i test rimandano qui.
  */
 @Entity
 @Table(name = "seed_eseguiti")

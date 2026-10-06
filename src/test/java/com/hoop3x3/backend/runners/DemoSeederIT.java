@@ -28,8 +28,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Il seed demo con il database vero: le 4 tappe del circuito Estathé finiscono in archivio con la forma che il frontend
  * legge dalle API delle tappe, intestate all'admin. Il seeder parte da solo solo all'avvio (SEED_DEMO=true) e i test
- * cominciano con le tabelle vuote: qui lo si accende a mano, dopo aver creato l'admin. Il seed si esegue una sola volta
- * (il segno nella tabella seed_eseguiti), anche se la lega demo viene eliminata.
+ * cominciano con le tabelle vuote: qui lo si accende a mano, dopo aver creato l'admin. Il seed si esegue una sola volta,
+ * ricordato dal segno nella tabella seed_eseguiti (vedi SeedEseguito).
  */
 @TestDiIntegrazione
 class DemoSeederIT {
@@ -86,9 +86,8 @@ class DemoSeederIT {
                 .as("il segno ha la data").isEqualTo(1);
     }
 
-    // Il difetto: giocatori e squadre demo hanno id generati dal database, mentre la lega con le sue tappe e l'archivio
-    // spariscono insieme quando si elimina la lega. Alla prima tappa il seed non si riconosceva più, e al riavvio
-    // giocatori e squadre venivano inseriti una seconda volta
+    // Il difetto di BE-17 (la spiegazione è in SeedEseguito): senza il segno, dopo l'eliminazione della lega demo il
+    // riavvio inseriva giocatori e squadre una seconda volta
     @Test
     void seLaLegaDemoEEliminata_alRiavvioNonCiSonoGiocatoriNeSquadreDoppi() throws Exception {
         accendiIlSeed();
@@ -115,7 +114,7 @@ class DemoSeederIT {
     }
 
     // I database seminati prima del segno: i dati ci sono (compresa la prima tappa demo) ma il segno no. Il seed non riparte
-    // e il segno compare, così da quel momento regge anche se la lega viene eliminata
+    // e il segno compare
     @Test
     void databaseSeminatoPrimaDelSegno_ilSeedNonRipartEIlSegnoCompare() throws Exception {
         accendiIlSeed();

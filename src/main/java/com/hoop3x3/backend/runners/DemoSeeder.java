@@ -23,11 +23,10 @@ import java.util.UUID;
 /**
  * Dati di prova del circuito Estathé 3x3 2025 (anagrafe, lega con 4 tappe concluse e archivio),
  * letti da resources/seed/estathe25.json. Attivo solo con SEED_DEMO=true e con l'admin configurato
- * (i dati vengono intestati a lui). Si esegue una sola volta: alla fine scrive il segno «demo» in seed_eseguiti, e al
- * riavvio lo riconosce anche se la lega demo è stata eliminata (con lei spariscono tappe e archivio, ma non giocatori e
- * squadre, che hanno id generati). Gli id corti del file ("p01", "s01", "t01") diventano UUID: quelli delle tappe sono
- * deterministici, e per i database seminati prima del segno la prima tappa demo dice che il seed è già stato fatto.
- * L'archivio lo riempie ArchivioService.pubblica, lo stesso metodo che usa l'app.
+ * (i dati vengono intestati a lui). Si esegue una sola volta: alla fine scrive il segno «demo» in seed_eseguiti e al
+ * riavvio lo riconosce da lì (perché serve: vedi SeedEseguito). Gli id corti del file ("p01", "s01", "t01") diventano
+ * UUID: quelli delle tappe sono deterministici, e per i database seminati prima del segno la prima tappa demo dice che il
+ * seed è già stato fatto. L'archivio lo riempie ArchivioService.pubblica, lo stesso metodo che usa l'app.
  */
 @Slf4j
 @Component
@@ -96,7 +95,7 @@ public class DemoSeeder implements CommandLineRunner {
             dati = mapper.readTree(in);
         }
         // Un database seminato prima del segno non ce l'ha, ma ha ancora la prima tappa demo: il seed è già stato eseguito.
-        // Il segno si scrive adesso, così da ora regge anche se la lega demo viene eliminata
+        // Il segno si scrive adesso, per i prossimi avvii
         if (tappe.existsById(uuidPer(dati.path("tappe").path(0).path("id").asString()))) {
             seedEseguiti.save(new SeedEseguito(SEGNO));
             log.info("Seed demo saltato: già eseguito prima del segno (la prima tappa demo c'è), segno scritto");

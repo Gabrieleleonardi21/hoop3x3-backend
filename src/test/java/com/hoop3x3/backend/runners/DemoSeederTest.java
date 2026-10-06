@@ -115,8 +115,7 @@ class DemoSeederTest {
 
     /* ── Il segno del seed eseguito ── */
 
-    // Giocatori e squadre demo hanno id generati, e la lega con tappe e archivio sparisce intera quando la si elimina: dopo
-    // l'eliminazione niente nei dati dice più che il seed è stato fatto. Lo dice il segno
+    // Dopo l'eliminazione della lega demo niente nei dati dice più che il seed è stato fatto: lo dice il segno (SeedEseguito)
     @Test
     void seedGiaEseguito_nonInserisceNienteEDiceIlMotivoConUnaRigaInfo() throws Exception {
         adminTrovato();
@@ -129,8 +128,7 @@ class DemoSeederTest {
         assertSingolaRiga(Level.INFO, "già eseguito");
     }
 
-    // Un database seminato prima del segno ha ancora la prima tappa demo: il seed non riparte e il segno si scrive adesso,
-    // così da ora regge anche se la lega demo viene eliminata
+    // Un database seminato prima del segno ha ancora la prima tappa demo: il seed non riparte e il segno si scrive adesso
     @Test
     void databaseSeminatoPrimaDelSegno_nonInserisceNienteEScriveIlSegno() throws Exception {
         adminTrovato();
