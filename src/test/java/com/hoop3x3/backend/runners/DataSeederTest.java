@@ -108,30 +108,44 @@ class DataSeederTest {
         assertAdminNonCreatoConAvviso();
     }
 
-    // Senza email il seeder è spento, come prima, con o senza password (è anche la configurazione dei test di
-    // integrazione): nessun admin e nessun avviso
+    // Senza email né password il seeder è spento (è anche la configurazione dei test di integrazione): non è un errore,
+    // quindi nessun avviso, ma una riga INFO dice perché l'admin non c'è
     @ParameterizedTest
-    @CsvSource(delimiter = ';', value = {"'';''", "'   ';'   '", "'';" + PASSWORD_VALIDA})
-    void senzaEmail_ilSeederESpento(String email, String password) {
+    @CsvSource(delimiter = ';', value = {"'';''", "'   ';'   '", "'';'   '"})
+    void senzaEmailNePassword_ilSeederESpentoEDiceIlMotivoConUnaRigaInfo(String email, String password) {
         conCredenziali(email, password);
 
         seeder.run();
 
         verify(utenteRepository, never()).save(any());
-        assertThat(logCatturato.list).isEmpty();
+        assertSingolaRiga(Level.INFO, "ADMIN_EMAIL non è impostata");
     }
 
-    // Una password debole o vuota non conta se l'admin c'è già: non viene usata, quindi niente avviso a ogni riavvio
+    // Una password senza email è quasi sempre l'email dimenticata (o scritta male in env.properties): l'admin non nasce e,
+    // senza un avviso, nessuna riga spiegherebbe perché. L'avviso non riporta mai il valore della password
+    @ParameterizedTest
+    @CsvSource(delimiter = ';', value = {"'';" + PASSWORD_VALIDA, "'   ';" + PASSWORD_VALIDA, "'';admin123", "'';x"})
+    void passwordSenzaEmail_nonCreaLAdminEAvvisaNelLog(String email, String password) {
+        conCredenziali(email, password);
+
+        seeder.run();
+
+        verify(utenteRepository, never()).save(any());
+        assertSingolaRiga(Level.WARN, "ADMIN_PASSWORD è impostata ma ADMIN_EMAIL è vuota");
+    }
+
+    // Una password debole o vuota non conta se l'admin c'è già: non viene usata, quindi nessun avviso a ogni riavvio, solo
+    // una riga INFO che dice perché non se ne crea un altro
     @ParameterizedTest
     @ValueSource(strings = {PASSWORD_VALIDA, "admin123", ""})
-    void adminGiaPresente_nonNeCreaUnAltroENonAvvisa(String password) {
+    void adminGiaPresente_nonNeCreaUnAltroEDiceIlMotivoConUnaRigaInfo(String password) {
         when(utenteRepository.existsByEmail(EMAIL)).thenReturn(true);
         conCredenziali(EMAIL, password);
 
         seeder.run();
 
         verify(utenteRepository, never()).save(any());
-        assertThat(logCatturato.list).isEmpty();
+        assertSingolaRiga(Level.INFO, "esiste già un utente con l'email di ADMIN_EMAIL");
     }
 
     /** Imposta i valori che Spring leggerebbe da ADMIN_EMAIL e ADMIN_PASSWORD */
@@ -144,9 +158,14 @@ class DataSeederTest {
     /** Nessun admin salvato e un solo avviso (WARN) che nomina ADMIN_PASSWORD */
     private void assertAdminNonCreatoConAvviso() {
         verify(utenteRepository, never()).save(any());
+        assertSingolaRiga(Level.WARN, "ADMIN_PASSWORD");
+    }
+
+    /** Il seeder ha scritto una riga sola, di quel livello, e il suo messaggio contiene il motivo */
+    private void assertSingolaRiga(Level livello, String motivo) {
         assertThat(logCatturato.list).singleElement().satisfies(riga -> {
-            assertThat(riga.getLevel()).isEqualTo(Level.WARN);
-            assertThat(riga.getFormattedMessage()).contains("ADMIN_PASSWORD");
+            assertThat(riga.getLevel()).isEqualTo(livello);
+            assertThat(riga.getFormattedMessage()).startsWith("Admin non creato: ").contains(motivo);
         });
     }
 

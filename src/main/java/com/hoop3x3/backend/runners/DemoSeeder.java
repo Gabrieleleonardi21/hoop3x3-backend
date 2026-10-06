@@ -4,8 +4,7 @@ import com.hoop3x3.backend.entities.*;
 import com.hoop3x3.backend.repositories.*;
 import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.UtenteService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
@@ -28,11 +27,11 @@ import java.util.UUID;
  * quelli delle tappe sono deterministici, così un secondo avvio riconosce i dati già inseriti.
  * L'archivio lo riempie ArchivioService.pubblica, lo stesso metodo che usa l'app.
  */
+@Slf4j
 @Component
 @Order(2) // dopo DataSeeder: serve l'admin già creato
 public class DemoSeeder implements CommandLineRunner {
 
-    private static final Logger log = LoggerFactory.getLogger(DemoSeeder.class);
     private static final String FILE = "/seed/estathe25.json";
 
     private final UtenteRepository utenti;
@@ -63,7 +62,15 @@ public class DemoSeeder implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        if (!abilitato || adminEmail.isBlank()) return;
+        // Ogni salto dice perché nei log: INFO se è la configurazione normale, avviso se chi ha acceso il seed non otterrà i dati
+        if (!abilitato) {
+            log.info("Seed demo saltato: SEED_DEMO non è true");
+            return;
+        }
+        if (adminEmail.isBlank()) {
+            log.warn("Seed demo saltato: SEED_DEMO è true ma ADMIN_EMAIL è vuota, e i dati di prova si intestano all'admin");
+            return;
+        }
         Utente admin = utenti.findByEmail(UtenteService.normalizza(adminEmail)).orElse(null);
         if (admin == null) {
             log.warn("Seed demo saltato: admin {} non trovato", adminEmail);
