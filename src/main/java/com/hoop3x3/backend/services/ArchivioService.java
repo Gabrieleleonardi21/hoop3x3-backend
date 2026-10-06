@@ -69,6 +69,7 @@ public class ArchivioService {
             throw new ConflictException("La tappa non è conclusa: concludila prima di pubblicarla in archivio");
         }
         Lega lega = tappa.getLega();
+        guard.tracciaModifica(utente, lega.getOwner().getId(), "pubblicazione", tappaId);
         ArchivioTappa a = repo.findById(tappaId).orElseGet(ArchivioTappa::new);
         a.setTappaId(tappaId);
         a.setAutore(lega.getOwner());
@@ -82,6 +83,7 @@ public class ArchivioService {
     public void rimuovi(Utente utente, UUID tappaId) {
         ArchivioTappa a = trova(tappaId);
         guard.checkOwner(utente, a.getAutore().getId(), "questa pubblicazione");
+        guard.tracciaEliminazione(utente, a.getAutore().getId(), "pubblicazione", tappaId);
         repo.delete(a);
     }
 

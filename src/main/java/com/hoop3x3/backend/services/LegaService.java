@@ -67,13 +67,16 @@ public class LegaService {
     @Transactional
     public LegaMetaDTO rinomina(Utente utente, UUID id, PatchLegaDTO dto) {
         Lega lega = trovaLega(utente, id);
+        guard.tracciaModifica(utente, lega.getOwner().getId(), "lega", id);
         lega.setNome(dto.nome().trim());
         return toMeta(legaRepository.save(lega));
     }
 
     @Transactional
     public void elimina(Utente utente, UUID id) {
-        legaRepository.delete(trovaLega(utente, id));
+        Lega lega = trovaLega(utente, id);
+        guard.tracciaEliminazione(utente, lega.getOwner().getId(), "lega", id);
+        legaRepository.delete(lega);
     }
 
     /* ── Tappe ── */
@@ -88,6 +91,7 @@ public class LegaService {
         if (tappaRepository.existsById(dto.id())) throw new ConflictException("Esiste già una tappa con id " + dto.id());
         // In coda: una posizione dopo la massima, non il numero delle tappe (dopo un'eliminazione sarebbe già di un'altra)
         Tappa t = fromDto(dto, lega, tappaRepository.prossimaPosizione(legaId));
+        guard.tracciaModifica(utente, lega.getOwner().getId(), "lega", legaId); // una tappa nuova modifica la lega
         lega.getTappe().add(t);
         lega.touch();
         legaRepository.save(lega);
@@ -99,6 +103,7 @@ public class LegaService {
     public TappaDTO aggiornaTappa(Utente utente, UUID tappaId, TappaDTO dto) {
         Tappa t = trovaTappa(utente, tappaId);
         applica(dto, t);
+        guard.tracciaModifica(utente, t.getLega().getOwner().getId(), "tappa", tappaId);
         t.getLega().touch();
         return toDto(tappaRepository.save(t));
     }
@@ -107,6 +112,7 @@ public class LegaService {
     public void eliminaTappa(Utente utente, UUID tappaId) {
         Tappa t = trovaTappa(utente, tappaId);
         Lega lega = t.getLega();
+        guard.tracciaEliminazione(utente, lega.getOwner().getId(), "tappa", tappaId);
         lega.getTappe().remove(t); // orphanRemoval cancella la riga
         lega.touch();
         legaRepository.save(lega);

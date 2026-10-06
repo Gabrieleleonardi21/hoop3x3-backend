@@ -50,6 +50,7 @@ public class AnagrafeService {
     public GiocatoreDTO aggiornaGiocatore(Utente utente, UUID id, GiocatoreRequestDTO dto) {
         AnagrafeGiocatore g = trovaGiocatore(id);
         guard.checkOwner(utente, g.getAutore().getId(), "questa scheda giocatore");
+        guard.tracciaModifica(utente, g.getAutore().getId(), "giocatore", id);
         applica(dto, g);
         return GiocatoreDTO.from(giocatori.save(g));
     }
@@ -58,6 +59,7 @@ public class AnagrafeService {
     public void eliminaGiocatore(Utente utente, UUID id) {
         AnagrafeGiocatore g = trovaGiocatore(id);
         guard.checkOwner(utente, g.getAutore().getId(), "questa scheda giocatore");
+        guard.tracciaEliminazione(utente, g.getAutore().getId(), "giocatore", id);
         // Toglie il giocatore dai roster che lo contengono (la FK del ponte è ON DELETE CASCADE,
         // ma Hibernate va tenuto allineato per non lasciare buchi nell'@OrderColumn). Si caricano solo quelle squadre,
         // non tutte, e sono già gestite: la modifica del roster la salva la transazione
@@ -86,6 +88,7 @@ public class AnagrafeService {
     public SquadraDTO aggiornaSquadra(Utente utente, UUID id, SquadraRequestDTO dto) {
         AnagrafeSquadra s = trovaSquadra(id);
         guard.checkOwner(utente, s.getAutore().getId(), "questa squadra");
+        guard.tracciaModifica(utente, s.getAutore().getId(), "squadra", id);
         applica(dto, s);
         return SquadraDTO.from(squadre.save(s));
     }
@@ -94,6 +97,7 @@ public class AnagrafeService {
     public void eliminaSquadra(Utente utente, UUID id) {
         AnagrafeSquadra s = trovaSquadra(id);
         guard.checkOwner(utente, s.getAutore().getId(), "questa squadra");
+        guard.tracciaEliminazione(utente, s.getAutore().getId(), "squadra", id);
         squadre.delete(s);
     }
 

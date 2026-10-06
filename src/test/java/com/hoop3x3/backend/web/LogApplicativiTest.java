@@ -1,9 +1,23 @@
 package com.hoop3x3.backend.web;
 
+import com.hoop3x3.backend.controllers.AnagrafeController;
+import com.hoop3x3.backend.controllers.ArchivioController;
 import com.hoop3x3.backend.controllers.AuthController;
+import com.hoop3x3.backend.controllers.LegaController;
+import com.hoop3x3.backend.controllers.TappaController;
+import com.hoop3x3.backend.entities.AnagrafeGiocatore;
+import com.hoop3x3.backend.entities.AnagrafeSquadra;
+import com.hoop3x3.backend.entities.ArchivioTappa;
+import com.hoop3x3.backend.entities.Lega;
 import com.hoop3x3.backend.entities.Ruolo;
+import com.hoop3x3.backend.entities.Tappa;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ExceptionsHandler;
+import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
+import com.hoop3x3.backend.repositories.AnagrafeSquadraRepository;
+import com.hoop3x3.backend.repositories.ArchivioTappaRepository;
+import com.hoop3x3.backend.repositories.LegaRepository;
+import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.AuthCookies;
 import com.hoop3x3.backend.security.CorsConfig;
@@ -11,18 +25,26 @@ import com.hoop3x3.backend.security.JWTtools;
 import com.hoop3x3.backend.security.JsonAuthEntryPoint;
 import com.hoop3x3.backend.security.JwtFilter;
 import com.hoop3x3.backend.security.SecurityConfig;
+import com.hoop3x3.backend.services.AccessGuard;
+import com.hoop3x3.backend.services.AnagrafeService;
+import com.hoop3x3.backend.services.ArchivioService;
+import com.hoop3x3.backend.services.JsonSupport;
+import com.hoop3x3.backend.services.LegaService;
 import com.hoop3x3.backend.services.RefreshTokenService;
 import com.hoop3x3.backend.services.UtenteService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -30,21 +52,35 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.http.HttpMethod.DELETE;
+import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.http.HttpMethod.PATCH;
+import static org.springframework.http.HttpMethod.POST;
+import static org.springframework.http.HttpMethod.PUT;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,9 +89,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * l'applicazione quando un login fallisce, quando qualcuno si registra e quando un ADMIN interviene sui dati di un altro.
  * Strato web con i servizi veri e i repository simulati: la riga esce dallo stesso codice che gira in produzione.
  */
-@WebMvcTest(controllers = AuthController.class)
+@WebMvcTest(controllers = {AuthController.class, AnagrafeController.class, LegaController.class, TappaController.class,
+        ArchivioController.class})
 @Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class,
-        ExceptionsHandler.class, UtenteService.class})
+        ExceptionsHandler.class, UtenteService.class, AnagrafeService.class, LegaService.class, ArchivioService.class,
+        AccessGuard.class, JsonSupport.class})
 @ExtendWith(OutputCaptureExtension.class)
 class LogApplicativiTest {
 
@@ -68,6 +106,26 @@ class LogApplicativiTest {
     @MockitoBean RefreshTokenService refreshTokenService;
     @MockitoBean JWTtools jwtTools;
     @MockitoBean UtenteRepository utenteRepository;
+    @MockitoBean AnagrafeGiocatoreRepository giocatori;
+    @MockitoBean AnagrafeSquadraRepository squadre;
+    @MockitoBean LegaRepository leghe;
+    @MockitoBean TappaRepository tappe;
+    @MockitoBean ArchivioTappaRepository archivio;
+
+    // Gli utenti e i dati di prova: id fissi, così le righe di log attese si scrivono per intero
+    private static final UUID ID_MARIO = UUID.fromString("00000000-0000-4000-8000-00000000000a");
+    private static final UUID ID_ADMIN = UUID.fromString("00000000-0000-4000-8000-0000000000ad");
+    private static final UUID ID_LUCA = UUID.fromString("00000000-0000-4000-8000-00000000001a");
+    private static final UUID ID_GIOCATORE = UUID.fromString("00000000-0000-4000-8000-0000000000a1");
+    private static final UUID ID_GIOCATORE_DELL_ADMIN = UUID.fromString("00000000-0000-4000-8000-0000000000a5");
+    private static final UUID ID_SQUADRA = UUID.fromString("00000000-0000-4000-8000-0000000000a2");
+    private static final UUID ID_LEGA = UUID.fromString("00000000-0000-4000-8000-0000000000a3");
+    private static final UUID ID_TAPPA = UUID.fromString("00000000-0000-4000-8000-0000000000a4");
+
+    private final Utente mario = utente(ID_MARIO, "mario@test.it", Ruolo.USER);
+    private final Utente luca = utente(ID_LUCA, "luca@test.it", Ruolo.USER);
+    private final Utente admin = utente(ID_ADMIN, "admin@test.it", Ruolo.ADMIN);
+    private Tappa tappaDiMario;
 
     // CapturedOutput accumula l'output di tutta la classe (avvio del contesto e test precedenti compresi): ogni test legge
     // solo ciò che è uscito dopo il suo inizio, altrimenti la riga di un test finirebbe nelle prove di un altro
@@ -81,11 +139,53 @@ class LogApplicativiTest {
     // Login e registrazione che riescono: i test cambiano solo ciò che vogliono mettere alla prova
     @BeforeEach
     void accessoRiuscito() {
-        Utente mario = utente("mario@test.it", Ruolo.USER);
         when(authenticationManager.authenticate(any()))
                 .thenReturn(new UsernamePasswordAuthenticationToken(mario, null, mario.getAuthorities()));
         when(refreshTokenService.emetti(any())).thenReturn("refresh");
         when(jwtTools.generateToken(any())).thenReturn("jwt");
+    }
+
+    // Dati di mario (e un giocatore dell'admin): i repository simulati li restituiscono, il resto è codice vero
+    @BeforeEach
+    void datiDiProva() {
+        AnagrafeGiocatore giocatore = giocatore(ID_GIOCATORE, mario);
+        AnagrafeGiocatore giocatoreDellAdmin = giocatore(ID_GIOCATORE_DELL_ADMIN, admin);
+        when(giocatori.findById(ID_GIOCATORE)).thenReturn(Optional.of(giocatore));
+        when(giocatori.findById(ID_GIOCATORE_DELL_ADMIN)).thenReturn(Optional.of(giocatoreDellAdmin));
+        when(giocatori.save(any(AnagrafeGiocatore.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
+
+        AnagrafeSquadra squadra = new AnagrafeSquadra();
+        ReflectionTestUtils.setField(squadra, "id", ID_SQUADRA);
+        squadra.setNome("Roma 3x3");
+        squadra.setAutore(mario);
+        squadra.setModificatoIl(LocalDateTime.now());
+        when(squadre.findById(ID_SQUADRA)).thenReturn(Optional.of(squadra));
+        when(squadre.save(any(AnagrafeSquadra.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
+
+        // Una lega di mario con una tappa conclusa, e la sua pubblicazione in archivio
+        Lega lega = new Lega("Circuito 2026", mario);
+        ReflectionTestUtils.setField(lega, "id", ID_LEGA);
+        lega.touch();
+        tappaDiMario = new Tappa();
+        tappaDiMario.setId(ID_TAPPA);
+        tappaDiMario.setLega(lega);
+        tappaDiMario.setNome("Tappa di Roma");
+        tappaDiMario.setConclusa(true);
+        lega.getTappe().add(tappaDiMario);
+        when(leghe.findById(ID_LEGA)).thenReturn(Optional.of(lega));
+        when(leghe.trovaConLock(ID_LEGA)).thenReturn(Optional.of(lega));
+        when(leghe.save(any(Lega.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
+        when(tappe.findById(ID_TAPPA)).thenReturn(Optional.of(tappaDiMario));
+        when(tappe.save(any(Tappa.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
+
+        ArchivioTappa pubblicazione = new ArchivioTappa();
+        pubblicazione.setTappaId(ID_TAPPA);
+        pubblicazione.setLegaNome("Circuito 2026");
+        pubblicazione.setAutore(mario);
+        pubblicazione.setContenuto("{}");
+        pubblicazione.setPubblicatoIl(LocalDateTime.now());
+        when(archivio.findById(ID_TAPPA)).thenReturn(Optional.of(pubblicazione));
+        when(archivio.save(any(ArchivioTappa.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
     }
 
     /* ── Login ── */
@@ -182,16 +282,157 @@ class LogApplicativiTest {
         assertThat(uscita(output)).doesNotContain("riga inventata").doesNotContain(PASSWORD);
     }
 
+    /* ── Interventi dell'ADMIN su dati altrui ── */
+
+    /** Le scritture che un ADMIN può fare sui dati di mario: metodo, indirizzo, corpo, che cosa registra la riga di log */
+    static Stream<Arguments> scrittureDiUnAdmin() {
+        return Stream.of(
+                arguments(PUT, "/api/anagrafe/giocatori/" + ID_GIOCATORE, Map.of("nome", "Luca", "cognome", "Neri"),
+                        "modifica", "giocatore", ID_GIOCATORE),
+                arguments(DELETE, "/api/anagrafe/giocatori/" + ID_GIOCATORE, null, "eliminazione", "giocatore", ID_GIOCATORE),
+                arguments(PUT, "/api/anagrafe/squadre/" + ID_SQUADRA, Map.of("nome", "Roma 3x3"),
+                        "modifica", "squadra", ID_SQUADRA),
+                arguments(DELETE, "/api/anagrafe/squadre/" + ID_SQUADRA, null, "eliminazione", "squadra", ID_SQUADRA),
+                arguments(PATCH, "/api/leghe/" + ID_LEGA, Map.of("nome", "Circuito 2027"), "modifica", "lega", ID_LEGA),
+                arguments(DELETE, "/api/leghe/" + ID_LEGA, null, "eliminazione", "lega", ID_LEGA),
+                // Una tappa nuova è una modifica della lega che la riceve
+                arguments(POST, "/api/leghe/" + ID_LEGA + "/tappe", tappa(UUID.randomUUID()), "modifica", "lega", ID_LEGA),
+                arguments(PUT, "/api/tappe/" + ID_TAPPA, tappa(ID_TAPPA), "modifica", "tappa", ID_TAPPA),
+                arguments(DELETE, "/api/tappe/" + ID_TAPPA, null, "eliminazione", "tappa", ID_TAPPA),
+                // Pubblicare scrive (o riscrive) la copia pubblica di una tappa, intestata al proprietario della lega
+                arguments(PUT, "/api/archivio/" + ID_TAPPA, null, "modifica", "pubblicazione", ID_TAPPA),
+                arguments(DELETE, "/api/archivio/" + ID_TAPPA, null, "eliminazione", "pubblicazione", ID_TAPPA));
+    }
+
+    @ParameterizedTest(name = "{3} {4}: {0} {1}")
+    @MethodSource("scrittureDiUnAdmin")
+    void unAdminCheScriveSuiDatiDiUnAltro_lasciaUnInfoConChiCheCosaEDiChi(
+            HttpMethod metodo, String indirizzo, Map<String, Object> corpo, String azione, String risorsa, UUID idRisorsa,
+            CapturedOutput output) throws Exception {
+        invia(metodo, indirizzo, corpo, admin).andExpect(status().is2xxSuccessful());
+
+        assertThat(messaggi(output, "INFO", "AccessGuard")).containsExactly(
+                "Intervento ADMIN: admin@test.it (id " + ID_ADMIN + "): " + azione + " " + risorsa + " " + idRisorsa
+                        + " di proprietà dell'utente " + ID_MARIO);
+    }
+
+    // La lettura passa dallo stesso controllo di proprietà (LegaService.dettaglio → AccessGuard.checkOwner) ma non
+    // cambia niente: un ADMIN che apre la lega di un altro non deve riempire i log
+    @Test
+    void unAdminCheLeggeLaLegaDiUnAltro_nonLasciaNessunaRiga(CapturedOutput output) throws Exception {
+        invia(GET, "/api/leghe/" + ID_LEGA, null, admin)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(ID_LEGA.toString()));
+
+        assertThat(messaggi(output, "INFO", "AccessGuard")).isEmpty();
+    }
+
+    // L'intervento è su dati di un altro: sui propri un ADMIN è un utente come gli altri
+    @Test
+    void unAdminCheModificaIPropriDati_nonLasciaNessunaRiga(CapturedOutput output) throws Exception {
+        invia(PUT, "/api/anagrafe/giocatori/" + ID_GIOCATORE_DELL_ADMIN, Map.of("nome", "Anna", "cognome", "Rossi"), admin)
+                .andExpect(status().isOk());
+
+        assertThat(messaggi(output, "INFO", "AccessGuard")).isEmpty();
+    }
+
+    @Test
+    void unUtenteCheModificaIPropriDati_nonLasciaNessunaRiga(CapturedOutput output) throws Exception {
+        invia(PUT, "/api/anagrafe/giocatori/" + ID_GIOCATORE, Map.of("nome", "Luca", "cognome", "Neri"), mario)
+                .andExpect(status().isOk());
+
+        assertThat(messaggi(output, "INFO", "AccessGuard")).isEmpty();
+    }
+
+    // Chi non è il proprietario né un ADMIN riceve 403 e non interviene su niente
+    @Test
+    void unUtenteCheProvaAModificareDatiAltrui_riceve403SenzaRiga(CapturedOutput output) throws Exception {
+        invia(PUT, "/api/anagrafe/giocatori/" + ID_GIOCATORE, Map.of("nome", "Luca", "cognome", "Neri"), luca)
+                .andExpect(status().isForbidden());
+
+        assertThat(messaggi(output, "INFO", "AccessGuard")).isEmpty();
+    }
+
+    // La riga dice che l'intervento è avvenuto: una richiesta respinta (404, 409, 400) non ha cambiato niente e non la lascia
+    @Test
+    void unAdminCheNonTrovaLaRisorsa_nonLasciaNessunaRiga(CapturedOutput output) throws Exception {
+        invia(PUT, "/api/anagrafe/giocatori/" + UUID.randomUUID(), Map.of("nome", "Luca", "cognome", "Neri"), admin)
+                .andExpect(status().isNotFound());
+
+        assertThat(messaggi(output, "INFO", "AccessGuard")).isEmpty();
+    }
+
+    @Test
+    void unAdminCheAggiungeUnaTappaConUnIdGiaUsato_nonLasciaNessunaRiga(CapturedOutput output) throws Exception {
+        when(tappe.existsById(ID_TAPPA)).thenReturn(true);
+
+        invia(POST, "/api/leghe/" + ID_LEGA + "/tappe", tappa(ID_TAPPA), admin).andExpect(status().isConflict());
+
+        assertThat(messaggi(output, "INFO", "AccessGuard")).isEmpty();
+    }
+
+    @Test
+    void unAdminCheModificaUnaTappaConUnBloccoNonValido_nonLasciaNessunaRiga(CapturedOutput output) throws Exception {
+        Map<String, Object> tappaNonValida = tappa(ID_TAPPA);
+        tappaNonValida.put("squadre", Map.of("non", "un array"));
+
+        invia(PUT, "/api/tappe/" + ID_TAPPA, tappaNonValida, admin).andExpect(status().isBadRequest());
+
+        assertThat(messaggi(output, "INFO", "AccessGuard")).isEmpty();
+    }
+
+    @Test
+    void unAdminChePubblicaUnaTappaNonConclusa_nonLasciaNessunaRiga(CapturedOutput output) throws Exception {
+        tappaDiMario.setConclusa(false);
+
+        invia(PUT, "/api/archivio/" + ID_TAPPA, null, admin).andExpect(status().isConflict());
+
+        assertThat(messaggi(output, "INFO", "AccessGuard")).isEmpty();
+    }
+
     /* ── Aiuti ── */
+
+    private ResultActions invia(HttpMethod metodo, String indirizzo, Object corpo,
+                                                                     Utente chi) throws Exception {
+        MockHttpServletRequestBuilder richiesta = request(metodo, indirizzo).with(user(chi));
+        if (corpo != null) {
+            richiesta.contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(corpo));
+        }
+        return mvc.perform(richiesta);
+    }
+
+    /** Una tappa valida nel corpo di una richiesta: ogni test cambia solo il campo che vuole mettere alla prova */
+    private static Map<String, Object> tappa(UUID id) {
+        Map<String, Object> t = new LinkedHashMap<>();
+        t.put("id", id);
+        t.put("nome", "Tappa di Roma");
+        t.put("luogo", "Roma");
+        t.put("data", "2026-06-14");
+        t.put("nGironi", 1);
+        t.put("regole", Map.of("target", 21, "durata", 10, "ot", 2, "shot", 12));
+        t.put("squadre", List.of());
+        t.put("partite", List.of());
+        return t;
+    }
+
+    private static AnagrafeGiocatore giocatore(UUID id, Utente autore) {
+        AnagrafeGiocatore g = new AnagrafeGiocatore();
+        ReflectionTestUtils.setField(g, "id", id);
+        g.setNome("Luca");
+        g.setCognome("Bianchi");
+        g.setAutore(autore);
+        g.setModificatoIl(LocalDateTime.now());
+        return g;
+    }
 
     private String corpo(Map<String, Object> campi) {
         return mapper.writeValueAsString(campi);
     }
 
     /** Un utente con l'id che il database gli darebbe al salvataggio (il campo non ha un setter) */
-    private static Utente utente(String email, Ruolo ruolo) {
+    private static Utente utente(UUID id, String email, Ruolo ruolo) {
         Utente utente = new Utente(email, "hash", "Nome", ruolo);
-        ReflectionTestUtils.setField(utente, "id", UUID.randomUUID());
+        ReflectionTestUtils.setField(utente, "id", id);
         return utente;
     }
 
