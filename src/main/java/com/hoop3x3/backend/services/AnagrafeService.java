@@ -50,8 +50,8 @@ public class AnagrafeService {
     public GiocatoreDTO aggiornaGiocatore(Utente utente, UUID id, GiocatoreRequestDTO dto) {
         AnagrafeGiocatore g = trovaGiocatore(id);
         guard.checkOwner(utente, g.getAutore().getId(), "questa scheda giocatore");
-        guard.tracciaModifica(utente, g.getAutore().getId(), "giocatore", id);
         applica(dto, g);
+        guard.tracciaModifica(utente, g.getAutore().getId(), "giocatore", id);
         return GiocatoreDTO.from(giocatori.save(g));
     }
 
@@ -88,8 +88,8 @@ public class AnagrafeService {
     public SquadraDTO aggiornaSquadra(Utente utente, UUID id, SquadraRequestDTO dto) {
         AnagrafeSquadra s = trovaSquadra(id);
         guard.checkOwner(utente, s.getAutore().getId(), "questa squadra");
-        guard.tracciaModifica(utente, s.getAutore().getId(), "squadra", id);
         applica(dto, s);
+        guard.tracciaModifica(utente, s.getAutore().getId(), "squadra", id);
         return SquadraDTO.from(squadre.save(s));
     }
 
