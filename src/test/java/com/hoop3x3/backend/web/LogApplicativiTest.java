@@ -69,8 +69,8 @@ import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
-import static org.mockito.ArgumentMatchers.any;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpMethod.DELETE;
@@ -100,6 +100,16 @@ class LogApplicativiTest {
     // Una password che non può comparire per caso in nessun'altra riga dell'output
     private static final String PASSWORD = "Segreta-da-non-scrivere-nei-log-42";
 
+    // Gli utenti e i dati di prova: id fissi, così le righe di log attese si scrivono per intero
+    private static final UUID ID_MARIO = UUID.fromString("00000000-0000-4000-8000-00000000000a");
+    private static final UUID ID_ADMIN = UUID.fromString("00000000-0000-4000-8000-0000000000ad");
+    private static final UUID ID_LUCA = UUID.fromString("00000000-0000-4000-8000-00000000001a");
+    private static final UUID ID_GIOCATORE = UUID.fromString("00000000-0000-4000-8000-0000000000a1");
+    private static final UUID ID_GIOCATORE_DELL_ADMIN = UUID.fromString("00000000-0000-4000-8000-0000000000a5");
+    private static final UUID ID_SQUADRA = UUID.fromString("00000000-0000-4000-8000-0000000000a2");
+    private static final UUID ID_LEGA = UUID.fromString("00000000-0000-4000-8000-0000000000a3");
+    private static final UUID ID_TAPPA = UUID.fromString("00000000-0000-4000-8000-0000000000a4");
+
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
     @MockitoBean AuthenticationManager authenticationManager;
@@ -111,16 +121,6 @@ class LogApplicativiTest {
     @MockitoBean LegaRepository leghe;
     @MockitoBean TappaRepository tappe;
     @MockitoBean ArchivioTappaRepository archivio;
-
-    // Gli utenti e i dati di prova: id fissi, così le righe di log attese si scrivono per intero
-    private static final UUID ID_MARIO = UUID.fromString("00000000-0000-4000-8000-00000000000a");
-    private static final UUID ID_ADMIN = UUID.fromString("00000000-0000-4000-8000-0000000000ad");
-    private static final UUID ID_LUCA = UUID.fromString("00000000-0000-4000-8000-00000000001a");
-    private static final UUID ID_GIOCATORE = UUID.fromString("00000000-0000-4000-8000-0000000000a1");
-    private static final UUID ID_GIOCATORE_DELL_ADMIN = UUID.fromString("00000000-0000-4000-8000-0000000000a5");
-    private static final UUID ID_SQUADRA = UUID.fromString("00000000-0000-4000-8000-0000000000a2");
-    private static final UUID ID_LEGA = UUID.fromString("00000000-0000-4000-8000-0000000000a3");
-    private static final UUID ID_TAPPA = UUID.fromString("00000000-0000-4000-8000-0000000000a4");
 
     private final Utente mario = utente(ID_MARIO, "mario@test.it", Ruolo.USER);
     private final Utente luca = utente(ID_LUCA, "luca@test.it", Ruolo.USER);
@@ -195,8 +195,7 @@ class LogApplicativiTest {
     void loginFallito_lasciaUnWarnConLEmailENonConLaPassword(CapturedOutput output) throws Exception {
         when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("Bad credentials"));
 
-        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo(Map.of("email", "Mario@Test.IT", "password", PASSWORD))))
+        postPubblico("/api/auth/login", Map.of("email", "Mario@Test.IT", "password", PASSWORD))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.message").value("Email o password non corretti"));
 
@@ -206,8 +205,7 @@ class LogApplicativiTest {
 
     @Test
     void loginRiuscito_nonLasciaNessunWarn(CapturedOutput output) throws Exception {
-        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo(Map.of("email", "mario@test.it", "password", PASSWORD))))
+        postPubblico("/api/auth/login", Map.of("email", "mario@test.it", "password", PASSWORD))
                 .andExpect(status().isOk());
 
         assertThat(messaggi(output, "WARN", "AuthController")).isEmpty();
@@ -227,8 +225,7 @@ class LogApplicativiTest {
             "\"mario\\\nrossi\"@test.it"              // tra virgolette, con la barra rovescia davanti al LF
     })
     void emailConCrLfNelLogin_laValidazioneLaFermaPrimaDelLog(String email, CapturedOutput output) throws Exception {
-        mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo(Map.of("email", email, "password", PASSWORD))))
+        postPubblico("/api/auth/login", Map.of("email", email, "password", PASSWORD))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("email:")));
 
@@ -248,8 +245,7 @@ class LogApplicativiTest {
             return salvato;
         });
 
-        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo(Map.of("name", "Mario", "email", "Mario@Test.IT", "password", PASSWORD))))
+        postPubblico("/api/auth/register", Map.of("name", "Mario", "email", "Mario@Test.IT", "password", PASSWORD))
                 .andExpect(status().isCreated());
 
         assertThat(messaggi(output, "INFO", "AuthController"))
@@ -262,8 +258,7 @@ class LogApplicativiTest {
     void registrazioneRifiutata_nonLasciaLaRigaDiRegistrazione(CapturedOutput output) throws Exception {
         when(utenteRepository.existsByEmail("mario@test.it")).thenReturn(true);
 
-        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo(Map.of("name", "Mario", "email", "mario@test.it", "password", PASSWORD))))
+        postPubblico("/api/auth/register", Map.of("name", "Mario", "email", "mario@test.it", "password", PASSWORD))
                 .andExpect(status().isConflict());
 
         assertThat(messaggi(output, "INFO", "AuthController")).isEmpty();
@@ -273,8 +268,7 @@ class LogApplicativiTest {
     @ParameterizedTest
     @ValueSource(strings = {"mario@test.it\r\nINFO riga inventata", "ma\r\nrio@test.it"})
     void emailConCrLfNellaRegistrazione_laValidazioneLaFermaPrimaDelLog(String email, CapturedOutput output) throws Exception {
-        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content(corpo(Map.of("name", "Mario", "email", email, "password", PASSWORD))))
+        postPubblico("/api/auth/register", Map.of("name", "Mario", "email", email, "password", PASSWORD))
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(utenteRepository);
@@ -392,13 +386,18 @@ class LogApplicativiTest {
 
     /* ── Aiuti ── */
 
-    private ResultActions invia(HttpMethod metodo, String indirizzo, Object corpo,
-                                                                     Utente chi) throws Exception {
+    /** Una richiesta di un utente autenticato, con il corpo in JSON se c'è */
+    private ResultActions invia(HttpMethod metodo, String indirizzo, Object corpo, Utente chi) throws Exception {
         MockHttpServletRequestBuilder richiesta = request(metodo, indirizzo).with(user(chi));
         if (corpo != null) {
             richiesta.contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(corpo));
         }
         return mvc.perform(richiesta);
+    }
+
+    /** Una POST senza utente autenticato, con il corpo in JSON: login e registrazione sono pubblici */
+    private ResultActions postPubblico(String indirizzo, Map<String, Object> campi) throws Exception {
+        return mvc.perform(post(indirizzo).contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(campi)));
     }
 
     /** Una tappa valida nel corpo di una richiesta: ogni test cambia solo il campo che vuole mettere alla prova */
@@ -423,10 +422,6 @@ class LogApplicativiTest {
         g.setAutore(autore);
         g.setModificatoIl(LocalDateTime.now());
         return g;
-    }
-
-    private String corpo(Map<String, Object> campi) {
-        return mapper.writeValueAsString(campi);
     }
 
     /** Un utente con l'id che il database gli darebbe al salvataggio (il campo non ha un setter) */
