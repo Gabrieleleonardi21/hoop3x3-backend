@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -40,7 +41,10 @@ import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -233,6 +237,48 @@ class AnagrafePubblicaWebTest {
     void tokenDiUnUtenteChePiuNonEsiste_risponde401SuTutteLeLetture() throws Exception {
         rifiutateConIlBearer("Bearer " + tokenFirmato(SEGRETO, UtenteDiProva.conId("cancellato@test.it"), 30),
                 "L'utente associato al token non esiste più");
+    }
+
+    /* ── Chi non ha un account non scrive ── */
+
+    // Le GET dell'anagrafe sono pubbliche, le scritture no (SecurityConfig): senza token POST, PUT e DELETE rispondono 401
+    // e nessun repository viene toccato, né in lettura né in scrittura
+    @Test
+    void scrittureSenzaToken_rispondono401ENonToccanoIRepository() throws Exception {
+        UUID id = UUID.randomUUID();
+        String giocatore = "{\"nome\":\"Mario\",\"cognome\":\"Rossi\"}";
+        String squadra = "{\"nome\":\"Roma 3x3\"}";
+
+        mvc.perform(post(GIOCATORI).contentType(MediaType.APPLICATION_JSON).content(giocatore))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(put(GIOCATORI + "/" + id).contentType(MediaType.APPLICATION_JSON).content(giocatore))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(delete(GIOCATORI + "/" + id)).andExpect(status().isUnauthorized());
+        mvc.perform(post(SQUADRE).contentType(MediaType.APPLICATION_JSON).content(squadra))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(put(SQUADRE + "/" + id).contentType(MediaType.APPLICATION_JSON).content(squadra))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(delete(SQUADRE + "/" + id)).andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(giocatori, squadre, guard);
+    }
+
+    /* ── Un Authorization che non è un Bearer ── */
+
+    // Il JwtFilter legge solo gli header «Bearer ...»: un altro schema (qui Basic) è come nessun token, quindi la forma
+    // pubblica e non un 401. Succede già oggi su ogni rotta pubblica; il test fissa il comportamento
+    @Test
+    void authorizationBasic_equivaleANessunTokenEHaLaFormaPubblica() throws Exception {
+        String basic = "Basic Zm9vOmJhcg==";
+
+        mvc.perform(get(GIOCATORI).header("Authorization", basic))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].nascita").value(""))
+                .andExpect(jsonPath("$[0].autoreId").value(nullValue()));
+        mvc.perform(get(SQUADRE).header("Authorization", basic))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].referente").value(""))
+                .andExpect(jsonPath("$[0].autoreId").value(nullValue()));
     }
 
     /* ── Aiuti ── */

@@ -20,9 +20,8 @@ public record SquadraDTO(
 
     /** La forma completa, per chi ha un account */
     public static SquadraDTO from(AnagrafeSquadra s) {
-        List<UUID> roster = s.getRoster().stream().map(AnagrafeGiocatore::getId).toList();
         return new SquadraDTO(s.getId(), s.getNome(), s.getCitta(), s.getAnno(), s.getRank(), s.getReferente(),
-                roster, s.getLogo(), s.getWebsite(), s.getInstagram(), s.getNote(),
+                idDelRoster(s), s.getLogo(), s.getWebsite(), s.getInstagram(), s.getNote(),
                 s.getAutore().getNome(), s.getAutore().getId(),
                 TempoSupport.inMillisecondi(s.getModificatoIl()));
     }
@@ -32,9 +31,13 @@ public record SquadraDTO(
      * (compreso il roster) è quello di sempre. L'autore non si legge: serve solo alla forma completa.
      */
     public static SquadraDTO pubblica(AnagrafeSquadra s) {
-        List<UUID> roster = s.getRoster().stream().map(AnagrafeGiocatore::getId).toList();
         return new SquadraDTO(s.getId(), s.getNome(), s.getCitta(), s.getAnno(), s.getRank(), RISERVATO,
-                roster, s.getLogo(), s.getWebsite(), s.getInstagram(), s.getNote(),
+                idDelRoster(s), s.getLogo(), s.getWebsite(), s.getInstagram(), s.getNote(),
                 RISERVATO, null, TempoSupport.inMillisecondi(s.getModificatoIl()));
+    }
+
+    /** Gli id dei giocatori del roster, nell'ordine salvato: uguale nelle due forme, che non possono divergere */
+    private static List<UUID> idDelRoster(AnagrafeSquadra s) {
+        return s.getRoster().stream().map(AnagrafeGiocatore::getId).toList();
     }
 }

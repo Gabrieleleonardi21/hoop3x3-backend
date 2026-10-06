@@ -54,8 +54,8 @@ class AnagrafeIT {
         assertThat(rosterSalvato(creata.id())).containsExactlyElementsOf(attesi);
     }
 
-    // Le forme pubbliche si costruiscono dentro la transazione di lettura (il roster e l'autore sono caricati a richiesta, con
-    // open-in-view spento): dal database vero escono senza dati personali, mentre la completa li ha
+    // Le forme degli elenchi si costruiscono dentro la transazione di lettura (open-in-view è spento), con il roster e l'autore
+    // caricati dalla stessa query: dal database vero la forma pubblica esce senza dati personali, e la completa li ha
     @Test
     void leFormePubblicheDelDatabaseNonHannoDatiPersonali_laCompletaSi() {
         Utente mario = utenti.save(new Utente("mario@test.it", "hash", "Mario", Ruolo.USER));

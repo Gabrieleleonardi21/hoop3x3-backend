@@ -12,8 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Le forme pubbliche dell'anagrafe, senza contesto Spring. La forma si prova per intero dal JSON in AnagrafePubblicaWebTest:
- * qui resta ciò che dal JSON non si vede, cioè che la scheda pubblica non legge l'autore (negli elenchi è caricato a
- * richiesta, e con open-in-view spento leggerlo fuori dalla transazione sarebbe un errore).
+ * qui resta ciò che dal JSON non si vede, cioè che la scheda pubblica non dipende dall'autore (non lo legge: un'entity
+ * senza autore la costruisce lo stesso).
  */
 class AnagrafeDTOTest {
 
