@@ -11,9 +11,11 @@ import com.hoop3x3.backend.security.JWTtools;
 import com.hoop3x3.backend.services.RefreshTokenService;
 import com.hoop3x3.backend.services.UtenteService;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
  * Autenticazione: il JWT di accesso (30 minuti) viaggia nel corpo JSON, il refresh token (30 giorni)
  * in un cookie httpOnly che il browser rimanda solo a questi endpoint. Vedi AuthCookies e RefreshTokenService.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -47,13 +50,24 @@ public class AuthController {
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     public AuthResponseDTO register(@RequestBody @Validated RegisterRequestDTO dto, HttpServletResponse response) {
-        return accedi(utenteService.register(dto), response);
+        Utente utente = utenteService.register(dto);
+        log.info("Nuovo utente registrato: {} (id {})", utente.getEmail(), utente.getId());
+        return accedi(utente, response);
     }
 
     @PostMapping("/login")
     public AuthResponseDTO login(@RequestBody @Validated LoginRequestDTO dto, HttpServletResponse response) {
-        Authentication auth = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(UtenteService.normalizza(dto.email()), dto.password()));
+        String email = UtenteService.normalizza(dto.email());
+        Authentication auth;
+        try {
+            auth = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, dto.password()));
+        } catch (BadCredentialsException e) {
+            // Email sconosciuta o password sbagliata (Spring non li distingue): l'email dice chi sbaglia o chi prova a
+            // indovinare. La password non va mai nei log. L'email arriva già validata (@Email non ammette CR e LF), quindi
+            // non può inventare righe false. La risposta 401 la dà ExceptionsHandler
+            log.warn("Login fallito per {}", email);
+            throw e;
+        }
         return accedi((Utente) auth.getPrincipal(), response);
     }
 
