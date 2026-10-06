@@ -15,7 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** Anagrafe condivisa del circuito: lettura pubblica, scrittura di autore o ADMIN. */
 @Service
@@ -137,12 +140,16 @@ public class AnagrafeService {
         s.setWebsite(v(d.website()));
         s.setInstagram(v(d.instagram()));
         s.setNote(v(d.note()));
-        // Roster: id sconosciuti vengono ignorati, doppioni rimossi mantenendo l'ordine
+        // Roster: id sconosciuti vengono ignorati, doppioni rimossi mantenendo l'ordine. I giocatori si leggono con una
+        // sola query (findAllById): le righe tornano in un ordine qualsiasi, quindi l'ordine del client si rimette dagli id
+        List<UUID> ids = List.of();
+        if (d.roster() != null) ids = d.roster().stream().distinct().toList();
+        Map<UUID, AnagrafeGiocatore> trovati = giocatori.findAllById(ids).stream()
+                .collect(Collectors.toMap(AnagrafeGiocatore::getId, Function.identity()));
         List<AnagrafeGiocatore> roster = new ArrayList<>();
-        if (d.roster() != null) {
-            for (UUID gid : d.roster().stream().distinct().toList()) {
-                giocatori.findById(gid).ifPresent(roster::add);
-            }
+        for (UUID gid : ids) {
+            AnagrafeGiocatore g = trovati.get(gid);
+            if (g != null) roster.add(g);
         }
         s.getRoster().clear();
         s.getRoster().addAll(roster);
