@@ -24,8 +24,8 @@ class LogSupportTest {
         return Stream.of(
                 arguments('\r', "\\r"),
                 arguments('\n', "\\n"),
-                arguments(' ', "\\u2028"), // separatore di riga di Unicode
-                arguments(' ', "\\u2029"), // separatore di paragrafo
+                arguments('\u2028', "\\u2028"), // separatore di riga di Unicode
+                arguments('\u2029', "\\u2029"), // separatore di paragrafo
                 arguments('\u0085', "\\u0085"), // «riga successiva»: un carattere di controllo
                 arguments('\u001b', "\\u001b"), // ESC: apre le sequenze di controllo di un terminale
                 arguments('\t', "\\u0009"),
@@ -41,7 +41,7 @@ class LogSupportTest {
 
     @Test
     void piuCaratteriInsieme_sonoTuttiScrittiPerEsteso() {
-        String risultato = LogSupport.perLog("mario@x.it\r\nINFO riga inventata\u0085");
+        String risultato = LogSupport.perLog("mario@x.it\r\nINFO riga\u2028inventata\u0085");
 
         assertThat(risultato).isEqualTo("mario@x.it\\r\\nINFO riga\\u2028inventata\\u0085");
         assertThat(risultato).doesNotContainPattern("[\\p{Cc}\\p{Zl}\\p{Zp}]");

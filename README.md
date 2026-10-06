@@ -154,7 +154,7 @@ Fanno eccezione le richieste respinte prima di Spring MVC, dal container o dal f
 
 ## Log
 
-L'applicazione scrive nei log (console) ciò che serve a capire un problema in produzione. Le righe sono in italiano e non contengono mai password, token o chiavi. I valori scelti da chi manda la richiesta (l'email del login e della registrazione, il percorso di un errore 500, il messaggio del database quando un vincolo è violato) passano da `LogSupport.perLog`: a capo, separatori di riga di Unicode (U+2028, U+2029) e caratteri di controllo si scrivono per esteso (`\r`, `\n`, ` `...), così nessun valore può chiudere una riga e inventarne una sua, e il tentativo si vede.
+L'applicazione scrive nei log (console) ciò che serve a capire un problema in produzione. Le righe sono in italiano e non contengono mai password, token o chiavi. I valori scelti da chi manda la richiesta (l'email del login e della registrazione, il percorso di un errore 500, il messaggio del database quando un vincolo è violato) passano da `LogSupport.perLog`: a capo, separatori di riga di Unicode (U+2028, U+2029) e caratteri di controllo si scrivono per esteso (`\r`, `\n`, `\u2028`...), così nessun valore può chiudere una riga e inventarne una sua, e il tentativo si vede.
 
 - **Login fallito** (WARN) — `Login fallito per mario@x.it`: l'email normalizzata, mai la password. Un'email con CR o LF dentro non arriva fin lì: la validazione la rifiuta con 400.
 - **Registrazione** (INFO) — `Nuovo utente registrato: mario@x.it (id ...)`.
