@@ -1,8 +1,6 @@
 package com.hoop3x3.backend.security;
 
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
+import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.OrologioDiProva;
 import com.hoop3x3.backend.TestDiIntegrazione;
 import com.hoop3x3.backend.entities.Ruolo;
@@ -13,7 +11,6 @@ import com.hoop3x3.backend.services.CoachAiService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -26,7 +23,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 
 import static com.hoop3x3.backend.security.ClientHttp.assert429;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -75,23 +71,18 @@ class LimiteRichiesteIT {
     @MockitoBean CoachAiService coach;
 
     private ClientHttp client;
-    private final Logger logDelFiltro = (Logger) LoggerFactory.getLogger(LimiteRichiesteFilter.class);
-    private final ListAppender<ILoggingEvent> logCatturato = new ListAppender<>();
+    private LogCatturato log;
 
     @BeforeEach
     void giornoNuovoEClientEILogCatturato() {
         orologio.imposta(INIZIO.plus(Duration.ofDays(++giorniUsati)));
         client = new ClientHttp(porta);
-        // Le righe d'avviso del filtro si leggono dal test e non passano dalla console: l'output della build resta pulito
-        logCatturato.start();
-        logDelFiltro.addAppender(logCatturato);
-        logDelFiltro.setAdditive(false);
+        log = new LogCatturato(LimiteRichiesteFilter.class);
     }
 
     @AfterEach
     void rilasciaIlLog() {
-        logDelFiltro.detachAppender(logCatturato);
-        logDelFiltro.setAdditive(true);
+        log.close();
     }
 
     private Utente salvaUtente() {
@@ -100,10 +91,6 @@ class LimiteRichiesteIT {
 
     private HttpResponse<String> login() throws Exception {
         return client.post("/api/auth/login", LOGIN);
-    }
-
-    private List<String> righeDiLog() {
-        return logCatturato.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
     }
 
     // L'undicesimo login del piano, qui il quarto: respinto prima del BCrypt e del servizio. Lo prova il database: il login
@@ -119,7 +106,7 @@ class LimiteRichiesteIT {
         assert429(login(), 40, MESSAGGIO_ACCESSO);
 
         assertThat(tokens.count()).as("il login respinto non è arrivato al servizio").isEqualTo(3);
-        assertThat(righeDiLog()).containsExactly(
+        assertThat(log.righe()).containsExactly(
                 "Limite di richieste superato: Troppi tentativi di accesso (massimo 3 al minuto), indirizzo 127.0.0.1");
 
         orologio.avanza(Duration.ofSeconds(40)); // il minuto dopo

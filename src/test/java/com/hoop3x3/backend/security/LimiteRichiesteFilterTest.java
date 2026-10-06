@@ -1,9 +1,7 @@
 package com.hoop3x3.backend.security;
 
 import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
+import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.OrologioDiProva;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
@@ -14,7 +12,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -54,21 +51,16 @@ class LimiteRichiesteFilterTest {
     private int arrivateAValle;
     private final FilterChain catena = (richiesta, risposta) -> arrivateAValle++;
 
-    private final Logger logDelFiltro = (Logger) LoggerFactory.getLogger(LimiteRichiesteFilter.class);
-    private final ListAppender<ILoggingEvent> logCatturato = new ListAppender<>();
+    private LogCatturato log;
 
     @BeforeEach
     void catturaIlLog() {
-        // Le righe di log del filtro si leggono dal test e non passano dalla console: l'output della build resta pulito
-        logCatturato.start();
-        logDelFiltro.addAppender(logCatturato);
-        logDelFiltro.setAdditive(false);
+        log = new LogCatturato(LimiteRichiesteFilter.class);
     }
 
     @AfterEach
     void rilasciaIlLogEIlContestoDiSicurezza() {
-        logDelFiltro.detachAppender(logCatturato);
-        logDelFiltro.setAdditive(true);
+        log.close();
         SecurityContextHolder.clearContext(); // l'utente dei test del Coach non resta ai test successivi
     }
 
@@ -110,10 +102,6 @@ class LimiteRichiesteFilterTest {
     private static void accediComeUtente(Utente utente) {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(utente, null, utente.getAuthorities()));
-    }
-
-    private List<String> righeDiLog() {
-        return logCatturato.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
     }
 
     /* ── Login, registrazione e rinnovo: per indirizzo, ognuno con il suo contatore ── */
@@ -282,9 +270,9 @@ class LimiteRichiesteFilterTest {
         for (int i = 0; i < 10; i++) {
             assertThat(postPassa(LOGIN, INDIRIZZO)).isFalse();
         }
-        assertThat(righeDiLog()).containsExactly(
+        assertThat(log.righe()).containsExactly(
                 "Limite di richieste superato: Troppi tentativi di accesso (massimo 3 al minuto), indirizzo " + INDIRIZZO);
-        assertThat(logCatturato.list).allSatisfy(riga -> assertThat(riga.getLevel()).isEqualTo(Level.WARN));
+        assertThat(log.livelli()).containsOnly(Level.WARN);
 
         // Un altro indirizzo ha la sua riga; e nel minuto dopo chi insiste ancora ne lascia un'altra
         postPassano(LOGIN, "203.0.113.1", 3);
@@ -293,7 +281,7 @@ class LimiteRichiesteFilterTest {
         postPassano(LOGIN, INDIRIZZO, 3);
         assertThat(postPassa(LOGIN, INDIRIZZO)).isFalse();
 
-        assertThat(righeDiLog()).hasSize(3);
+        assertThat(log.righe()).hasSize(3);
     }
 
     @Test
@@ -301,7 +289,7 @@ class LimiteRichiesteFilterTest {
         postPassano(LOGIN, INDIRIZZO, 3);
         postPassano(REGISTRAZIONE, INDIRIZZO, 3);
 
-        assertThat(logCatturato.list).isEmpty();
+        assertThat(log.righe()).isEmpty();
     }
 
     // L'indirizzo può arrivare da un'intestazione del proxy (server.forward-headers-strategy): con un a capo dentro, una
@@ -313,7 +301,7 @@ class LimiteRichiesteFilterTest {
 
         assertThat(postPassa(LOGIN, ostile)).isFalse();
 
-        assertThat(righeDiLog()).singleElement().satisfies(riga ->
+        assertThat(log.righe()).singleElement().satisfies(riga ->
                 assertThat(riga).doesNotContain("\r", "\n").endsWith("indirizzo 203.0.113.9\\r\\nERROR riga inventata"));
     }
 
@@ -329,7 +317,7 @@ class LimiteRichiesteFilterTest {
         assertThat(postPassa(COACH, INDIRIZZO)).isFalse(); // oltre il giorno
         assertThat(postPassa(COACH, INDIRIZZO)).isFalse(); // insiste: nessuna riga in più
 
-        assertThat(righeDiLog()).containsExactly(
+        assertThat(log.righe()).containsExactly(
                 "Limite di richieste superato: Troppe richieste al Coach AI (massimo 2 al minuto), utente " + mario.getId(),
                 "Limite di richieste superato: Quota giornaliera del Coach AI esaurita (massimo 4 al giorno), utente " + mario.getId());
     }

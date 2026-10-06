@@ -1,8 +1,6 @@
 package com.hoop3x3.backend.web;
 
-import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
+import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.OrologioDiProva;
 import com.hoop3x3.backend.controllers.AuthController;
 import com.hoop3x3.backend.controllers.CoachController;
@@ -25,7 +23,6 @@ import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -47,7 +44,6 @@ import tools.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -108,21 +104,16 @@ class LimiteRichiesteWebTest {
     private final Utente mario = utente("mario@x.it");
     private final Utente luca = utente("luca@x.it");
 
-    private final Logger logDelFiltro = (Logger) LoggerFactory.getLogger(LimiteRichiesteFilter.class);
-    private final ListAppender<ILoggingEvent> logCatturato = new ListAppender<>();
+    private LogCatturato log;
 
     @BeforeEach
     void catturaIlLog() {
-        // Le righe d'avviso del filtro si leggono dal test e non passano dalla console: l'output della build resta pulito
-        logCatturato.start();
-        logDelFiltro.addAppender(logCatturato);
-        logDelFiltro.setAdditive(false);
+        log = new LogCatturato(LimiteRichiesteFilter.class);
     }
 
     @AfterEach
     void rilasciaIlLog() {
-        logDelFiltro.detachAppender(logCatturato);
-        logDelFiltro.setAdditive(true);
+        log.close();
     }
 
     @BeforeEach
@@ -174,10 +165,6 @@ class LimiteRichiesteWebTest {
                 .contentType(MediaType.APPLICATION_JSON).content("{\"messages\":[{\"role\":\"user\",\"content\":\"ciao\"}]}"));
     }
 
-    private List<String> righeDiLog() {
-        return logCatturato.list.stream().map(ILoggingEvent::getFormattedMessage).toList();
-    }
-
     private void ilLoginPassa(int quante, String indirizzo) throws Exception {
         for (int i = 0; i < quante; i++) {
             login(indirizzo).andExpect(status().isOk());
@@ -221,7 +208,7 @@ class LimiteRichiesteWebTest {
             assert429(login(INDIRIZZO), 40, MESSAGGIO_ACCESSO);
         }
 
-        assertThat(righeDiLog()).containsExactly(
+        assertThat(log.righe()).containsExactly(
                 "Limite di richieste superato: Troppi tentativi di accesso (massimo 10 al minuto), indirizzo " + INDIRIZZO);
     }
 
