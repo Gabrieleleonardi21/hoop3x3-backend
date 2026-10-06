@@ -49,6 +49,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
@@ -94,6 +95,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class,
         ExceptionsHandler.class, UtenteService.class, AnagrafeService.class, LegaService.class, ArchivioService.class,
         AccessGuard.class, JsonSupport.class})
+// I login e le registrazioni di questa classe partono tutti dallo stesso indirizzo e sono quasi quanti ne ammette il limite di
+// produzione (10 al minuto): un test in più ne farebbe cadere altri con un 429 che non c'entra. Il limite vale quanto nel
+// profilo di test
+@TestPropertySource(properties = "limite.auth-al-minuto=100000")
 @ExtendWith(OutputCaptureExtension.class)
 class LogApplicativiTest {
 
