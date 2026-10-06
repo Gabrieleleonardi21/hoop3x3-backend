@@ -37,7 +37,7 @@ Il frontend in sviluppo inoltra `/api` verso `http://localhost:3001` tramite il 
 ## Test
 
 - `./mvnw test`: test senza database (web con MockMvc, servizi con Mockito).
-- `./mvnw verify -Pintegrazione`: anche i test di integrazione con PostgreSQL (classi `*IT`). Usano il database di prova `hoop3x3_test` sul PostgreSQL locale, da creare una volta, vuoto, con `createdb hoop3x3_test`: all'avvio dei test lo schema lo creano le migrazioni di Flyway (un database di prova che ha già le tabelle, create dal vecchio `db/schema.sql`, viene riconosciuto come versione 1) e prima di ogni test le tabelle vengono svuotate, tranne lo storico di Flyway. Per un altro database c'è `TEST_DB_URL`, con `TEST_DB_USERNAME` e `TEST_DB_PASSWORD`; altrimenti valgono `DB_USERNAME` e `DB_PASSWORD` di `env.properties`. Le variabili `SPRING_DATASOURCE_*` non hanno effetto sui test di integrazione. Lo script che svuota le tabelle si rifiuta di girare su un database il cui nome non contiene «test».
+- `./mvnw verify -Pintegrazione`: anche i test di integrazione con PostgreSQL (classi `*IT`). Usano il database di prova `hoop3x3_test` sul PostgreSQL locale, da creare una volta, vuoto, con `createdb hoop3x3_test`: all'avvio dei test lo schema lo creano le migrazioni di Flyway (un database di prova che ha già le tabelle, create dal vecchio `db/schema.sql`, viene riconosciuto come versione 1) e prima di ogni test le tabelle vengono svuotate, tranne lo storico di Flyway. Per un altro database c'è `TEST_DB_URL`, con `TEST_DB_USERNAME` e `TEST_DB_PASSWORD`; altrimenti valgono `DB_USERNAME` e `DB_PASSWORD` di `env.properties`. Le variabili `SPRING_DATASOURCE_*` non hanno effetto sui test di integrazione. Lo script che svuota le tabelle si rifiuta di girare su un database il cui nome non contiene «test». Il profilo «test» alza i limiti di frequenza (vedi «Limiti di frequenza»): gli IT fanno più accessi insieme dallo stesso indirizzo e con i valori di produzione verrebbero respinti con 429.
 
 ## Migrazioni del database
 
@@ -55,6 +55,8 @@ Lo schema cambia solo con le migrazioni di Flyway in `src/main/resources/db/migr
 Proxy verso [Groq](https://console.groq.com/) (`POST /api/coach/chat`, autenticato): la chiave resta sul server. Modello di default `openai/gpt-oss-120b`, sovrascrivibile con `GROQ_MODEL` in `env.properties`. Senza chiave il Coach è disattivato e il resto dell'app funziona.
 
 La richiesta è controllata prima di arrivare a Groq, altrimenti 400: `messages` da 1 a 60 messaggi, ognuno con ruolo `system`, `user`, `assistant` o `tool`, per al massimo 100.000 caratteri; `tools` al massimo 20 strumenti (50.000 caratteri). Modello e limite di token li fissa il server. Groq ha 5 secondi per accettare la connessione e 60 per mandare l'intera risposta.
+
+Ogni utente può fare 20 richieste al minuto e 300 al giorno: oltre, il server risponde 429 con `Retry-After` senza chiamare Groq (vedi «Limiti di frequenza»).
 
 Gli errori di Groq arrivano al client senza dettagli interni: 429 se Groq limita le richieste, 400 se rifiuta la richiesta (anche perché troppo lunga), 502 per tutto il resto (errore di Groq, chiave non valida, rete, timeout, risposta che non è un oggetto JSON), 503 se la chiave manca. Nei log del server ogni 502 e 503 ha la sua riga `WARN` con la causa: stato e corpo della risposta di Groq (troncato a 500 caratteri e su una riga sola: a capo e caratteri di controllo sono scritti per esteso) oppure l'eccezione di rete. La chiave non viene mai scritta nei log.
 
@@ -135,7 +137,7 @@ Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 - **Leghe e tappe** — nome della lega fino a 120 caratteri; nome della tappa fino a 120, luogo fino a 160, data nel formato `aaaa-mm-gg` oppure vuota.
 - **Anagrafe** — roster di una squadra fino a 12 giocatori; note di giocatori e squadre fino a 2000 caratteri.
 - **Account** — email fino a 255 caratteri; alla registrazione la password ha da 8 caratteri a 72 byte in UTF-8 (una lettera accentata ne occupa 2, un emoji 4).
-- **Coach AI** — da 1 a 60 messaggi per al massimo 100.000 caratteri, fino a 20 strumenti (50.000 caratteri): vedi la sezione Coach AI.
+- **Coach AI** — da 1 a 60 messaggi per al massimo 100.000 caratteri, fino a 20 strumenti (50.000 caratteri): vedi la sezione Coach AI. In più, per utente, 20 richieste al minuto e 300 al giorno: vedi «Limiti di frequenza».
 
 **Errori** — ogni errore dell'applicazione ha lo stesso corpo JSON, `{message, timestamp}`: `message` è in italiano e senza dettagli interni (SQL e stack restano nei log), `timestamp` è la data e l'ora locali del server, senza fuso. Gli stati:
 
@@ -147,10 +149,49 @@ Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 - **409** — conflitto con dati già salvati (email già registrata, tappa con lo stesso id, vincolo del database), tappa non ancora conclusa che si prova a pubblicare in archivio, oppure sessione già rinnovata da un'altra richiesta.
 - **413** — richiesta oltre 2 MB.
 - **415** — corpo che non è JSON.
-- **429, 502, 503** — solo Coach AI: Groq limita le richieste (429), non risponde o risponde con un errore (502), la chiave manca sul server (503).
+- **429** — troppe richieste: il limite di frequenza di login, registrazione, rinnovo del token e Coach AI, con `Retry-After` (vedi «Limiti di frequenza»). Per il Coach AI è 429 anche quando è Groq a limitare le richieste, con un altro messaggio e senza `Retry-After`.
+- **502, 503** — solo Coach AI: Groq non risponde o risponde con un errore (502), la chiave manca sul server (503).
 - **500** — errore imprevisto, con un messaggio generico.
 
 Fanno eccezione le richieste respinte prima di Spring MVC, dal container o dal firewall di Spring Security (un indirizzo malformato: 400 con il corpo di Spring Boot `{timestamp, status, error, path}` oppure con la pagina di errore di Tomcat), e il 403 «Invalid CORS request», che è solo testo (vedi Deploy).
+
+## Limiti di frequenza
+
+Il server conta le richieste e, oltre il limite, risponde 429 senza farle arrivare al servizio: un login respinto non costa il BCrypt a 12 giri, una richiesta respinta al Coach AI non arriva a Groq.
+
+- **Login, registrazione e rinnovo del token** (`POST /api/auth/login`, `/api/auth/register` e `/api/auth/refresh`) — 10 richieste al minuto per indirizzo IP. Ogni endpoint ha il suo contatore: chi sbaglia dieci volte la password non resta senza il rinnovo della sessione. Il limite sta prima dell'autenticazione e del BCrypt.
+- **Coach AI** (`POST /api/coach/chat`) — 20 richieste al minuto e 300 al giorno per utente (l'id dell'account, da qualunque indirizzo arrivi). Valgono tutte e due, e la quota del giorno conta le richieste che passano il limite del minuto: quelle respinte non la consumano. Senza token risponde il 401 e niente si conta. Lo stato del Coach (`GET /api/coach/status`), il logout e le altre API non sono limitati.
+- **Finestre fisse**, allineate all'orologio: il minuto finisce al secondo 0, il giorno a mezzanotte UTC (le 2 in Italia d'estate, l'1 d'inverno). Chi insiste oltre il limite non allunga l'attesa, ma a cavallo di due finestre si possono fare fino al doppio delle richieste in pochi secondi.
+
+**Risposta oltre il limite** — 429 con lo stesso corpo `{message, timestamp}` degli altri errori e l'intestazione `Retry-After`, cioè i secondi fino all'inizio della finestra successiva (da 1 alla lunghezza della finestra). Il messaggio dice l'attesa a parole:
+
+```http
+HTTP/1.1 429
+Retry-After: 40
+Content-Type: application/json
+
+{"message":"Troppi tentativi di accesso: riprova tra 40 secondi","timestamp":"2026-10-06T10:00:20.123456"}
+```
+
+Gli altri messaggi sono «Troppe richieste di registrazione», «Troppi rinnovi della sessione», «Troppe richieste al Coach AI» e, per la quota del giorno, «Quota giornaliera del Coach AI esaurita: riprova tra 14 ore».
+
+**Proprietà** — in `application.properties`, validate all'avvio (un valore sotto 1 ferma il server e dice quale è sbagliato):
+
+- `limite.auth-al-minuto=10` — login, registrazione e rinnovo, per indirizzo;
+- `limite.coach-al-minuto=20` e `limite.coach-al-giorno=300` — Coach AI, per utente.
+
+Si cambiano in `env.properties` o con le variabili d'ambiente `LIMITE_AUTH_AL_MINUTO`, `LIMITE_COACH_AL_MINUTO` e `LIMITE_COACH_AL_GIORNO` (utile per provare il server con molte richieste dallo stesso computer). Il profilo di test li alza a 100000 al minuto e 1000000 al giorno; i test dei limiti scelgono da sé valori bassi e usano un orologio che si sposta a comando.
+
+**Indirizzo del client e reverse proxy** — il limite per indirizzo usa `request.getRemoteAddr()`, l'indirizzo della connessione. Dietro un reverse proxy (nginx, un hosting...) è quello del proxy: **se non si fa altro, tutti gli utenti condividono un contatore solo** (10 accessi al minuto in tutto il sito) e il login si chiude a tutti. Chi pubblica il server dietro un proxy deve:
+
+1. impostare `server.forward-headers-strategy=native` (in `env.properties` o come variabile d'ambiente `SERVER_FORWARD_HEADERS_STRATEGY=native`);
+2. far mandare al proxy l'indirizzo del cliente in `X-Forwarded-For`, accodandolo a ciò che c'è già (nginx: `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`).
+
+Con `native` Tomcat sostituisce l'indirizzo del proxy con quello di `X-Forwarded-For` solo se la richiesta arriva da un proxy di cui si fida (`server.tomcat.remoteip.internal-proxies`: di base gli indirizzi locali e privati; un proxy con un indirizzo pubblico va elencato lì) e prende l'ultimo indirizzo che non è un proxy fidato, cioè quello che ha visto il proxy: ciò che il cliente ha scritto prima non conta. Il backend non legge mai `X-Forwarded-For` da sé, perché chi parla con il server può scriverci quello che vuole e basterebbe un valore diverso a ogni richiesta per non incontrare mai il limite. Per lo stesso motivo `server.forward-headers-strategy=framework` non basta: Spring prende il primo indirizzo dell'intestazione, quello che scrive il cliente, a meno che il proxy non la sostituisca invece di accodarsi. `LimiteRichiesteProxyIT` prova questi comportamenti su un server vero.
+
+**Più istanze del server** — i contatori stanno nella memoria del processo: si azzerano a ogni riavvio e, con più istanze, ognuna conta per sé, quindi il limite vero diventa quello scritto moltiplicato per il numero di istanze. Oggi l'istanza è una sola e basta così; con più istanze servirebbe un contatore condiviso (per esempio nel database o in Redis).
+
+Il limite per indirizzo rallenta chi prova da un computer solo, non un attacco distribuito: chi ha molti indirizzi (una rete di computer, un intero prefisso IPv6) ha un contatore per ognuno.
 
 ## Log
 
@@ -159,6 +200,7 @@ L'applicazione scrive nei log (console) ciò che serve a capire un problema in p
 - **Login fallito** (WARN) — `Login fallito per mario@x.it`: l'email normalizzata, mai la password. Un'email con CR o LF dentro non arriva fin lì: la validazione la rifiuta con 400.
 - **Registrazione** (INFO) — `Nuovo utente registrato: mario@x.it (id ...)`.
 - **Intervento di un ADMIN su dati di un altro utente** (INFO) — `Intervento ADMIN: admin@x.it (id ...): modifica lega <id> di proprietà dell'utente <id>`, oppure `eliminazione`. Solo per le modifiche e le eliminazioni di leghe, tappe, schede dell'anagrafe e pubblicazioni, e solo se la richiesta è andata oltre i controlli (una 404, 409 o 400 non lascia niente). Né le letture, per esempio un ADMIN che apre la lega di un altro, né i dati propri lasciano una riga. Contiene l'email dell'ADMIN e gli id, mai nomi scritti da altri utenti.
+- **Limite di frequenza superato** (WARN) — `Limite di richieste superato: Troppi tentativi di accesso (massimo 10 al minuto), indirizzo 203.0.113.9`, oppure `... Troppe richieste al Coach AI (massimo 20 al minuto), utente <id>`. Una riga sola per indirizzo (o utente) e per finestra, non una per richiesta: chi insiste non riempie i log. Il 429 stesso non lascia altre righe.
 - **Errori 500** (ERROR) — `Errore non gestito su GET /api/leghe`, con lo stack sotto: metodo e percorso della richiesta (senza la query, che può contenere dati personali). Gli errori di Groq li scrive una volta sola il Coach AI (vedi la sezione omonima).
 - **Seeder** — ogni volta che non creano i dati lo dicono, con il motivo: INFO se è la configurazione normale (`Admin non creato: ADMIN_EMAIL non è impostata`, `... esiste già un utente con l'email di ADMIN_EMAIL`, `Seed demo saltato: SEED_DEMO non è true`, `Seed demo saltato: già eseguito`), WARN se la configurazione non permette ciò che chi l'ha scritta si aspetta (password debole o mancante, `ADMIN_PASSWORD` impostata con `ADMIN_EMAIL` vuota, `SEED_DEMO` acceso senza `ADMIN_EMAIL` o senza l'admin nel database).
 
@@ -174,7 +216,7 @@ src/main/java/com/hoop3x3/backend/
 ├── exceptions/   # eccezioni tipizzate + ExceptionsHandler (corpo uniforme {message, timestamp})
 ├── repositories/ # Spring Data JPA
 ├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/estathe25.json, una volta sola)
-├── security/     # SecurityConfig, JwtFilter, JWTtools, JwtProperties (secret e durata del JWT, validati all'avvio), AuthCookies, CorsConfig, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB)
+├── security/     # SecurityConfig, JwtFilter, JWTtools, JwtProperties (secret e durata del JWT, validati all'avvio), AuthCookies, CorsConfig, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB), LimiteRichiesteFilter (429 oltre i limiti di frequenza) con LimiteRichieste (il contatore) e LimiteRichiesteProperties
 └── services/     # logica: proprietà (AccessGuard), JSON delle tappe, proxy Groq, refresh token (RefreshTokenService)
 ```
 
