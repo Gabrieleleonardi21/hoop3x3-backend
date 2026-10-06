@@ -18,10 +18,14 @@ import java.util.concurrent.atomic.AtomicReference;
  * precedente, con tutte le sue voci, si butta: la memoria non cresce con indirizzi sempre nuovi, e non serve nessun giro di
  * pulizia voce per voce, che dovrebbe convivere con le richieste che contano nello stesso momento.
  * <p>
- * La finestra in corso non torna mai indietro. Una richiesta che ha letto l'ora poco prima dello scoccare del minuto e arriva
- * dopo un'altra che ha già aperto il minuto nuovo, o un orologio di sistema che torna indietro, contano nella finestra più
- * nuova: rimpiazzarla con una vecchia vuota farebbe sparire i conteggi del minuto nuovo per tutte le chiavi. Se l'orologio
- * torna indietro di molto, i conteggi restano nella finestra più avanti finché l'ora non la raggiunge: meglio di ripartire da zero.
+ * La finestra in corso non torna mai indietro, ma fino a un certo punto. Una richiesta che ha letto l'ora poco prima dello
+ * scoccare del minuto e arriva dopo un'altra che ha già aperto il minuto nuovo, o un orologio di sistema che torna indietro
+ * di poco (fino a 60 secondi prima dell'inizio della finestra in corso), contano nella finestra più nuova: rimpiazzarla con
+ * una vecchia vuota farebbe sparire i conteggi del minuto nuovo per tutte le chiavi. Più indietro non è una richiesta in
+ * ritardo ma un orologio tornato indietro di molto (una macchina virtuale ripristinata, la data cambiata a mano): si riparte
+ * da una finestra vuota, perché tenere i conteggi nella finestra più avanti darebbe a ogni chiave il solo massimo per tutta la
+ * durata del salto, con un Retry-After di ore. Così il Retry-After va da 1 secondo alla lunghezza della finestra più al
+ * massimo 60 secondi.
  * <p>
  * Regge le richieste contemporanee (ConcurrentHashMap e contatori atomici, nessun blocco). Vive nella memoria di questo
  * server: si azzera al riavvio e, con più istanze del server, ognuna conta per sé (vedi il README).
@@ -57,6 +61,12 @@ public class LimiteRichieste {
 
     private static final Esito CONSENTITA = new Esito(true, 0, false);
 
+    /**
+     * Quanto prima dell'inizio della finestra in corso può cadere l'ora di una richiesta in ritardo o di un orologio corretto di
+     * poco, senza che si riparta da una finestra vuota. È anche il tetto del Retry-After oltre la lunghezza della finestra.
+     */
+    private static final long TOLLERANZA_SECONDI = 60;
+
     private final int massimo;
     private final Finestra finestra;
     private final Clock orologio;
@@ -71,32 +81,39 @@ public class LimiteRichieste {
     /** Conta una richiesta della chiave e dice se può passare */
     public Esito conta(String chiave) {
         long adesso = orologio.instant().getEpochSecond();
-        FinestraInCorso usata = finestraInCorso(adesso / finestra.secondi());
+        FinestraInCorso usata = finestraInCorso(adesso);
         // Il contatore è atomico: due richieste contemporanee non si perdono e non contano due volte lo stesso posto
         long richieste = usata.conteggi().computeIfAbsent(chiave, _ -> new AtomicLong()).incrementAndGet();
         if (richieste <= massimo) return CONSENTITA;
         // Conta anche chi sfora: la richiesta che porta il conteggio a massimo + 1 è la prima respinta, una per finestra.
-        // L'attesa è fino alla fine della finestra in cui ha contato, che per una richiesta in ritardo è la più nuova
+        // L'attesa è fino alla fine della finestra in cui ha contato, che per una richiesta in ritardo è la più nuova: al massimo
+        // la lunghezza della finestra più TOLLERANZA_SECONDI
         long attesa = (usata.numero() + 1) * finestra.secondi() - adesso;
         return new Esito(false, attesa, richieste == massimo + 1L);
     }
 
     /**
-     * La finestra in corso per una richiesta che ha letto l'ora nella finestra con quel numero. Non torna mai indietro: se ne
-     * è già aperta una uguale o più nuova la richiesta conta lì (una richiesta in ritardo, o un orologio tornato indietro, non
-     * riaprono una finestra vecchia vuota). Solo se quella in corso è più vecchia ne apre una vuota e butta la precedente con
-     * le sue voci.
+     * La finestra in corso per una richiesta che ha letto quell'ora (secondi dell'epoca). Non torna mai indietro: se ne è già
+     * aperta una uguale o più nuova la richiesta conta lì (una richiesta in ritardo, o un orologio tornato indietro di poco,
+     * non riaprono una finestra vecchia vuota). Ne apre una vuota, e butta la precedente con le sue voci, se quella in corso
+     * è più vecchia o se l'orologio è tornato indietro di molto.
      */
-    private FinestraInCorso finestraInCorso(long numero) {
+    private FinestraInCorso finestraInCorso(long adesso) {
+        long numero = adesso / finestra.secondi();
         FinestraInCorso attuale = inCorso.get(); // il caso di quasi tutte le richieste: una sola lettura
         // Se più richieste aprono la finestra nuova insieme ne vince una; le altre, dopo il confronto fallito, ricontrollano
         // con la stessa condizione e trovano già la sua mappa
-        while (attuale.numero() < numero) {
+        while (attuale.numero() < numero || orologioTornatoIndietroDiMolto(attuale, adesso)) {
             FinestraInCorso nuova = new FinestraInCorso(numero, new ConcurrentHashMap<>());
             if (inCorso.compareAndSet(attuale, nuova)) return nuova;
             attuale = inCorso.get();
         }
         return attuale;
+    }
+
+    /** L'ora è più di TOLLERANZA_SECONDI prima dell'inizio della finestra in corso: non è una richiesta in ritardo */
+    private boolean orologioTornatoIndietroDiMolto(FinestraInCorso attuale, long adesso) {
+        return attuale.numero() * finestra.secondi() - adesso > TOLLERANZA_SECONDI;
     }
 
     /** Quante voci ci sono in memoria: lo guardano i test della pulizia */

@@ -208,6 +208,62 @@ class LimiteRichiesteTest {
         faiPassare(limite, INDIRIZZO, 3);
     }
 
+    // Se l'orologio torna indietro di ore (una macchina virtuale ripristinata, la data cambiata a mano) i conteggi non restano
+    // nella finestra più avanti: darebbero a ogni chiave il solo massimo per tutta la durata del salto, con un Retry-After di
+    // ore (per un indirizzo nuovo, 10 login e poi 2 h 40 di rifiuti). Si riparte da una finestra vuota e l'attesa resta quella
+    // di un minuto
+    @Test
+    void unOrologioCheTornaIndietroDiOre_ripartiDaUnaFinestraVuotaEIlRetryAfterRestaQuelloDiUnMinuto() {
+        LimiteRichieste limite = alMinuto(3);
+        orologio.avanza(Duration.ofHours(3)); // 13:00:20
+        faiPassare(limite, INDIRIZZO, 3);
+        assertThat(limite.conta(INDIRIZZO).consentita()).isFalse();
+
+        orologio.imposta(Instant.parse("2026-10-06T10:00:20Z")); // l'orologio del server torna indietro di 3 ore
+
+        Esito primoDopoIlSalto = limite.conta(INDIRIZZO);
+        assertThat(primoDopoIlSalto.secondiAttesa()).as("Retry-After: la finestra più 60 secondi al massimo").isLessThanOrEqualTo(60 + 60);
+        assertThat(primoDopoIlSalto.consentita()).as("il minuto 10:00 è nuovo, con tutti i suoi posti").isTrue();
+        faiPassare(limite, INDIRIZZO, 2);
+        Esito quarto = limite.conta(INDIRIZZO);
+        assertThat(quarto.consentita()).isFalse();
+        assertThat(quarto.secondiAttesa()).as("il minuto 10:00 finisce alle 10:01:00, 40 secondi da qui").isEqualTo(40);
+    }
+
+    // Il confine: fino a 60 secondi prima dell'inizio della finestra in corso l'ora è ancora una richiesta in ritardo o una
+    // piccola correzione, e conta nella finestra più avanti: il Retry-After arriva alla finestra più 60 secondi, non oltre.
+    // Un secondo più indietro l'orologio è tornato indietro di molto e si riparte da una finestra vuota
+    @Test
+    void ilSaltoIndietroSiTollera_finoASessantaSecondiPrimaDellInizioDellaFinestra() {
+        LimiteRichieste limite = alMinuto(3);
+        orologio.avanza(Duration.ofSeconds(70)); // 10:01:30, nel minuto che comincia alle 10:01:00
+        faiPassare(limite, INDIRIZZO, 3);
+
+        orologio.imposta(Instant.parse("2026-10-06T10:00:00Z")); // 60 secondi prima dell'inizio: ancora la stessa finestra
+        Esito alLimite = limite.conta(INDIRIZZO);
+        assertThat(alLimite.consentita()).isFalse();
+        assertThat(alLimite.secondiAttesa()).as("la finestra più 60 secondi: il massimo").isEqualTo(120);
+
+        orologio.imposta(Instant.parse("2026-10-06T09:59:59Z")); // 61 secondi prima: l'orologio è tornato indietro di molto
+        assertThat(limite.conta(INDIRIZZO).consentita()).as("si riparte da una finestra vuota").isTrue();
+    }
+
+    // Vale anche per il giorno, e la tolleranza è misurata dall'inizio della finestra e non da un minuto fisso: tornare
+    // indietro oltre la mezzanotte che ha aperto il giorno in corso riparte da zero
+    @Test
+    void unOrologioCheTornaIndietroOltreLInizioDelGiorno_ripartiDaUnaFinestraVuota() {
+        LimiteRichieste limite = alGiorno(3);
+        faiPassare(limite, "utente", 3); // 10:00:20 del 6 ottobre
+        assertThat(limite.conta("utente").consentita()).isFalse();
+
+        orologio.imposta(Instant.parse("2026-10-05T22:00:00Z")); // due ore prima della mezzanotte: è il giorno prima
+
+        faiPassare(limite, "utente", 3);
+        Esito esito = limite.conta("utente");
+        assertThat(esito.consentita()).isFalse();
+        assertThat(esito.secondiAttesa()).as("il giorno del 5 ottobre finisce a mezzanotte, 2 ore da qui").isEqualTo(2 * 3600);
+    }
+
     /* ── La riga di log: una sola per chiave e per finestra ── */
 
     @Test
