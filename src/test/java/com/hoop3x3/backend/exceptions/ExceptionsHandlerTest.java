@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.hoop3x3.backend.dto.ErrorsDTO;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,8 +16,10 @@ import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.web.context.request.ServletWebRequest;
+import org.springframework.web.context.request.WebRequest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 /**
  * ExceptionsHandler da solo, senza Spring: richiesta e risposta sono finte e i log si leggono dal test.
@@ -61,5 +64,69 @@ class ExceptionsHandlerTest {
             assertThat(riga.getLevel()).isEqualTo(Level.WARN);
             assertThat(riga.getThrowableProxy()).as("una riga sola, senza stack").isNull();
         });
+    }
+
+    // Un 500 senza la richiesta che l'ha dato è un guasto da cercare a tentoni: la riga ERROR dice metodo e percorso, e
+    // sotto resta lo stack dell'eccezione
+    @Test
+    void erroreNonGestito_scriveLaRigaErrorConMetodoEPercorsoDellaRichiesta() {
+        ResponseEntity<ErrorsDTO> esito = gestore.handleImprevisto(new IllegalStateException("dettaglio interno"), richiesta);
+
+        assertThat(esito.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(logCatturato.list).singleElement().satisfies(riga -> {
+            assertThat(riga.getLevel()).isEqualTo(Level.ERROR);
+            assertThat(riga.getFormattedMessage()).isEqualTo("Errore non gestito su GET /api/leghe/x");
+            assertThat(riga.getThrowableProxy().getClassName()).isEqualTo(IllegalStateException.class.getName());
+        });
+    }
+
+    // I 5xx delle eccezioni di Spring MVC passano da handleExceptionInternal e non da handleImprevisto: stessa informazione
+    @Test
+    void erroreDiSpringMvcCon5xx_scriveLaRigaErrorConMetodoEPercorsoDellaRichiesta() {
+        gestore.handleExceptionInternal(new HttpMessageNotWritableException("x"),
+                null, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, richiesta);
+
+        assertThat(logCatturato.list).singleElement().satisfies(riga -> {
+            assertThat(riga.getLevel()).isEqualTo(Level.ERROR);
+            assertThat(riga.getFormattedMessage()).isEqualTo("Errore 500 di Spring MVC su GET /api/leghe/x");
+            assertThat(riga.getThrowableProxy().getClassName()).isEqualTo(HttpMessageNotWritableException.class.getName());
+        });
+    }
+
+    // Il percorso lo scrive chi manda la richiesta: con un CR o un LF dentro, una riga di log ne diventerebbe due e la
+    // seconda sarebbe inventata da lui. Nel log restano i caratteri «\r» e «\n» scritti per esteso, così il tentativo si vede
+    @Test
+    void percorsoConCrLf_nonPuoInventareRigheDiLog() {
+        ServletWebRequest ostile = new ServletWebRequest(
+                new MockHttpServletRequest("GET", "/api/leghe/x\r\nERROR riga inventata"), risposta);
+
+        gestore.handleImprevisto(new IllegalStateException("x"), ostile);
+        gestore.handleExceptionInternal(new HttpMessageNotWritableException("x"),
+                null, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, ostile);
+
+        assertThat(logCatturato.list).hasSize(2).allSatisfy(riga ->
+                assertThat(riga.getFormattedMessage()).doesNotContain("\r", "\n")
+                        .endsWith("GET /api/leghe/x\\r\\nERROR riga inventata"));
+    }
+
+    // Un gestore di errori che a sua volta lancia nasconderebbe l'errore vero: una richiesta di un tipo imprevisto non lo rompe
+    @Test
+    void richiestaDiUnTipoImprevisto_nonRompeIlGestoreEScriveComunqueLaRiga() {
+        ResponseEntity<ErrorsDTO> esito = gestore.handleImprevisto(new IllegalStateException("x"), mock(WebRequest.class));
+
+        assertThat(esito.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(logCatturato.list).singleElement().satisfies(riga ->
+                assertThat(riga.getFormattedMessage()).isEqualTo("Errore non gestito su una richiesta sconosciuta"));
+    }
+
+    // Gli errori di Groq li registra già CoachAiService (con lo stato e il corpo della risposta): se li scrivesse anche
+    // il gestore, ogni errore del Coach comparirebbe due volte nei log
+    @Test
+    void erroreDelCoach_ilGestoreRispondeESenzaScrivereUnaSecondaRiga() {
+        ResponseEntity<ErrorsDTO> esito = gestore.handleUpstream(
+                new UpstreamException(HttpStatus.BAD_GATEWAY, "Servizio AI non raggiungibile"));
+
+        assertThat(esito.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(logCatturato.list).isEmpty();
     }
 }

@@ -37,6 +37,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
@@ -62,6 +63,14 @@ class ErroriWebTest {
 
     String bearer;
     UUID utenteId;
+    // CapturedOutput accumula l'output di tutta la classe: ogni test legge solo ciò che è uscito dopo il suo inizio, così la
+    // riga ERROR di un test non può soddisfare le prove di un altro
+    private int inizio;
+
+    @BeforeEach
+    void ricordaDoveCominciaLUscita(CapturedOutput output) {
+        inizio = output.getAll().length();
+    }
 
     @BeforeEach
     void utenteAutenticato() {
@@ -82,7 +91,7 @@ class ErroriWebTest {
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(content().string(not(containsString("insert into"))));
 
-        assertRigaErrorNeiLog(output, "IllegalStateException");
+        assertRigaErrorNeiLog(output, "Errore non gestito su GET /api/leghe", "IllegalStateException");
     }
 
     @Test
@@ -96,7 +105,7 @@ class ErroriWebTest {
                 .andExpect(jsonPath("$.message").value("Errore interno del server: riprova più tardi"))
                 .andExpect(jsonPath("$.timestamp").exists());
 
-        assertRigaErrorNeiLog(output, "HttpMessageNotWritableException");
+        assertRigaErrorNeiLog(output, "Errore 500 di Spring MVC su GET /api/leghe", "HttpMessageNotWritableException");
     }
 
     @Test
@@ -136,15 +145,17 @@ class ErroriWebTest {
     }
 
     @Test
-    void databaseNonRaggiungibileNelFiltro_risponde500ConCorpoStandard() throws Exception {
+    void databaseNonRaggiungibileNelFiltro_risponde500ConCorpoStandard(CapturedOutput output) throws Exception {
         // Il filtro legge l'utente dal database prima del controller: l'errore nasce nel filtro, fuori da Spring MVC,
-        // e deve comunque passare dal gestore generico (corpo {message, timestamp} e riga ERROR nei log)
+        // e deve comunque passare dal gestore generico (corpo {message, timestamp} e riga ERROR nei log, con il percorso)
         when(utenteRepository.findById(utenteId)).thenThrow(new DataAccessResourceFailureException("database non raggiungibile"));
 
         mvc.perform(get("/api/leghe").header("Authorization", bearer))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.message").value("Errore interno del server: riprova più tardi"))
                 .andExpect(jsonPath("$.timestamp").exists());
+
+        assertRigaErrorNeiLog(output, "Errore non gestito su GET /api/leghe", "DataAccessResourceFailureException");
     }
 
     @Test
@@ -210,8 +221,12 @@ class ErroriWebTest {
                 .andExpect(jsonPath("$.message").value("Corpo della richiesta non valido"));
     }
 
-    /** Nei log c'è una riga ERROR scritta da ExceptionsHandler e, sotto, lo stack con il nome dell'eccezione */
-    private static void assertRigaErrorNeiLog(CapturedOutput output, String eccezione) {
-        assertThat(output.getAll()).containsPattern("(?m)^.*ERROR.*ExceptionsHandler.*$").contains(eccezione);
+    /**
+     * Nei log del test c'è una riga ERROR scritta da ExceptionsHandler con quel messaggio (che nomina metodo e percorso
+     * della richiesta) e, sotto, lo stack con il nome dell'eccezione
+     */
+    private void assertRigaErrorNeiLog(CapturedOutput output, String messaggio, String eccezione) {
+        String uscita = output.getAll().substring(inizio);
+        assertThat(uscita).containsPattern("(?m)^.*ERROR.*ExceptionsHandler +: " + Pattern.quote(messaggio) + "$").contains(eccezione);
     }
 }

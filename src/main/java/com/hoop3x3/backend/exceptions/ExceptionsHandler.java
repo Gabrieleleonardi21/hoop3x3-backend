@@ -1,8 +1,8 @@
 package com.hoop3x3.backend.exceptions;
 
 import com.hoop3x3.backend.dto.ErrorsDTO;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -26,10 +26,9 @@ import java.util.stream.Collectors;
  * Estende ResponseEntityExceptionHandler così anche gli errori standard di Spring MVC (405, 415, 404,
  * parametro di tipo sbagliato…) passano da handleExceptionInternal e prendono lo stesso corpo.
  */
+@Slf4j
 @RestControllerAdvice
 public class ExceptionsHandler extends ResponseEntityExceptionHandler {
-
-    private static final Logger log = LoggerFactory.getLogger(ExceptionsHandler.class);
 
     /* ── Errori standard di Spring MVC ── */
 
@@ -45,7 +44,7 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
         // arrivano qui, non a handleImprevisto: la riga ERROR con lo stack va scritta qui, altrimenti il 500 neutro
         // non lascerebbe nessuna traccia nei log
         if (status.is5xxServerError()) {
-            log.error("Errore {} di Spring MVC", status.value(), ex);
+            log.error("Errore {} di Spring MVC su {}", status.value(), richiestaPerLog(request), ex);
         }
         return ResponseEntity.status(status).headers(headers).body(errore(messaggioPer(status)));
     }
@@ -121,11 +120,12 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
         return risposta(HttpStatus.CONFLICT, "Operazione in conflitto con i dati già salvati");
     }
 
-    // Rete di sicurezza per ciò che nessun altro gestore prende: 500 con messaggio generico e riga ERROR nei log
-    // (i 5xx delle eccezioni di Spring MVC passano da handleExceptionInternal, che li scrive nei log)
+    // Rete di sicurezza per ciò che nessun altro gestore prende: 500 con messaggio generico e riga ERROR nei log, con
+    // metodo e percorso della richiesta (i 5xx delle eccezioni di Spring MVC passano da handleExceptionInternal, che li
+    // scrive nei log)
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorsDTO> handleImprevisto(Exception ex) {
-        log.error("Errore non gestito", ex);
+    public ResponseEntity<ErrorsDTO> handleImprevisto(Exception ex, WebRequest request) {
+        log.error("Errore non gestito su {}", richiestaPerLog(request), ex);
         return risposta(HttpStatus.INTERNAL_SERVER_ERROR, "Errore interno del server: riprova più tardi");
     }
 
@@ -137,6 +137,18 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
 
     private static ResponseEntity<ErrorsDTO> risposta(HttpStatus status, String messaggio) {
         return ResponseEntity.status(status).body(errore(messaggio));
+    }
+
+    /**
+     * «GET /api/leghe»: la richiesta che ha dato l'errore, per le righe ERROR dei log (senza la query, che può contenere
+     * dati personali). Il percorso lo sceglie chi manda la richiesta: CR e LF si scrivono per esteso («\r», «\n»), così non
+     * può chiudere la riga e inventarne una sua.
+     */
+    private static String richiestaPerLog(WebRequest request) {
+        // Con Spring MVC la richiesta è sempre un ServletWebRequest: un gestore di errori che lanciasse nasconderebbe l'errore vero
+        if (!(request instanceof ServletWebRequest web)) return "una richiesta sconosciuta";
+        HttpServletRequest richiesta = web.getRequest();
+        return (richiesta.getMethod() + " " + richiesta.getRequestURI()).replace("\r", "\\r").replace("\n", "\\n");
     }
 
     /** I primi byte della risposta sono già partiti verso il client: non si può più scriverle sopra un corpo d'errore */
