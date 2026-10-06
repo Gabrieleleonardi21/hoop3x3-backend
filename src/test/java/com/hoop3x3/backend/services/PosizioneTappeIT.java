@@ -1,5 +1,6 @@
 package com.hoop3x3.backend.services;
 
+import com.hoop3x3.backend.RichiesteContemporanee;
 import com.hoop3x3.backend.TappaDiProva;
 import com.hoop3x3.backend.TestDiIntegrazione;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
@@ -15,8 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.support.DefaultTransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.SQLException;
@@ -27,8 +26,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.LockSupport;
-import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -53,10 +50,12 @@ class PosizioneTappeIT {
     @Autowired PlatformTransactionManager transazioni;
 
     private Utente mario; // proprietario delle leghe di prova
+    private RichiesteContemporanee insieme;
 
     @BeforeEach
     void creaIlProprietario() {
         mario = utenti.save(new Utente("mario@test.it", "hash", "Mario", Ruolo.USER));
+        insieme = new RichiesteContemporanee(jdbc, transazioni);
     }
 
     /* ── La tappa nuova va una posizione dopo la massima ── */
@@ -174,8 +173,8 @@ class PosizioneTappeIT {
             Future<TappaDTO> seconda = new TransactionTemplate(transazioni).execute(transazione -> {
                 aggiungi(lega, "Prima");
                 Future<TappaDTO> richiesta = altroThread.submit(() -> aggiungi(lega, "Seconda"));
-                aspettaFinitaOFermaSuUnLock(richiesta);
-                assertThat(unaRichiestaAspettaUnLock()).as("la seconda richiesta aspetta che la prima confermi").isTrue();
+                insieme.aspettaFinitaOFermaSuUnLock(richiesta);
+                assertThat(insieme.unaRichiestaAspettaUnLock()).as("la seconda richiesta aspetta che la prima confermi").isTrue();
                 return richiesta;
             });
             seconda.get(30, TimeUnit.SECONDS);
@@ -250,46 +249,15 @@ class PosizioneTappeIT {
 
     /* ── Un'altra connessione: il database come lo vedrebbe un'altra richiesta ── */
 
-    /**
-     * Esegue `azione` in una transazione nuova, quindi su un'altra connessione, mentre quella del test resta sospesa.
-     * Ogni transazione nuova parte da una lettura aggiornata, anche di pg_stat_activity (dentro una transazione resterebbe
-     * quella della prima lettura).
-     */
-    private <T> T daUnAltraConnessione(Supplier<T> azione) {
-        DefaultTransactionDefinition nuova = new DefaultTransactionDefinition(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-        return new TransactionTemplate(transazioni, nuova).execute(transazione -> azione.get());
-    }
-
     /** Se un'altra transazione tiene bloccata la riga della lega: `for update nowait` non aspetta, se è bloccata fallisce subito */
     private boolean rigaDellaLegaBloccata(UUID legaId) {
         try {
-            daUnAltraConnessione(() -> jdbc.queryForObject("select id from leghe where id = ? for update nowait", UUID.class, legaId));
+            insieme.daUnAltraConnessione(() -> jdbc.queryForObject("select id from leghe where id = ? for update nowait", UUID.class, legaId));
             return false;
         } catch (DataAccessException e) {
             // Spring non dà a questo errore di PostgreSQL un'eccezione sua: si riconosce dallo SQLSTATE
             if (e.getRootCause() instanceof SQLException sql && LOCK_NON_DISPONIBILE.equals(sql.getSQLState())) return true;
             throw e;
-        }
-    }
-
-    /**
-     * Se una richiesta al database è ferma ad aspettare un lock. Guarda tutto il database di prova, ma le classi di
-     * integrazione girano una alla volta: l'unica che può aspettare è la seconda richiesta del test.
-     */
-    private boolean unaRichiestaAspettaUnLock() {
-        int inAttesa = daUnAltraConnessione(() -> jdbc.queryForObject(
-                "select count(*) from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'", Integer.class));
-        return inAttesa > 0;
-    }
-
-    /**
-     * Aspetta, al massimo 10 secondi, che la richiesta sia finita o ferma su un lock: se non aspetta nessun lock finisce da
-     * sola, e così il test non resta ad aspettare invano né dipende da una pausa scelta a caso.
-     */
-    private void aspettaFinitaOFermaSuUnLock(Future<?> richiesta) {
-        long scadenza = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
-        while (!richiesta.isDone() && !unaRichiestaAspettaUnLock() && System.nanoTime() < scadenza) {
-            LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(10)); // pausa di 10 ms tra una lettura e l'altra
         }
     }
 
