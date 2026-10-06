@@ -25,7 +25,7 @@ public class CoachController {
         return Map.of("available", coachAiService.isConfigurato());
     }
 
-    // Il limite per utente (20 richieste al minuto, 300 al giorno) lo applica LimiteRichiesteFilter prima di arrivare qui
+    // Il limite per utente lo applica LimiteRichiesteFilter, prima di arrivare qui
     @PostMapping("/chat")
     public JsonNode chat(@RequestBody @Validated CoachChatRequestDTO dto) {
         return coachAiService.chat(dto);

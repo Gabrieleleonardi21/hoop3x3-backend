@@ -27,8 +27,7 @@ import static com.hoop3x3.backend.services.LogSupport.perLog;
 /**
  * Autenticazione: il JWT di accesso (30 minuti) viaggia nel corpo JSON, il refresh token (30 giorni)
  * in un cookie httpOnly che il browser rimanda solo a questi endpoint. Vedi AuthCookies e RefreshTokenService.
- * Login, registrazione e rinnovo hanno un limite di richieste per indirizzo, che applica LimiteRichiesteFilter prima di
- * arrivare qui (e quindi prima del BCrypt).
+ * Il limite di richieste per indirizzo di login, registrazione e rinnovo lo applica LimiteRichiesteFilter, prima di arrivare qui.
  */
 @Slf4j
 @RestController

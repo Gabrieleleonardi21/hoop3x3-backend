@@ -56,7 +56,7 @@ Proxy verso [Groq](https://console.groq.com/) (`POST /api/coach/chat`, autentica
 
 La richiesta è controllata prima di arrivare a Groq, altrimenti 400: `messages` da 1 a 60 messaggi, ognuno con ruolo `system`, `user`, `assistant` o `tool`, per al massimo 100.000 caratteri; `tools` al massimo 20 strumenti (50.000 caratteri). Modello e limite di token li fissa il server. Groq ha 5 secondi per accettare la connessione e 60 per mandare l'intera risposta.
 
-Ogni utente può fare 20 richieste al minuto e 300 al giorno: oltre, il server risponde 429 con `Retry-After` senza chiamare Groq (vedi «Limiti di frequenza»).
+Ogni utente può fare 20 richieste al minuto e 300 al giorno: oltre, il server risponde 429 (vedi «Limiti di frequenza»).
 
 Gli errori di Groq arrivano al client senza dettagli interni: 429 se Groq limita le richieste, 400 se rifiuta la richiesta (anche perché troppo lunga), 502 per tutto il resto (errore di Groq, chiave non valida, rete, timeout, risposta che non è un oggetto JSON), 503 se la chiave manca. Nei log del server ogni 502 e 503 ha la sua riga `WARN` con la causa: stato e corpo della risposta di Groq (troncato a 500 caratteri e su una riga sola: a capo e caratteri di controllo sono scritti per esteso) oppure l'eccezione di rete. La chiave non viene mai scritta nei log.
 
@@ -157,9 +157,9 @@ Fanno eccezione le richieste respinte prima di Spring MVC, dal container o dal f
 
 ## Limiti di frequenza
 
-Il server conta le richieste e, oltre il limite, risponde 429 senza farle arrivare al servizio: un login respinto non costa il BCrypt a 12 giri, una richiesta respinta al Coach AI non arriva a Groq.
+Il server conta le richieste e, oltre il limite, risponde 429 senza farle arrivare al servizio (niente BCrypt, niente chiamata a Groq). A che cosa serve, e perché il controllo sta dove sta, è scritto nel commento di `LimiteRichiesteFilter`.
 
-- **Login, registrazione e rinnovo del token** (`POST /api/auth/login`, `/api/auth/register` e `/api/auth/refresh`) — 10 richieste al minuto per indirizzo IP. Ogni endpoint ha il suo contatore: chi sbaglia dieci volte la password non resta senza il rinnovo della sessione. Il limite sta prima dell'autenticazione e del BCrypt.
+- **Login, registrazione e rinnovo del token** (`POST /api/auth/login`, `/api/auth/register` e `/api/auth/refresh`) — 10 richieste al minuto per indirizzo IP. Ogni endpoint ha il suo contatore: chi sbaglia dieci volte la password non resta senza il rinnovo della sessione.
 - **Coach AI** (`POST /api/coach/chat`) — 20 richieste al minuto e 300 al giorno per utente (l'id dell'account, da qualunque indirizzo arrivi). Valgono tutte e due. La quota conta ogni richiesta autenticata alla chat, anche quelle che poi falliscono (per esempio con 400 o 413, perché il limite sta prima della validazione e del tetto dei 2 MB); non la consumano solo quelle respinte dal limite del minuto. Senza token risponde il 401 e niente si conta. Lo stato del Coach (`GET /api/coach/status`), il logout e le altre API non sono limitati.
 - **Finestre fisse**, allineate all'orologio: il minuto finisce al secondo 0, il giorno a mezzanotte UTC (le 2 in Italia d'estate, l'1 d'inverno). Chi insiste oltre il limite non allunga l'attesa, ma a cavallo di due finestre si possono fare fino al doppio delle richieste in pochi secondi.
 

@@ -30,9 +30,11 @@ import static org.springframework.security.web.servlet.util.matcher.PathPatternR
  * controller. Due regole:
  * <ul>
  *   <li><b>Login, registrazione e rinnovo del token</b>, per indirizzo IP e ognuno con il suo contatore: ogni login e ogni
- *       registrazione costano un BCrypt a 12 giri, che gira nel controller. Respinta qui, la richiesta non costa niente.</li>
+ *       registrazione costano un BCrypt a 12 giri, che gira nel controller, e senza limite le password si proverebbero a
+ *       ripetizione e gli account si creerebbero a migliaia (BE-11). Respinta qui, la richiesta non costa niente.</li>
  *   <li><b>Coach AI</b> (POST /api/coach/chat), per utente e in due finestre, il minuto e il giorno UTC: ogni richiesta è una
- *       chiamata alla chiave Groq del server. Respinta qui, non arriva a Groq.</li>
+ *       chiamata alla chiave Groq del server, e la registrazione è libera, quindi qualsiasi account potrebbe usarla come proxy
+ *       senza fine (BE-2). Respinta qui, non arriva a Groq.</li>
  * </ul>
  * È un filtro, come JwtFilter e LimiteDimensioneFilter, e non un HandlerInterceptor o un controllo nel controller, perché deve
  * girare prima di tutto il resto: una richiesta respinta qui non fa leggere il corpo (LimiteDimensioneFilter, che gira dopo,

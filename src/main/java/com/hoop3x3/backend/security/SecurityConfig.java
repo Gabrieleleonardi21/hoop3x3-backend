@@ -64,9 +64,7 @@ public class SecurityConfig {
                 )
                 // il JwtFilter deve girare PRIMA del controllo di autorizzazione
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                // Il limite di frequenza gira subito dopo il JwtFilter: quello del Coach conta per utente, e l'utente lo
-                // riconosce il JwtFilter. Login, registrazione e rinnovo non passano dal JwtFilter e il limite li ferma prima
-                // del controller, dove gira il BCrypt: una richiesta respinta qui non costa niente
+                // limiti di frequenza: subito dopo il JwtFilter (il perché, in LimiteRichiesteFilter)
                 .addFilterAfter(limiteFilter, JwtFilter.class);
         return http.build();
     }
