@@ -36,8 +36,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * BE-9, modifiche concorrenti alle tappe, con il database vero e la catena di sicurezza vera (JWT compreso). La PUT
  * sostituisce la tappa intera, partite comprese: due dispositivi (o due schede) aperti sulla stessa tappa si sovrascrivevano
- * in silenzio. Ora ogni tappa ha una versione, che il server aumenta a ogni salvataggio e che il client rimanda con la PUT:
- * senza versione la PUT è un 400, con una versione che non è più quella del database un 409.
+ * in silenzio. Ora ogni tappa ha una versione, che il server aumenta quando un salvataggio la cambia e che il client rimanda
+ * con la PUT: senza versione la PUT è un 400, con una versione che non è più quella del database un 409.
  */
 @TestDiIntegrazione
 @AutoConfigureMockMvc
@@ -103,7 +103,7 @@ class VersioneTappeIT {
         leggi(UUID.fromString(creata.get("id").asString())).andExpect(jsonPath("$.tappe[*].versione", contains(0, 0)));
     }
 
-    /* ── La versione sale a ogni salvataggio, e la risposta porta quella nuova ── */
+    /* ── La versione sale quando un salvataggio cambia la tappa, e la risposta porta quella nuova ── */
 
     @Test
     void laPutRispondeConLaVersioneSuccessiva_eLaGetLaConferma() throws Exception {

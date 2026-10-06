@@ -402,7 +402,7 @@ class ArchivioIT {
 
     /**
      * Mario salva di nuovo la tappa (PUT) con un altro nome e un altro stato, rimandando la versione che ha letto: 0 dopo
-     * l'import, una in più a ogni salvataggio
+     * l'import, una in più a ogni salvataggio che cambia la tappa
      */
     private void salvaDiNuovo(TappaDTO tappa, String nome, boolean conclusa, long versione) {
         legaService.aggiornaTappa(mario, tappa.id(), TappaDiProva.da(tappa).nome(nome).conclusa(conclusa).versione(versione).build());
