@@ -18,6 +18,11 @@ import java.util.concurrent.atomic.AtomicReference;
  * precedente, con tutte le sue voci, si butta: la memoria non cresce con indirizzi sempre nuovi, e non serve nessun giro di
  * pulizia voce per voce, che dovrebbe convivere con le richieste che contano nello stesso momento.
  * <p>
+ * La finestra in corso non torna mai indietro. Una richiesta che ha letto l'ora poco prima dello scoccare del minuto e arriva
+ * dopo un'altra che ha già aperto il minuto nuovo, o un orologio di sistema che torna indietro, contano nella finestra più
+ * nuova: rimpiazzarla con una vecchia vuota farebbe sparire i conteggi del minuto nuovo per tutte le chiavi. Se l'orologio
+ * torna indietro di molto, i conteggi restano nella finestra più avanti finché l'ora non la raggiunge: meglio di ripartire da zero.
+ * <p>
  * Regge le richieste contemporanee (ConcurrentHashMap e contatori atomici, nessun blocco). Vive nella memoria di questo
  * server: si azzera al riavvio e, con più istanze del server, ognuna conta per sé (vedi il README).
  */
@@ -66,24 +71,32 @@ public class LimiteRichieste {
     /** Conta una richiesta della chiave e dice se può passare */
     public Esito conta(String chiave) {
         long adesso = orologio.instant().getEpochSecond();
-        long numero = adesso / finestra.secondi();
+        FinestraInCorso usata = finestraInCorso(adesso / finestra.secondi());
         // Il contatore è atomico: due richieste contemporanee non si perdono e non contano due volte lo stesso posto
-        long richieste = finestraInCorso(numero).conteggi().computeIfAbsent(chiave, _ -> new AtomicLong()).incrementAndGet();
+        long richieste = usata.conteggi().computeIfAbsent(chiave, _ -> new AtomicLong()).incrementAndGet();
         if (richieste <= massimo) return CONSENTITA;
-        // Conta anche chi sfora: la richiesta che porta il conteggio a massimo + 1 è la prima respinta, una per finestra
-        long attesa = (numero + 1) * finestra.secondi() - adesso;
+        // Conta anche chi sfora: la richiesta che porta il conteggio a massimo + 1 è la prima respinta, una per finestra.
+        // L'attesa è fino alla fine della finestra in cui ha contato, che per una richiesta in ritardo è la più nuova
+        long attesa = (usata.numero() + 1) * finestra.secondi() - adesso;
         return new Esito(false, attesa, richieste == massimo + 1L);
     }
 
-    /** La finestra con quel numero: se non è ancora quella in corso la apre vuota e butta la precedente con le sue voci */
+    /**
+     * La finestra in corso per una richiesta che ha letto l'ora nella finestra con quel numero. Non torna mai indietro: se ne
+     * è già aperta una uguale o più nuova la richiesta conta lì (una richiesta in ritardo, o un orologio tornato indietro, non
+     * riaprono una finestra vecchia vuota). Solo se quella in corso è più vecchia ne apre una vuota e butta la precedente con
+     * le sue voci.
+     */
     private FinestraInCorso finestraInCorso(long numero) {
-        FinestraInCorso attuale = inCorso.get();
-        if (attuale.numero() == numero) return attuale; // il caso di quasi tutte le richieste: una sola lettura
-        // Se più richieste aprono la finestra nuova insieme ne resta una sola: le altre trovano già la sua mappa
-        return inCorso.updateAndGet(corrente -> {
-            if (corrente.numero() == numero) return corrente;
-            return new FinestraInCorso(numero, new ConcurrentHashMap<>());
-        });
+        FinestraInCorso attuale = inCorso.get(); // il caso di quasi tutte le richieste: una sola lettura
+        // Se più richieste aprono la finestra nuova insieme ne vince una; le altre, dopo il confronto fallito, ricontrollano
+        // con la stessa condizione e trovano già la sua mappa
+        while (attuale.numero() < numero) {
+            FinestraInCorso nuova = new FinestraInCorso(numero, new ConcurrentHashMap<>());
+            if (inCorso.compareAndSet(attuale, nuova)) return nuova;
+            attuale = inCorso.get();
+        }
+        return attuale;
     }
 
     /** Quante voci ci sono in memoria: lo guardano i test della pulizia */

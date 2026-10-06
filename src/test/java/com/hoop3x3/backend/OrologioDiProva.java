@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Orologio dei test sui limiti di frequenza: sta fermo sull'istante dato e si sposta solo quando glielo si dice, così le
@@ -14,6 +15,7 @@ import java.time.ZoneOffset;
 public final class OrologioDiProva extends Clock {
 
     private volatile Instant adesso;
+    private final AtomicReference<Runnable> allaProssimaLettura = new AtomicReference<>();
 
     /** @param istante in formato ISO con il fuso, per esempio {@code 2026-10-06T10:00:20Z} */
     public OrologioDiProva(String istante) {
@@ -33,9 +35,21 @@ public final class OrologioDiProva extends Clock {
         adesso = istante;
     }
 
+    /**
+     * Alla prossima lettura dell'ora esegue `azione` prima di restituire l'istante letto: simula una richiesta che legge l'ora
+     * e poi resta indietro, mentre ne passano altre, magari nel minuto dopo. Con i thread una gara così si vede solo per
+     * fortuna; qui succede sempre allo stesso modo.
+     */
+    public void allaProssimaLettura(Runnable azione) {
+        allaProssimaLettura.set(azione);
+    }
+
     @Override
     public Instant instant() {
-        return adesso;
+        Instant letto = adesso;
+        Runnable azione = allaProssimaLettura.getAndSet(null); // una volta sola: l'azione stessa può leggere l'ora
+        if (azione != null) azione.run();
+        return letto;
     }
 
     @Override

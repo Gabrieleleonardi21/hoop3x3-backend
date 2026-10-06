@@ -166,6 +166,48 @@ class LimiteRichiesteTest {
         faiPassare(limite, "utente", 3); // un giorno nuovo, con tutte le sue richieste
     }
 
+    /* ── La finestra non torna mai indietro ── */
+
+    // Una richiesta legge l'ora (10:00:59) e finisce di contare quando un'altra ha già aperto il minuto dopo e ci ha consumato
+    // tutti i posti di «b». Se la richiesta in ritardo rimpiazzasse la finestra nuova con una vecchia vuota, i conteggi del
+    // minuto nuovo sparirebbero per tutte le chiavi e «b» ripartirebbe da zero. L'intreccio è fisso: l'orologio, alla prima
+    // lettura, fa scoccare il minuto e fa contare «b» prima di restituire l'ora vecchia
+    @Test
+    void unaRichiestaInRitardo_nonRimpiazzaLaFinestraDelMinutoNuovo() {
+        LimiteRichieste limite = alMinuto(3);
+        orologio.avanza(Duration.ofSeconds(39)); // 10:00:59
+        orologio.allaProssimaLettura(() -> {
+            orologio.avanza(Duration.ofSeconds(1)); // 10:01:00: il minuto scocca
+            faiPassare(limite, "b", 3); // un'altra richiesta apre il minuto nuovo e ci consuma i posti di «b»
+        });
+
+        assertThat(limite.conta("a").consentita()).as("la richiesta in ritardo, di «a»").isTrue();
+
+        assertThat(limite.conta("b").consentita()).as("i posti di «b» nel minuto nuovo non sono spariti").isFalse();
+        // La richiesta in ritardo ha contato nel minuto nuovo, non in una finestra buttata: era la prima di «a» su 3
+        faiPassare(limite, "a", 2);
+        assertThat(limite.conta("a").consentita()).isFalse();
+    }
+
+    // Lo stesso accade con l'orologio di sistema che torna indietro (NTP): le richieste contano nella finestra più nuova,
+    // invece di riaprirne una vecchia vuota con i conteggi azzerati. L'attesa è fino alla fine della finestra in cui hanno
+    // contato, secondo l'orologio com'è ora
+    @Test
+    void unOrologioCheTornaIndietro_nonFaSparireIConteggiDelMinuto() {
+        LimiteRichieste limite = alMinuto(3);
+        orologio.avanza(Duration.ofSeconds(70)); // 10:01:30
+        faiPassare(limite, INDIRIZZO, 3);
+
+        orologio.imposta(Instant.parse("2026-10-06T10:00:40Z")); // l'orologio del server torna indietro di 50 secondi
+        Esito esito = limite.conta(INDIRIZZO);
+
+        assertThat(esito.consentita()).as("i posti del minuto 10:01 non sono spariti").isFalse();
+        assertThat(esito.secondiAttesa()).as("il minuto 10:01 finisce alle 10:02:00, 80 secondi da qui").isEqualTo(80);
+
+        orologio.imposta(Instant.parse("2026-10-06T10:02:00Z")); // il minuto dopo, per l'orologio com'era e com'è
+        faiPassare(limite, INDIRIZZO, 3);
+    }
+
     /* ── La riga di log: una sola per chiave e per finestra ── */
 
     @Test
