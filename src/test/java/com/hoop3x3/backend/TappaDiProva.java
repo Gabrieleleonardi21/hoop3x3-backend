@@ -28,7 +28,11 @@ public final class TappaDiProva {
         return new TappaDiProva();
     }
 
-    /** Parte da un'altra tappa, per esempio quella che il client ha letto: stessi campi, e il test cambia quelli che gli servono */
+    /**
+     * Parte da un'altra tappa, per esempio quella che il client ha letto: stessi id, nome, luogo, data, squadre, partite,
+     * conclusa e versione, e il test cambia quelli che gli servono. Gli altri campi non sono nel builder e tornano ai valori
+     * fissi di build(): nGironi, regole, gironi, video e bracket. Una tappa che li usa non si copia con questo metodo.
+     */
     public static TappaDiProva da(TappaDTO modello) {
         return tappa().id(modello.id()).nome(modello.nome()).luogo(modello.luogo()).data(modello.data())
                 .squadre(modello.squadre().toString()).partite(modello.partite().toString())
