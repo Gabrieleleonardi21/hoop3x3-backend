@@ -211,7 +211,7 @@ class VersioneTappeIT {
         aggiungi(lega, tappa, null).andExpect(status().isCreated());
 
         ResultActions seconda = insieme.mentreUnaTransazioneTieneUnaRiga(
-                () -> jdbc.update("update tappe set nome = 'Dal primo dispositivo', versione = versione + 1 where id = ?", tappa.id()),
+                primoDispositivoSalva(tappa.id()),
                 () -> salva(tappa.id(), TappaDiProva.da(tappa).nome("Dal secondo dispositivo").build(), 0L));
 
         seconda.andExpect(status().isConflict())
@@ -233,8 +233,24 @@ class VersioneTappeIT {
         aggiungi(lega, tappa, null).andExpect(status().isCreated());
 
         ResultActions eliminazione = insieme.mentreUnaTransazioneTieneUnaRiga(
-                () -> jdbc.update("update tappe set nome = 'Dal primo dispositivo', versione = versione + 1 where id = ?", tappa.id()),
+                primoDispositivoSalva(tappa.id()),
                 () -> mvc.perform(delete("/api/tappe/" + tappa.id()).header(AUTHORIZATION, bearer(mario))));
+
+        eliminazione.andExpect(status().isConflict()).andExpect(jsonPath("$.message").value(TAPPA_MODIFICATA));
+        leggi(lega).andExpect(jsonPath("$.tappe[0].nome").value("Dal primo dispositivo"));
+    }
+
+    // Eliminare la lega elimina anche le sue tappe, ognuna con la stessa condizione sulla versione: se un salvataggio conferma
+    // in quel momento la lega resta com'è, e la risposta è lo stesso 409
+    @Test
+    void eliminareUnaLegaMentreUnaSuaTappaVieneSalvata_risponde409() throws Exception {
+        UUID lega = nuovaLega();
+        TappaDTO tappa = TappaDiProva.tappa().build();
+        aggiungi(lega, tappa, null).andExpect(status().isCreated());
+
+        ResultActions eliminazione = insieme.mentreUnaTransazioneTieneUnaRiga(
+                primoDispositivoSalva(tappa.id()),
+                () -> mvc.perform(delete("/api/leghe/" + lega).header(AUTHORIZATION, bearer(mario))));
 
         eliminazione.andExpect(status().isConflict()).andExpect(jsonPath("$.message").value(TAPPA_MODIFICATA));
         leggi(lega).andExpect(jsonPath("$.tappe[0].nome").value("Dal primo dispositivo"));
@@ -269,6 +285,11 @@ class VersioneTappeIT {
     private ResultActions salva(Utente chi, UUID tappaId, TappaDTO tappa, Long versione) throws Exception {
         return mvc.perform(put("/api/tappe/" + tappaId).header(AUTHORIZATION, bearer(chi))
                 .contentType(MediaType.APPLICATION_JSON).content(corpo(tappa, versione)));
+    }
+
+    /** Il salvataggio di un altro dispositivo, scritto e non ancora confermato: la riga della tappa resta bloccata fino al commit */
+    private Runnable primoDispositivoSalva(UUID tappaId) {
+        return () -> jdbc.update("update tappe set nome = 'Dal primo dispositivo', versione = versione + 1 where id = ?", tappaId);
     }
 
     /** GET della lega di Mario con le sue tappe, come le legge il client */

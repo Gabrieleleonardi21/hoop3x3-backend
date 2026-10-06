@@ -70,7 +70,7 @@ Salvare una tappa (`PUT /api/tappe/{id}`) sostituisce la tappa intera, partite c
   - **409** «La tappa è stata modificata da un altro dispositivo: ricaricala» se la `versione` non è quella che il database ha adesso, cioè la tappa è stata salvata da qualcun altro dopo che il client l'ha letta. Della richiesta non si salva niente. Vale anche per due richieste che arrivano insieme: quella che arriva dopo trova la tappa già cambiata e riceve lo stesso 409. Per ricaricare la tappa il client legge `GET /api/leghe/{id}`, che porta tutte le tappe della lega con la loro versione.
   - I controlli vanno in quest'ordine: 400 (versione mancante), poi 404 e 403 (tappa inesistente o di un altro utente), poi 409. Chi non è il proprietario non può scoprire la versione di una tappa altrui provando dei numeri.
 - Il 409 della PUT non è quello della POST («Esiste già una tappa con id …»): il client li distingue dal metodo.
-- `DELETE /api/tappe/{id}` non porta la versione. Se un altro dispositivo salva la tappa nello stesso istante in cui la si elimina, risponde con lo stesso 409 e la tappa resta com'è stata salvata.
+- `DELETE /api/tappe/{id}` non porta la versione. Se un altro dispositivo salva la tappa nello stesso istante in cui la si elimina, risponde con lo stesso 409 e la tappa resta com'è stata salvata. Lo stesso vale per `DELETE /api/leghe/{id}`, che elimina anche le tappe: se una di loro viene salvata in quel momento, la lega resta e la risposta è il 409.
 - Le tappe in archivio portano la `versione` che avevano quando sono state pubblicate (lo snapshot è la tappa come la restituiscono le API): è una fotografia e non serve a salvare. Le pubblicazioni fatte prima della V4 non ce l'hanno (`versione: null`).
 
 ## Archivio circuito
