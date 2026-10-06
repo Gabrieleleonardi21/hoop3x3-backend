@@ -1,0 +1,9 @@
+# Fuori dal contesto di build di Docker: artefatti locali, configurazione dell'IDE e soprattutto i segreti
+target/
+env.properties
+.git/
+.github/
+.idea/
+*.iml
+.vscode/
+.DS_Store
