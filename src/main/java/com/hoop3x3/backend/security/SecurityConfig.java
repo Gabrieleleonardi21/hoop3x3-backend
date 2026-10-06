@@ -15,6 +15,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.time.Clock;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity // attiva @PreAuthorize sui controller (endpoint solo ADMIN)
@@ -31,8 +33,16 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
+    // Orologio di LimiteRichiesteFilter: è un bean perché i test lo sostituiscono con uno che si sposta a comando e provano
+    // le finestre di un minuto e di un giorno senza aspettare
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtFilter jwtFilter, JsonAuthEntryPoint entryPoint) throws Exception {
+    public Clock orologio() {
+        return Clock.systemUTC();
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtFilter jwtFilter, LimiteRichiesteFilter limiteFilter,
+                                                   JsonAuthEntryPoint entryPoint) throws Exception {
         http
                 // usa il bean CorsConfigurationSource di CorsConfig e risponde da solo al preflight OPTIONS
                 .cors(Customizer.withDefaults())
@@ -53,7 +63,11 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 // il JwtFilter deve girare PRIMA del controllo di autorizzazione
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                // Il limite di frequenza gira subito dopo il JwtFilter: quello del Coach conta per utente, e l'utente lo
+                // riconosce il JwtFilter. Login, registrazione e rinnovo non passano dal JwtFilter e il limite li ferma prima
+                // del controller, dove gira il BCrypt: una richiesta respinta qui non costa niente
+                .addFilterAfter(limiteFilter, JwtFilter.class);
         return http.build();
     }
 }

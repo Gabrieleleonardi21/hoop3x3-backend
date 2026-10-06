@@ -25,6 +25,14 @@ public final class OrologioDiProva extends Clock {
         adesso = adesso.plus(durata);
     }
 
+    /**
+     * Rimette l'orologio sull'istante dato. Serve ai test che condividono il contesto di Spring, e quindi i contatori dei
+     * limiti: ognuno parte da un giorno diverso dagli altri, in un minuto e in un giorno che nessun altro ha ancora usato.
+     */
+    public void imposta(Instant istante) {
+        adesso = istante;
+    }
+
     @Override
     public Instant instant() {
         return adesso;
