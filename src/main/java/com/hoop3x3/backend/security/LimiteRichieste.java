@@ -93,10 +93,11 @@ public class LimiteRichieste {
     }
 
     /**
-     * La finestra in corso per una richiesta che ha letto quell'ora (secondi dell'epoca). Non torna mai indietro: se ne è già
-     * aperta una uguale o più nuova la richiesta conta lì (una richiesta in ritardo, o un orologio tornato indietro di poco,
-     * non riaprono una finestra vecchia vuota). Ne apre una vuota, e butta la precedente con le sue voci, se quella in corso
-     * è più vecchia o se l'orologio è tornato indietro di molto.
+     * La finestra in corso per una richiesta che ha letto quell'ora (secondi dell'epoca). Torna indietro solo se l'orologio è
+     * tornato indietro di molto (vedi TOLLERANZA_SECONDI); altrimenti non torna mai indietro: se ne è già aperta una uguale o
+     * più nuova la richiesta conta lì (una richiesta in ritardo, o un orologio tornato indietro di poco, non riaprono una
+     * finestra vecchia vuota). Una finestra vuota, con la precedente buttata insieme alle sue voci, si apre quando quella in
+     * corso è più vecchia o quando l'orologio è tornato indietro di molto.
      */
     private FinestraInCorso finestraInCorso(long adesso) {
         long numero = adesso / finestra.secondi();
