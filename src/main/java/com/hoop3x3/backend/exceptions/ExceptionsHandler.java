@@ -115,6 +115,15 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
         return risposta(ex.getStatus(), ex.getMessage());
     }
 
+    // Limite di frequenza superato (lo lancia LimiteRichiesteFilter): Retry-After dice fra quanti secondi si può riprovare.
+    // Non è un guasto: niente riga nei log qui, il filtro ne scrive una per chiave e per finestra
+    @ExceptionHandler(TroppeRichiesteException.class)
+    public ResponseEntity<ErrorsDTO> handleTroppeRichieste(TroppeRichiesteException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getSecondiAttesa()))
+                .body(errore(ex.getMessage()));
+    }
+
     // Vincolo del database violato (doppione, valore troppo lungo…): il dettaglio SQL resta nei log
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorsDTO> handleDataIntegrity(DataIntegrityViolationException ex) {

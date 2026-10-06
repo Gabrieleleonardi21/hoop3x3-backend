@@ -158,4 +158,19 @@ class ExceptionsHandlerTest {
         assertThat(esito.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
         assertThat(logCatturato.list).isEmpty();
     }
+
+    // Un limite di frequenza superato è una risposta normale e non un guasto: 429 con lo stesso corpo {message, timestamp} degli
+    // altri errori, il Retry-After in secondi per chi vuole aspettare il tempo giusto e nessuna riga nei log del gestore (la
+    // riga d'avviso, una per chiave e per finestra, la scrive il filtro che conta le richieste)
+    @Test
+    void troppeRichieste_rispondeConRetryAfterEIlCorpoStandardSenzaScrivereNelLog() {
+        ResponseEntity<ErrorsDTO> esito = gestore.handleTroppeRichieste(
+                new TroppeRichiesteException("Troppi tentativi di accesso", 40));
+
+        assertThat(esito.getStatusCode()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+        assertThat(esito.getHeaders().getFirst(HttpHeaders.RETRY_AFTER)).isEqualTo("40");
+        assertThat(esito.getBody().message()).isEqualTo("Troppi tentativi di accesso: riprova tra 40 secondi");
+        assertThat(esito.getBody().timestamp()).isNotNull();
+        assertThat(logCatturato.list).isEmpty();
+    }
 }
