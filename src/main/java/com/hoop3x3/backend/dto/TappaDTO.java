@@ -16,7 +16,7 @@ import java.util.UUID;
  * (POST/PUT) che in uscita. I blocchi di gioco viaggiano come JSON grezzo (JsonNode):
  * il server li valida come struttura (array/oggetto) e li salva in JSONB.
  * nome, luogo e data hanno i limiti delle colonne di `tappe` (migrazioni in db/migration): oltre, il database rifiuterebbe la riga.
- * `versione` è il numero di salvataggi che la tappa ha avuto (0 se nuova): la decide il server e la restituisce in ogni
+ * `versione` è il numero di volte che la tappa è stata cambiata (0 se nuova): la decide il server e la restituisce in ogni
  * risposta, e il client la rimanda con la PUT per dire quale tappa ha letto (400 se manca, 409 se non è più quella del
  * database: LegaService.aggiornaTappa). La POST e l'import di una lega la ignorano. Nessuna annotazione la pretende, perché
  * la stessa classe è il corpo della POST e rilegge anche le tappe pubblicate in archivio prima che esistesse.
