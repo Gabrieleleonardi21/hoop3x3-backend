@@ -1,7 +1,7 @@
 package com.hoop3x3.backend.services;
 
-import com.hoop3x3.backend.dto.PubTappaDTO;
-import com.hoop3x3.backend.dto.PubTappaMetaDTO;
+import com.hoop3x3.backend.dto.CopiaPubblicaDTO;
+import com.hoop3x3.backend.dto.VoceArchivioDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.support.Tempo;
 import com.hoop3x3.backend.entities.ArchivioTappa;
@@ -39,15 +39,15 @@ public class ArchivioService {
      * interpretare il contenuto delle tappe (che si legge con {@link #una}).
      */
     @Transactional(readOnly = true)
-    public List<PubTappaMetaDTO> tutte() {
+    public List<VoceArchivioDTO> tutte() {
         return repo.elenco().stream()
-                .map(v -> new PubTappaMetaDTO(v.getTappaId(), v.getNome(), v.getLuogo(), v.getData(),
+                .map(v -> new VoceArchivioDTO(v.getTappaId(), v.getNome(), v.getLuogo(), v.getData(),
                         v.getNumeroSquadre(), v.getLega(), v.getAutore(), Tempo.inMillisecondi(v.getPubblicatoIl())))
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public PubTappaDTO una(UUID tappaId) {
+    public CopiaPubblicaDTO una(UUID tappaId) {
         return toDto(trova(tappaId));
     }
 
@@ -59,7 +59,7 @@ public class ArchivioService {
      * ADMIN possono sempre ritirarla con {@link #rimuovi}.
      */
     @Transactional
-    public PubTappaDTO pubblica(Utente utente, UUID tappaId) {
+    public CopiaPubblicaDTO pubblica(Utente utente, UUID tappaId) {
         // 404 se la tappa non esiste e 403 se non è del proprietario né di un ADMIN: la regola è quella di LegaService per le
         // sue tappe, scritta una volta sola. Vengono prima del 409: chi non è il proprietario non deve poter scoprire se la
         // tappa è conclusa
@@ -90,9 +90,9 @@ public class ArchivioService {
         return repo.findById(id).orElseThrow(() -> new NotFoundException("Tappa non presente in archivio: " + id));
     }
 
-    private PubTappaDTO toDto(ArchivioTappa a) {
+    private CopiaPubblicaDTO toDto(ArchivioTappa a) {
         TappaDTO tappa = mapper.readValue(a.getContenuto(), TappaDTO.class);
-        return new PubTappaDTO(tappa, a.getLegaNome(), a.getAutore().getNome(), a.getAutore().getId(),
+        return new CopiaPubblicaDTO(tappa, a.getLegaNome(), a.getAutore().getNome(), a.getAutore().getId(),
                 Tempo.inMillisecondi(a.getPubblicatoIl()));
     }
 }
