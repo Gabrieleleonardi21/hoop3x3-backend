@@ -16,7 +16,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,7 +35,7 @@ class DataSeederTest {
 
     private final UtenteRepository utenteRepository = mock(UtenteRepository.class);
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
-    private final DataSeeder seeder = new DataSeeder(utenteRepository, passwordEncoder);
+    private DataSeeder seeder = nuovoSeeder("", "");
 
     private final Logger logDelSeeder = (Logger) LoggerFactory.getLogger(DataSeeder.class);
     private final ListAppender<ILoggingEvent> logCatturato = new ListAppender<>();
@@ -148,10 +147,14 @@ class DataSeederTest {
         assertSingolaRiga(Level.INFO, "esiste già un utente con l'email di ADMIN_EMAIL");
     }
 
+    /** Il seeder come lo crea Spring con ADMIN_EMAIL e ADMIN_PASSWORD */
+    private DataSeeder nuovoSeeder(String email, String password) {
+        return new DataSeeder(utenteRepository, passwordEncoder, new SeedProperties(false, new SeedProperties.Admin(email, password)));
+    }
+
     /** Imposta i valori che Spring leggerebbe da ADMIN_EMAIL e ADMIN_PASSWORD */
     private void conCredenziali(String email, String password) {
-        ReflectionTestUtils.setField(seeder, "adminEmail", email);
-        ReflectionTestUtils.setField(seeder, "adminPassword", password);
+        seeder = nuovoSeeder(email, password);
         passwordInUso = password;
     }
 

@@ -9,15 +9,14 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
 import com.hoop3x3.backend.repositories.AnagrafeSquadraRepository;
 import com.hoop3x3.backend.repositories.LegaRepository;
+import com.hoop3x3.backend.repositories.SeedEseguitoRepository;
 import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.LegaService;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -36,7 +35,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @TestDiIntegrazione
 class DemoSeederIT {
 
+    // Il bean del contesto è spento, come vuole il profilo di prova (seed.demo=false, nessuna email dell'admin): i test che lo
+    // vogliono acceso ne costruiscono uno loro (accendiIlSeed), così il bean condiviso con gli altri test non cambia
     @Autowired DemoSeeder seeder;
+    @Autowired SeedEseguitoRepository seedEseguiti;
     @Autowired UtenteRepository utenti;
     @Autowired LegaRepository leghe;
     @Autowired TappaRepository tappe;
@@ -46,14 +48,6 @@ class DemoSeederIT {
     @Autowired ArchivioService archivioService;
     @Autowired LegaService legaService;
     @Autowired ObjectMapper mapper;
-
-    // Il seeder è un bean condiviso con gli altri test di integrazione: lo si rimette come lo vuole il profilo di prova,
-    // spento (seed.demo=false e nessuna email dell'admin, vedi application-test.properties)
-    @AfterEach
-    void spegniIlSeeder() {
-        ReflectionTestUtils.setField(seeder, "abilitato", false);
-        ReflectionTestUtils.setField(seeder, "adminEmail", "");
-    }
 
     @Test
     void leTappeDelSeedSonoInArchivioUgualiAQuelleSalvateEIntestateAllAdmin() throws Exception {
@@ -161,8 +155,8 @@ class DemoSeederIT {
     /** Come all'avvio con SEED_DEMO=true e ADMIN_EMAIL: un admin nel database e il seeder acceso su di lui */
     private Utente accendiIlSeed() {
         Utente admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
-        ReflectionTestUtils.setField(seeder, "abilitato", true);
-        ReflectionTestUtils.setField(seeder, "adminEmail", admin.getEmail());
+        seeder = new DemoSeeder(utenti, giocatori, squadre, leghe, tappe, seedEseguiti, archivioService, mapper,
+                new SeedProperties(true, new SeedProperties.Admin(admin.getEmail(), "")));
         return admin;
     }
 

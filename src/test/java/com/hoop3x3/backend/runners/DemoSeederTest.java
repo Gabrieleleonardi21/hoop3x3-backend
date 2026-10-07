@@ -58,8 +58,7 @@ class DemoSeederTest {
     private final TappaRepository tappe = mock(TappaRepository.class);
     private final SeedEseguitoRepository seedEseguiti = mock(SeedEseguitoRepository.class);
     private final ArchivioService archivioService = mock(ArchivioService.class);
-    private final DemoSeeder seeder = new DemoSeeder(utenti, giocatori, squadre, leghe, tappe, seedEseguiti,
-            archivioService, JsonMapper.builder().build());
+    private DemoSeeder seeder = nuovoSeeder(false, "");
 
     private final Logger logDelSeeder = (Logger) LoggerFactory.getLogger(DemoSeeder.class);
     private final ListAppender<ILoggingEvent> logCatturato = new ListAppender<>();
@@ -161,9 +160,14 @@ class DemoSeederTest {
     /* ── Aiuti ── */
 
     /** Imposta i valori che Spring leggerebbe da SEED_DEMO e ADMIN_EMAIL */
+    /** Il seeder come lo crea Spring con SEED_DEMO e ADMIN_EMAIL */
+    private DemoSeeder nuovoSeeder(boolean abilitato, String adminEmail) {
+        return new DemoSeeder(utenti, giocatori, squadre, leghe, tappe, seedEseguiti, archivioService, JsonMapper.builder().build(),
+                new SeedProperties(abilitato, new SeedProperties.Admin(adminEmail, "")));
+    }
+
     private void configura(boolean abilitato, String adminEmail) {
-        ReflectionTestUtils.setField(seeder, "abilitato", abilitato);
-        ReflectionTestUtils.setField(seeder, "adminEmail", adminEmail);
+        seeder = nuovoSeeder(abilitato, adminEmail);
     }
 
     /** SEED_DEMO acceso e un admin che si trova: il seed arriva ai controlli sul segno */

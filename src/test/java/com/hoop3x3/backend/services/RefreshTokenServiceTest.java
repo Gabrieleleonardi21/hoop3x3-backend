@@ -6,6 +6,7 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.UnauthorizedException;
 import com.hoop3x3.backend.repositories.RefreshTokenRepository;
+import com.hoop3x3.backend.security.AuthProperties;
 import com.hoop3x3.backend.support.Tempo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,7 @@ class RefreshTokenServiceTest {
     @BeforeEach
     void setUp() {
         repository = mock(RefreshTokenRepository.class);
-        service = new RefreshTokenService(repository, 30);
+        service = new RefreshTokenService(repository, new AuthProperties(30, false));
     }
 
     @Test
