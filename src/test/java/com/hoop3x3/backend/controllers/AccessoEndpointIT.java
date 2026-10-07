@@ -1,5 +1,6 @@
 package com.hoop3x3.backend.controllers;
 
+import com.hoop3x3.backend.Hoop3x3BackendApplication;
 import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.MondoDiProva;
 import com.hoop3x3.backend.MondoDiProva.Mondo;
@@ -113,8 +114,16 @@ class AccessoEndpointIT {
         return Stream.concat(endpointSuUnaRisorsa(), altriEndpointProtetti());
     }
 
-    /** Un endpoint pubblico e lo stato che risponde a chi non ha un token */
-    record Pubblico(Endpoint endpoint, int statoSenzaToken) {
+    /**
+     * Un endpoint pubblico, lo stato che risponde a chi non ha un token e, se è un errore con un testo fisso, il messaggio:
+     * senza il testo un 401 del controller e quello della catena di sicurezza (stesso formato) sarebbero indistinguibili.
+     * `messaggio` è null quando non c'è niente da controllare.
+     */
+    record Pubblico(Endpoint endpoint, int statoSenzaToken, String messaggio) {
+        Pubblico(Endpoint endpoint, int statoSenzaToken) {
+            this(endpoint, statoSenzaToken, null);
+        }
+
         @Override
         public String toString() {
             return endpoint + " -> " + statoSenzaToken;
@@ -131,8 +140,9 @@ class AccessoEndpointIT {
                 // Senza un corpo valido il controller risponde 400: la sicurezza ha lasciato passare
                 new Pubblico(new Endpoint(POST, "/api/auth/register", Map.of()), 400),
                 new Pubblico(new Endpoint(POST, "/api/auth/login", Map.of()), 400),
-                // Rinnovo e uscita si autenticano con il cookie, non con il token: il 401 senza cookie è quello del controller
-                new Pubblico(new Endpoint(POST, "/api/auth/refresh", null), 401),
+                // Rinnovo e uscita si autenticano con il cookie, non con il token: il 401 senza cookie è quello del controller, che ha
+                // il suo messaggio (quello della catena di sicurezza è «Autenticazione richiesta: accedi per continuare»)
+                new Pubblico(new Endpoint(POST, "/api/auth/refresh", null), 401, "Sessione scaduta: accedi di nuovo"),
                 new Pubblico(new Endpoint(POST, "/api/auth/logout", null), 204),
                 new Pubblico(new Endpoint(GET, "/api/anagrafe/giocatori", null), 200),
                 new Pubblico(new Endpoint(GET, "/api/anagrafe/squadre", null), 200),
@@ -170,31 +180,64 @@ class AccessoEndpointIT {
     // qualcuno. Confronta le mappature vere dei controller con le due liste: manca o è in più, il messaggio dice quale
     @Test
     void ogniEndpointDellApplicazioneStaInUnaDelleListe() {
-        Set<String> dellApplicazione = new TreeSet<>();
-        mappature.getHandlerMethods().forEach((mappatura, metodo) -> {
-            // Solo i controller dell'applicazione: Spring Boot ne aggiunge uno suo per /error
-            if (!metodo.getBeanType().getPackageName().equals(AuthController.class.getPackageName())) return;
-            Set<RequestMethod> metodiHttp = mappatura.getMethodsCondition().getMethods();
-            for (String percorso : mappatura.getPathPatternsCondition().getPatternValues()) {
-                if (metodiHttp.isEmpty()) dellApplicazione.add("QUALSIASI " + senzaNomiDeiSegnaposto(percorso));
-                for (RequestMethod metodoHttp : metodiHttp) {
-                    dellApplicazione.add(metodoHttp + " " + senzaNomiDeiSegnaposto(percorso));
-                }
-            }
-        });
         Set<String> elencati = Stream.concat(endpointProtetti(), endpointPubblici().map(Pubblico::endpoint))
-                .map(endpoint -> endpoint.metodo() + " " + senzaNomiDeiSegnaposto(endpoint.percorso()))
+                .map(AccessoEndpointIT::chiave)
                 .collect(Collectors.toCollection(TreeSet::new));
 
-        assertThat(dellApplicazione).as("endpoint dei controller, contro quelli elencati in endpointProtetti e endpointPubblici")
+        assertThat(endpointDellApplicazione()).as("endpoint dei controller, contro quelli elencati in endpointProtetti e endpointPubblici")
                 .containsExactlyInAnyOrderElementsOf(elencati);
     }
 
-    // La lista dei pubblici non è solo una dichiarazione: senza token questi endpoint rispondono davvero, e non con un 401 della sicurezza
+    // Un endpoint protetto con una variabile nel percorso agisce su una risorsa di qualcuno: ha bisogno del 403 e del 404, che
+    // provano solo gli endpoint di endpointSuUnaRisorsa. Messo in altriEndpointProtetti avrebbe il solo 401 senza che nessuno se ne accorga
+    @Test
+    void ogniEndpointProtettoConUnaVariabileDiPercorsoStaTraQuelliSuUnaRisorsa() {
+        Set<String> pubblici = endpointPubblici().map(pubblico -> chiave(pubblico.endpoint())).collect(Collectors.toSet());
+        Set<String> suUnaRisorsa = endpointSuUnaRisorsa().map(AccessoEndpointIT::chiave).collect(Collectors.toSet());
+        Set<String> protettiConUnaVariabile = endpointDellApplicazione().stream()
+                .filter(endpoint -> endpoint.contains("{}") && !pubblici.contains(endpoint))
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        assertThat(suUnaRisorsa).as("endpoint protetti con una variabile di percorso, che vanno in endpointSuUnaRisorsa")
+                .containsAll(protettiConUnaVariabile);
+    }
+
+    /**
+     * Metodo e percorso («GET /api/leghe/{}») di ogni endpoint dell'applicazione, dalle mappature vere di Spring MVC. Conta ogni
+     * handler il cui tipo sta sotto il pacchetto dell'applicazione, anche in un sottopacchetto: un controller futuro non sfugge
+     * all'audit. Restano fuori quelli di Spring Boot (il controller dell'/error).
+     */
+    private Set<String> endpointDellApplicazione() {
+        String pacchettoDellApplicazione = Hoop3x3BackendApplication.class.getPackageName() + ".";
+        Set<String> endpoint = new TreeSet<>();
+        mappature.getHandlerMethods().forEach((mappatura, metodo) -> {
+            if (!metodo.getBeanType().getName().startsWith(pacchettoDellApplicazione)) return;
+            Set<RequestMethod> metodiHttp = mappatura.getMethodsCondition().getMethods();
+            for (String percorso : mappatura.getPathPatternsCondition().getPatternValues()) {
+                if (metodiHttp.isEmpty()) endpoint.add("QUALSIASI " + senzaNomiDeiSegnaposto(percorso));
+                for (RequestMethod metodoHttp : metodiHttp) {
+                    endpoint.add(metodoHttp + " " + senzaNomiDeiSegnaposto(percorso));
+                }
+            }
+        });
+        return endpoint;
+    }
+
+    /** Come si presenta un endpoint elencato, nella stessa forma di endpointDellApplicazione */
+    private static String chiave(Endpoint endpoint) {
+        return endpoint.metodo() + " " + senzaNomiDeiSegnaposto(endpoint.percorso());
+    }
+
+    // La lista dei pubblici non è solo una dichiarazione: senza token questi endpoint rispondono davvero, e non con un 401 della
+    // sicurezza (dove c'è un errore con un testo fisso, il testo dice chi ha risposto)
     @ParameterizedTest
     @MethodSource("endpointPubblici")
     void gliEndpointPubbliciRispondonoSenzaToken(Pubblico pubblico) throws Exception {
-        invia(pubblico.endpoint(), null).andExpect(status().is(pubblico.statoSenzaToken()));
+        ResultActions risposta = invia(pubblico.endpoint(), null).andExpect(status().is(pubblico.statoSenzaToken()));
+
+        if (pubblico.messaggio() != null) {
+            risposta.andExpect(jsonPath("$.message").value(pubblico.messaggio()));
+        }
     }
 
     /* ── 401: senza token nessun endpoint protetto risponde ── */
