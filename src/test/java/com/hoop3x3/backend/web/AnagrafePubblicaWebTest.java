@@ -28,7 +28,6 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -302,6 +301,6 @@ class AnagrafePubblicaWebTest {
      * segreto non torna, e uno con la durata negativa è già scaduto
      */
     private static String tokenFirmato(String segreto, Utente utente, int minuti) {
-        return new JwtTools(new JwtProperties(segreto, minuti), JsonMapper.builder().build()).generateToken(utente);
+        return new JwtTools(new JwtProperties(segreto, minuti)).generateToken(utente);
     }
 }

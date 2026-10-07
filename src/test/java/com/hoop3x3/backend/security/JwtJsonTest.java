@@ -6,8 +6,6 @@ import io.jsonwebtoken.io.Serializer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.json.JsonMapper;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -20,14 +18,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * L'adattatore tra JJWT e Jackson 3, da solo. Che i token emessi e letti da JwtTools facciano il giro completo lo prova
- * JwtToolsTest: qui si guarda il JSON scritto e le regole di lettura.
+ * L'adattatore tra JJWT e Jackson 3, da solo, con il mapper privato che gira in produzione. Che i token emessi e letti da
+ * JwtTools facciano il giro completo lo prova JwtToolsTest: qui si guarda il JSON scritto e le regole di lettura.
  */
 class JwtJsonTest {
 
-    private final ObjectMapper mapper = JsonMapper.builder().build();
-    private final Serializer<Map<String, ?>> serializzatore = JwtJson.serializzatore(mapper);
-    private final Deserializer<Map<String, ?>> deserializzatore = JwtJson.deserializzatore(mapper);
+    private final Serializer<Map<String, ?>> serializzatore = JwtJson.SERIALIZZATORE;
+    private final Deserializer<Map<String, ?>> deserializzatore = JwtJson.DESERIALIZZATORE;
 
     @Test
     void cioCheSiScriveSiRilegge() {
@@ -87,20 +84,10 @@ class JwtJsonTest {
             "{sub:x}",          // senza virgolette
             "[\"x\"]",          // un array, non un oggetto
             "\"x\"",            // una stringa
+            "{\"a\":1} xyz",    // testo dopo l'oggetto
             ""})                // niente
     void unJsonCheNonEUnOggettoValidoVieneRifiutato(String json) {
         assertThatThrownBy(() -> deserializzatore.deserialize(new StringReader(json)))
                 .isInstanceOf(DeserializationException.class);
-    }
-
-    // Il rilevamento dei duplicati vale per questo lettore e non cambia il mapper dell'applicazione, che ne serve altri: le
-    // risposte dell'API, le tappe, il Coach AI
-    @Test
-    void ilMapperDellApplicazioneNonCambia() {
-        deserializzatore.deserialize("{\"a\":1}".getBytes(UTF_8));
-
-        Map<?, ?> conChiaveRipetuta = mapper.readValue("{\"a\":1,\"a\":2}", Map.class);
-
-        assertThat(conChiaveRipetuta.get("a")).isEqualTo(2); // senza il controllo dei duplicati vince l'ultima
     }
 }

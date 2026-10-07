@@ -28,13 +28,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Senza contesto Spring: JwtTools si costruisce con un JwtProperties scritto a mano e un JsonMapper qualsiasi. Si verificano la
- * durata del token, il formato di ciò che emette e che cosa respinge quando il JSON del token è rotto: il JSON lo gestisce
- * JwtJson (Jackson 3), e questi test provano che firma e lettura dei token funzionano con lui.
+ * Senza contesto Spring: JwtTools si costruisce con un JwtProperties scritto a mano. Si verificano la durata del token, il
+ * formato di ciò che emette e che cosa respinge quando il token è alterato o il suo JSON è rotto: il JSON lo gestisce JwtJson
+ * (Jackson 3, con un mapper suo), e questi test provano che firma e lettura dei token funzionano con lui.
  */
 class JwtToolsTest {
 
     private static final String SEGRETO = "segreto-di-prova-di-almeno-32-caratteri";
+    // Solo per leggere nei test le parti già decodificate di un token: il JSON dei token lo gestisce JwtJson
     private static final ObjectMapper MAPPER = JsonMapper.builder().build();
     private static final TypeReference<Map<String, Object>> MAPPA = new TypeReference<>() {};
     private static final String INTESTAZIONE = "{\"alg\":\"HS256\"}";
@@ -51,7 +52,7 @@ class JwtToolsTest {
 
     private final UUID id = UUID.randomUUID();
     private final Utente utente = new Utente("mario@test.it", "hash", "Mario", Ruolo.USER);
-    private final JwtTools jwtTools = new JwtTools(new JwtProperties(SEGRETO, 30), MAPPER);
+    private final JwtTools jwtTools = new JwtTools(new JwtProperties(SEGRETO, 30));
 
     @BeforeEach
     void setUp() {
@@ -112,10 +113,27 @@ class JwtToolsTest {
         assertThat(claims.getExpiration()).isEqualTo(new Date(4_102_444_800_000L));
     }
 
+    // La prova contraria: lo stesso token con un carattere della firma cambiato non si accetta, quindi quello di sopra passa
+    // perché la firma torna e non perché la verifica sia aperta. Si cambia il primo carattere: l'ultimo di una firma di 32 byte
+    // porta solo bit di riempimento e lo stesso valore si può scrivere in più modi
+    @Test
+    void unTokenDelVecchioStackConLaFirmaAlterataVieneRespinto() {
+        int inizioFirma = TOKEN_DEL_VECCHIO_STACK.lastIndexOf('.') + 1;
+        char primo = TOKEN_DEL_VECCHIO_STACK.charAt(inizioFirma);
+        char altro = 'A';
+        if (primo == 'A') altro = 'B';
+        String alterato = TOKEN_DEL_VECCHIO_STACK.substring(0, inizioFirma) + altro
+                + TOKEN_DEL_VECCHIO_STACK.substring(inizioFirma + 1);
+
+        assertThat(alterato).isNotEqualTo(TOKEN_DEL_VECCHIO_STACK);
+        assertThatThrownBy(() -> jwtTools.verifyToken(alterato))
+                .isInstanceOf(UnauthorizedException.class).hasMessage(JwtTools.TOKEN_NON_VALIDO);
+    }
+
     @Test
     void unTokenScadutoVieneRespinto() {
         // scade un minuto prima di essere emesso: il record costruito a mano non passa dalla validazione
-        JwtTools jwtScaduto = new JwtTools(new JwtProperties(SEGRETO, -1), MAPPER);
+        JwtTools jwtScaduto = new JwtTools(new JwtProperties(SEGRETO, -1));
 
         String scaduto = jwtScaduto.generateToken(utente);
 
@@ -149,6 +167,7 @@ class JwtToolsTest {
             "{\"sub\":\"x\",\"exp\":}",                          // valore mancante
             "{\"sub\":\"x\" \"exp\":4102444800}",                // virgola mancante
             "{\"sub\":\"a\",\"sub\":\"b\",\"exp\":4102444800}",  // chiave ripetuta: un lettore sceglierebbe «a», un altro «b»
+            "{\"sub\":\"x\",\"exp\":4102444800} xyz",          // testo dopo l'oggetto: il vecchio stack (Jackson 2) lo accettava
             "[\"x\"]",                                           // non è un oggetto
             "testo qualsiasi"})
     void unPayloadFirmatoMaNonJsonValidoVieneRespinto(String payload) throws Exception {
@@ -163,7 +182,9 @@ class JwtToolsTest {
             "{alg}",                                    // non è JSON
             "{\"alg\":\"HS256\",\"alg\":\"HS256\"}",    // chiave ripetuta
             "[]",                                       // non è un oggetto
-            "null"})
+            "null",
+            "{\"alg\":\"none\"}",                       // token senza firma: JJWT non lo accetta se non glielo si chiede
+            "{\"alg\":\"HS512\"}"})                     // un algoritmo diverso da quello del segreto: la firma non può tornare
     void unaIntestazioneFirmataMaNonValidaVieneRespinta(String intestazione) throws Exception {
         String token = firmato(intestazione, PAYLOAD_VALIDO);
 
