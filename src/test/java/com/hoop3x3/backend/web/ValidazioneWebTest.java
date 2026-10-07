@@ -212,23 +212,7 @@ class ValidazioneWebTest {
         invia(metodo, url, corpo).andExpect(status().is2xxSuccessful());
     }
 
-    /* ── @Size uguali alle colonne ── */
-
-    @Test
-    void nomeDellaTappaDi121Caratteri_risponde400ConIlCampo() throws Exception {
-        Map<String, Object> t = tappa();
-        t.put("nome", "x".repeat(121));
-
-        rifiutata(POST, urlNuovaTappa(), t, "nome");
-    }
-
-    @Test
-    void luogoDellaTappaDi161Caratteri_risponde400ConIlCampo() throws Exception {
-        Map<String, Object> t = tappa();
-        t.put("luogo", "x".repeat(161));
-
-        rifiutata(POST, urlNuovaTappa(), t, "luogo");
-    }
+    /* ── La data della tappa: vuota o ISO. I tetti dei campi di testo sono più sotto, nella tabella CampiDiTesto ── */
 
     // La colonna è da 10 caratteri e contiene una data ISO o niente (è il valore dell'input date del frontend)
     @ParameterizedTest
@@ -241,58 +225,14 @@ class ValidazioneWebTest {
     }
 
     @Test
-    void tappaConValoriAlLimiteDelloSchema_siAccetta() throws Exception {
+    void dataDellaTappaVuotaOAssente_siAccetta() throws Exception {
         Map<String, Object> t = tappa();
-        t.put("nome", "x".repeat(120));
-        t.put("luogo", "x".repeat(160));
-        accettata(POST, urlNuovaTappa(), t);
 
         t.put("data", ""); // data vuota: la tappa non ha ancora una data
         accettata(PUT, "/api/tappe/" + UUID.randomUUID(), t);
 
         t.remove("data"); // data assente
         accettata(PUT, "/api/tappe/" + UUID.randomUUID(), t);
-    }
-
-    @Test
-    void notaDelGiocatoreDi2001Caratteri_risponde400ConIlCampo() throws Exception {
-        Map<String, Object> g = giocatore();
-        g.put("note", "x".repeat(2001));
-
-        rifiutata(POST, "/api/anagrafe/giocatori", g, "note");
-    }
-
-    @Test
-    void notaDellaSquadraDi2001Caratteri_risponde400ConIlCampo() throws Exception {
-        Map<String, Object> s = squadra();
-        s.put("note", "x".repeat(2001));
-
-        rifiutata(POST, "/api/anagrafe/squadre", s, "note");
-    }
-
-    @Test
-    void emailDi256CaratteriInRegistrazione_risponde400ConIlCampo() throws Exception {
-        rifiutata(POST, "/api/auth/register", registrazione(emailDi(256)), "email");
-    }
-
-    @Test
-    void emailDi256CaratteriNelLogin_risponde400ConIlCampo() throws Exception {
-        rifiutata(POST, "/api/auth/login", accesso(emailDi(256)), "email");
-    }
-
-    @Test
-    void noteEEmailAlLimiteDelloSchema_siAccettano() throws Exception {
-        Map<String, Object> g = giocatore();
-        g.put("note", "x".repeat(2000));
-        accettata(POST, "/api/anagrafe/giocatori", g);
-
-        Map<String, Object> s = squadra();
-        s.put("note", "x".repeat(2000));
-        accettata(POST, "/api/anagrafe/squadre", s);
-
-        // Con 255 caratteri l'email è ancora valida: il 400 dei 256 dipende solo dalla lunghezza
-        accettata(POST, "/api/auth/login", accesso(emailDi(255)));
-        accettata(POST, "/api/auth/register", registrazione(emailDi(255)));
     }
 
     /* ── Campi obbligatori: ogni endpoint che legge un corpo li pretende ── */
