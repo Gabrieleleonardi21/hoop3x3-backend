@@ -13,8 +13,8 @@ import java.util.UUID;
 
 /**
  * Contenitore di tappe; ogni lega appartiene a un solo utente.
- * DynamicUpdate: l'UPDATE contiene solo le colonne cambiate. Salvare o eliminare una tappa chiama touch() e cambia solo
- * modificato_il: senza, Hibernate riscrive anche il nome letto all'inizio della richiesta, e una rinomina confermata nel
+ * DynamicUpdate: l'UPDATE contiene solo le colonne cambiate. Aggiungere o eliminare una tappa, o salvarla con un contenuto
+ * diverso, chiama touch() e cambia solo modificato_il: senza, Hibernate riscrive anche il nome letto all'inizio della richiesta, e una rinomina confermata nel
  * frattempo da un altro dispositivo tornerebbe com'era.
  */
 @Entity
