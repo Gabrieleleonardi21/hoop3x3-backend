@@ -14,11 +14,10 @@ import com.hoop3x3.backend.security.CorsConfig;
 import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.security.JsonAuthEntryPoint;
 import com.hoop3x3.backend.security.JwtFilter;
+import com.hoop3x3.backend.security.JwtProperties;
 import com.hoop3x3.backend.security.SecurityConfig;
 import com.hoop3x3.backend.services.AccessGuard;
 import com.hoop3x3.backend.services.AnagrafeService;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,10 +28,9 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.json.JsonMapper;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -298,14 +296,12 @@ class AnagrafePubblicaWebTest {
         return "Bearer " + jwt.generateToken(utente);
     }
 
-    /** Un JWT dell'utente firmato con `segreto`, che scade fra `minuti` (negativi: già scaduto) */
+    /**
+     * Un JWT dell'utente firmato con `segreto`, che scade fra `minuti` (negativi: già scaduto). Lo emette un JwtTools costruito
+     * a mano con quel segreto e quella durata: il filtro lo verifica con il segreto del test, quindi uno firmato con un altro
+     * segreto non torna, e uno con la durata negativa è già scaduto
+     */
     private static String tokenFirmato(String segreto, Utente utente, int minuti) {
-        long adesso = System.currentTimeMillis();
-        return Jwts.builder()
-                .subject(utente.getId().toString())
-                .issuedAt(new Date(adesso - 3_600_000L))
-                .expiration(new Date(adesso + minuti * 60_000L))
-                .signWith(Keys.hmacShaKeyFor(segreto.getBytes(StandardCharsets.UTF_8)))
-                .compact();
+        return new JwtTools(new JwtProperties(segreto, minuti), JsonMapper.builder().build()).generateToken(utente);
     }
 }

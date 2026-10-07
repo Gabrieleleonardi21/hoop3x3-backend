@@ -16,12 +16,14 @@
 
     <properties>
         <java.version>25</java.version>
-        <!-- Le tre parti di JJWT vanno sempre alla stessa versione -->
+        <!-- Le due parti di JJWT (api e impl) vanno sempre alla stessa versione -->
         <jjwt.version>0.12.6</jjwt.version>
     </properties>
 
     <dependencies>
-        <!-- JJWT: api in compile, impl e jackson solo a runtime -->
+        <!-- JJWT: api in compile, impl solo a runtime. Manca di proposito jjwt-jackson: è scritto per Jackson 2 e se lo
+             porterebbe dietro (jackson-databind 2 accanto al Jackson 3 di Spring Boot). Il JSON dei token lo gestisce
+             security/JwtJson con il Jackson 3 dell'applicazione -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -30,12 +32,6 @@
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
-            <version>${jjwt.version}</version>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
             <version>${jjwt.version}</version>
             <scope>runtime</scope>
         </dependency>

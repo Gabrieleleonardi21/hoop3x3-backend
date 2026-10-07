@@ -15,6 +15,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -38,9 +39,11 @@ class JwtPropertiesTest {
             .withBean(LocalValidatorFactoryBean.class);
 
     // Il vero JwtTools porta con sé @EnableConfigurationProperties(JwtProperties.class): senza nessun'altra configurazione
-    // un secret non valido gli impedisce di partire, come al server intero
+    // un secret non valido gli impedisce di partire, come al server intero. Il mapper di Jackson 3 gli serve per il JSON dei
+    // token (JwtJson): nel server lo mette Spring Boot, qui un JsonMapper qualsiasi
     private final ApplicationContextRunner runnerConJwtTools = new ApplicationContextRunner()
             .withUserConfiguration(JwtTools.class)
+            .withBean(JsonMapper.class, () -> JsonMapper.builder().build())
             .withBean(LocalValidatorFactoryBean.class);
 
     // Un contesto che non parte scrive un WARN con tutta l'eccezione: qui è il risultato voluto, quindi si alza la
