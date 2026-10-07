@@ -1,4 +1,5 @@
-# Integrazione continua del backend: compilazione e test su Java 25, compresi i test di integrazione con PostgreSQL.
+# Integrazione continua del backend: compilazione e test su Java 25, compresi i test di integrazione con PostgreSQL, e
+# costruzione dell'immagine Docker che usa Render.
 # Gira a ogni push su main e a ogni pull request, anche quelle che puntano a un altro ramo (pull request in serie).
 name: CI
 
@@ -37,3 +38,11 @@ jobs:
           TEST_DB_URL: jdbc:postgresql://localhost:5432/hoop3x3_test
           TEST_DB_USERNAME: hoop
           TEST_DB_PASSWORD: hoop
+
+  # Il Dockerfile è quello che Render costruisce a ogni deploy: se non combacia più con il repository (un file che non c'è
+  # più, un comando che non funziona) la PR si ferma qui e non al deploy. Solo build: l'immagine non si pubblica
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build .

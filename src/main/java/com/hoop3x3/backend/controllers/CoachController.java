@@ -25,6 +25,7 @@ public class CoachController {
         return Map.of("available", coachAiService.isConfigurato());
     }
 
+    // Il limite per utente lo applica LimiteRichiesteFilter, prima di arrivare qui
     @PostMapping("/chat")
     public JsonNode chat(@RequestBody @Validated CoachChatRequestDTO dto) {
         return coachAiService.chat(dto);

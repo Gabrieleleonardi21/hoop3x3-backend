@@ -71,4 +71,35 @@ class JsonSupportTest {
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("'squadre'");
     }
+
+    /* ── testoDaSalvare: un blocco con lo stesso contenuto resta quello già salvato ── */
+
+    // Il blocco come lo riscrive PostgreSQL (spazi dopo i due punti e le virgole, chiavi dalla più corta) e come lo manda il client
+    private static final String DAL_DATABASE = "[{\"a\": \"s1\", \"b\": \"s2\", \"id\": \"m1\", \"sa\": 21}]";
+    private static final String DAL_CLIENT = "[{\"id\":\"m1\",\"a\":\"s1\",\"b\":\"s2\",\"sa\":21}]";
+
+    @Test
+    void unBloccoConLoStessoContenutoMaScrittoDiversamente_restaQuelloGiaSalvato() {
+        assertThat(json.testoDaSalvare(DAL_DATABASE, DAL_CLIENT)).isEqualTo(DAL_DATABASE);
+        assertThat(json.testoDaSalvare(DAL_DATABASE, DAL_DATABASE)).isEqualTo(DAL_DATABASE);
+    }
+
+    @Test
+    void unBloccoCambiato_siSalvaIlNuovo() {
+        String punteggioCambiato = DAL_CLIENT.replace("\"sa\":21", "\"sa\":22");
+        String altriElementi = "[{\"id\":\"m1\"},{\"id\":\"m2\"}]";
+        String altroOrdine = "[{\"id\":\"m2\"},{\"id\":\"m1\"}]";
+
+        assertThat(json.testoDaSalvare(DAL_DATABASE, punteggioCambiato)).isEqualTo(punteggioCambiato);
+        // L'ordine degli elementi di un array è contenuto, quello delle chiavi di un oggetto no
+        assertThat(json.testoDaSalvare(altriElementi, altroOrdine)).isEqualTo(altroOrdine);
+    }
+
+    // gironi e bracket possono mancare (null): un blocco che compare o sparisce è un cambiamento, e due blocchi assenti no
+    @Test
+    void unBloccoCheCompareOSparisce_siSalvaIlNuovo() {
+        assertThat(json.testoDaSalvare(null, DAL_CLIENT)).isEqualTo(DAL_CLIENT);
+        assertThat(json.testoDaSalvare(DAL_DATABASE, null)).isNull();
+        assertThat(json.testoDaSalvare(null, null)).isNull();
+    }
 }

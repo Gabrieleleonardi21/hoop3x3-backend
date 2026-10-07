@@ -21,6 +21,7 @@ public class TappaController {
         this.legaService = legaService;
     }
 
+    /** La tappa porta la versione che il client ha letto: 400 se manca, 409 se non è più quella del database */
     @PutMapping("/{id}")
     public TappaDTO aggiorna(@AuthenticationPrincipal Utente utente, @PathVariable UUID id,
                              @RequestBody @Validated TappaDTO dto) {

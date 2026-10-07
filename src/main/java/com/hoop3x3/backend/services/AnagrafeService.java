@@ -15,9 +15,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
-/** Anagrafe condivisa del circuito: lettura pubblica, scrittura di autore o ADMIN. */
+/**
+ * Anagrafe condivisa del circuito: lettura pubblica, scrittura di autore o ADMIN. Gli elenchi hanno due forme: la completa
+ * per chi ha un account e la pubblica, senza i dati personali, per l'ospite (sceglie il controller).
+ */
 @Service
 public class AnagrafeService {
 
@@ -38,6 +44,12 @@ public class AnagrafeService {
         return giocatori.findAllByOrderByModificatoIlDesc().stream().map(GiocatoreDTO::from).toList();
     }
 
+    /** Come {@link #tuttiGiocatori} nella forma pubblica: senza i dati personali */
+    @Transactional(readOnly = true)
+    public List<GiocatoreDTO> tuttiGiocatoriPubblici() {
+        return giocatori.findAllByOrderByModificatoIlDesc().stream().map(GiocatoreDTO::pubblico).toList();
+    }
+
     @Transactional
     public GiocatoreDTO creaGiocatore(Utente utente, GiocatoreRequestDTO dto) {
         AnagrafeGiocatore g = new AnagrafeGiocatore();
@@ -51,6 +63,7 @@ public class AnagrafeService {
         AnagrafeGiocatore g = trovaGiocatore(id);
         guard.checkOwner(utente, g.getAutore().getId(), "questa scheda giocatore");
         applica(dto, g);
+        guard.tracciaModifica(utente, g.getAutore().getId(), "giocatore", id);
         return GiocatoreDTO.from(giocatori.save(g));
     }
 
@@ -58,10 +71,12 @@ public class AnagrafeService {
     public void eliminaGiocatore(Utente utente, UUID id) {
         AnagrafeGiocatore g = trovaGiocatore(id);
         guard.checkOwner(utente, g.getAutore().getId(), "questa scheda giocatore");
+        guard.tracciaEliminazione(utente, g.getAutore().getId(), "giocatore", id);
         // Toglie il giocatore dai roster che lo contengono (la FK del ponte è ON DELETE CASCADE,
-        // ma Hibernate va tenuto allineato per non lasciare buchi nell'@OrderColumn)
-        for (AnagrafeSquadra s : squadre.findAll()) {
-            if (s.getRoster().removeIf(x -> x.getId().equals(id))) squadre.save(s);
+        // ma Hibernate va tenuto allineato per non lasciare buchi nell'@OrderColumn). Si caricano solo quelle squadre,
+        // non tutte, e sono già gestite: la modifica del roster la salva la transazione
+        for (AnagrafeSquadra s : squadre.findByRosterContains(g)) {
+            s.getRoster().removeIf(x -> x.getId().equals(id));
         }
         giocatori.delete(g);
     }
@@ -71,6 +86,12 @@ public class AnagrafeService {
     @Transactional(readOnly = true)
     public List<SquadraDTO> tutteSquadre() {
         return squadre.findAllByOrderByModificatoIlDesc().stream().map(SquadraDTO::from).toList();
+    }
+
+    /** Come {@link #tutteSquadre} nella forma pubblica: senza referente e autore */
+    @Transactional(readOnly = true)
+    public List<SquadraDTO> tutteSquadrePubbliche() {
+        return squadre.findAllByOrderByModificatoIlDesc().stream().map(SquadraDTO::pubblica).toList();
     }
 
     @Transactional
@@ -86,6 +107,7 @@ public class AnagrafeService {
         AnagrafeSquadra s = trovaSquadra(id);
         guard.checkOwner(utente, s.getAutore().getId(), "questa squadra");
         applica(dto, s);
+        guard.tracciaModifica(utente, s.getAutore().getId(), "squadra", id);
         return SquadraDTO.from(squadre.save(s));
     }
 
@@ -93,6 +115,7 @@ public class AnagrafeService {
     public void eliminaSquadra(Utente utente, UUID id) {
         AnagrafeSquadra s = trovaSquadra(id);
         guard.checkOwner(utente, s.getAutore().getId(), "questa squadra");
+        guard.tracciaEliminazione(utente, s.getAutore().getId(), "squadra", id);
         squadre.delete(s);
     }
 
@@ -132,12 +155,16 @@ public class AnagrafeService {
         s.setWebsite(v(d.website()));
         s.setInstagram(v(d.instagram()));
         s.setNote(v(d.note()));
-        // Roster: id sconosciuti vengono ignorati, doppioni rimossi mantenendo l'ordine
+        // Roster: id sconosciuti vengono ignorati, doppioni rimossi mantenendo l'ordine. I giocatori si leggono con una
+        // sola query (findAllById): le righe tornano in un ordine qualsiasi, quindi l'ordine del client si rimette dagli id
+        List<UUID> ids = List.of();
+        if (d.roster() != null) ids = d.roster().stream().distinct().toList();
+        Map<UUID, AnagrafeGiocatore> trovati = giocatori.findAllById(ids).stream()
+                .collect(Collectors.toMap(AnagrafeGiocatore::getId, Function.identity()));
         List<AnagrafeGiocatore> roster = new ArrayList<>();
-        if (d.roster() != null) {
-            for (UUID gid : d.roster().stream().distinct().toList()) {
-                giocatori.findById(gid).ifPresent(roster::add);
-            }
+        for (UUID gid : ids) {
+            AnagrafeGiocatore g = trovati.get(gid);
+            if (g != null) roster.add(g);
         }
         s.getRoster().clear();
         s.getRoster().addAll(roster);

@@ -3,515 +3,515 @@
   "giocatori": [
     {
       "id": "p01",
-      "nome": "Flavio",
-      "cognome": "Gay",
+      "nome": "Tommaso",
+      "cognome": "Vaccarello",
       "soprannome": "",
-      "nascita": "1998-03-15",
-      "citta": "Ravenna",
+      "nascita": "1993-10-30",
+      "citta": "Catanzaro",
       "nazionalita": "ITA",
-      "altezza": "192",
-      "peso": "88",
+      "altezza": "187",
+      "peso": "83",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "Team Rome",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Orasì Ravenna"
+      "note": "Tiratore dall'arco, cattura molti falli"
     },
     {
       "id": "p02",
-      "nome": "Giacomo",
-      "cognome": "Leardini",
+      "nome": "Elia",
+      "cognome": "Pescarolo",
       "soprannome": "",
-      "nascita": "1999-07-20",
-      "citta": "Vigevano",
+      "nascita": "1998-02-03",
+      "citta": "Taranto",
       "nazionalita": "ITA",
-      "altezza": "194",
-      "peso": "90",
+      "altezza": "198",
+      "peso": "98",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "Team Rome",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Elachem Vigevano"
+      "note": "Ala mobile, forte in contropiede"
     },
     {
       "id": "p03",
-      "nome": "Lorenzo",
-      "cognome": "Lovato",
+      "nome": "Samuele",
+      "cognome": "Ranzatelli",
       "soprannome": "",
-      "nascita": "2001-02-08",
-      "citta": "Varese",
+      "nascita": "1995-07-14",
+      "citta": "Cagliari",
       "nazionalita": "ITA",
-      "altezza": "191",
-      "peso": "85",
+      "altezza": "180",
+      "peso": "78",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "Team Rome",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Coelsanus Basket 7 Laghi"
+      "note": "Regista del gruppo; ha giocato nelle giovanili di un club locale"
     },
     {
       "id": "p04",
-      "nome": "Andrea",
-      "cognome": "Valentini",
+      "nome": "Riccardo",
+      "cognome": "Mortarino",
       "soprannome": "",
-      "nascita": "1998-11-03",
-      "citta": "Roma",
+      "nascita": "2001-07-17",
+      "citta": "Savona",
       "nazionalita": "ITA",
-      "altezza": "193",
-      "peso": "89",
+      "altezza": "200",
+      "peso": "98",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "Team Rome",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Virtus Gvm Roma 1960"
+      "note": "Lungo atletico e rimbalzista; referente della squadra"
     },
     {
       "id": "p05",
-      "nome": "Matteo",
-      "cognome": "Airaghi",
+      "nome": "Cesare",
+      "cognome": "Talamonti",
       "soprannome": "",
-      "nascita": "1996-05-12",
-      "citta": "Matera",
+      "nascita": "1992-08-09",
+      "citta": "Perugia",
       "nazionalita": "ITA",
-      "altezza": "196",
-      "peso": "93",
+      "altezza": "190",
+      "peso": "88",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "Concrete",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Virtus Matera"
+      "note": "Ala con buon tiro da due; allena un gruppo giovanile"
     },
     {
       "id": "p06",
-      "nome": "Michele",
-      "cognome": "D'Ambrosio",
-      "soprannome": "Angelillo",
-      "nascita": "1998-09-14",
-      "citta": "Ozzano dell'Emilia",
+      "nome": "Ivan",
+      "cognome": "Cerquetti",
+      "soprannome": "Cerqua",
+      "nascita": "2001-03-31",
+      "citta": "Bergamo",
       "nazionalita": "ITA",
-      "altezza": "200",
-      "peso": "98",
+      "altezza": "196",
+      "peso": "90",
       "ruolo": "Centro",
       "numero": "",
       "squadra": "Concrete",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Vifermeca Olimpia Castello"
+      "note": "Centro dominante vicino a canestro"
     },
     {
       "id": "p07",
-      "nome": "Carlo",
-      "cognome": "Fumagalli",
+      "nome": "Davide",
+      "cognome": "Sanguinazzi",
       "soprannome": "",
-      "nascita": "1996-01-22",
-      "citta": "Desio",
+      "nascita": "1991-08-17",
+      "citta": "Foggia",
       "nazionalita": "ITA",
-      "altezza": "188",
-      "peso": "84",
+      "altezza": "182",
+      "peso": "79",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "Concrete",
       "esperienza": "",
-      "note": "Naz. 3x3 / MVP Finals 2024 [P]; club 5v5: Rimadesio Desio"
+      "note": "Playmaker con ottima visione di gioco; capitano e referente"
     },
     {
       "id": "p08",
-      "nome": "Morgan",
-      "cognome": "Rashed",
+      "nome": "Samir",
+      "cognome": "Benhalima",
       "soprannome": "",
-      "nascita": "2002-04-30",
+      "nascita": "1997-05-15",
       "citta": "",
       "nazionalita": "ITA",
-      "altezza": "190",
-      "peso": "86",
+      "altezza": "196",
+      "peso": "91",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "Concrete",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Young Harris Basketball"
+      "note": "Guardia veloce, difensore sulla palla"
     },
     {
       "id": "p09",
-      "nome": "Federico",
-      "cognome": "Frisari",
-      "soprannome": "Friso",
-      "nascita": "1994-06-07",
-      "citta": "Roma",
+      "nome": "Alessio",
+      "cognome": "Gambarotta",
+      "soprannome": "Gamba",
+      "nascita": "1991-08-21",
+      "citta": "Ancona",
       "nazionalita": "ITA",
-      "altezza": "190",
-      "peso": "86",
+      "altezza": "186",
+      "peso": "83",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "All Star 3×3",
       "esperienza": "",
-      "note": "Capitano All Star 3x3, #1 Elite 2025 [R/W]"
+      "note": "Capitano della squadra, tiratore e leader dello spogliatoio"
     },
     {
       "id": "p10",
-      "nome": "Dario",
-      "cognome": "Masciarelli",
+      "nome": "Juniel",
+      "cognome": "Pichardo Lantigua",
       "soprannome": "",
-      "nascita": "1998-02-19",
-      "citta": "Imola",
-      "nazionalita": "ITA",
-      "altezza": "195",
-      "peso": "91",
+      "nascita": "2000-09-07",
+      "citta": "Terni",
+      "nazionalita": "DOM",
+      "altezza": "191",
+      "peso": "88",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "All Star 3×3",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Virtus Pallacanestro Imola"
+      "note": "Ala fisica, specialista dei rimbalzi offensivi"
     },
     {
       "id": "p11",
-      "nome": "Matteo",
-      "cognome": "Santucci",
+      "nome": "Filippo",
+      "cognome": "Cuccarese",
       "soprannome": "",
-      "nascita": "1996-10-25",
-      "citta": "Roma",
+      "nascita": "1998-03-18",
+      "citta": "Padova",
       "nazionalita": "ITA",
-      "altezza": "193",
-      "peso": "88",
+      "altezza": "190",
+      "peso": "92",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "All Star 3×3",
       "esperienza": "",
-      "note": "Scudetto 2023 con All Star 3x3 [W]"
+      "note": "Ala polivalente, nei quintetti piccoli gioca anche da lungo"
     },
     {
       "id": "p12",
-      "nome": "Michele",
-      "cognome": "Serpilli",
+      "nome": "Mattia",
+      "cognome": "Tremolada",
       "soprannome": "",
-      "nascita": "1999-03-11",
-      "citta": "Casalpusterlengo",
+      "nascita": "1993-03-06",
+      "citta": "Forlì",
       "nazionalita": "ITA",
-      "altezza": "196",
-      "peso": "92",
+      "altezza": "192",
+      "peso": "89",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "All Star 3×3",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Assigeco Casalpusterlengo"
+      "note": "Playmaker in crescita, molto bravo negli assist"
     },
     {
       "id": "p13",
-      "nome": "Matteo",
-      "cognome": "Corgnati",
+      "nome": "Jacopo",
+      "cognome": "Rinaldelli",
       "soprannome": "",
-      "nascita": "1997-08-04",
-      "citta": "Torino",
+      "nascita": "2002-08-31",
+      "citta": "Pisa",
       "nazionalita": "ITA",
-      "altezza": "193",
-      "peso": "89",
+      "altezza": "184",
+      "peso": "79",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "The Goat Torino",
       "esperienza": "",
-      "note": "MVP Opening Tournament 2025 [R]"
+      "note": "Guardia, miglior marcatore dell'ultimo torneo; referente della squadra"
     },
     {
       "id": "p14",
-      "nome": "Diego",
-      "cognome": "Calzavara",
+      "nome": "Edoardo",
+      "cognome": "Spinelloni",
       "soprannome": "",
-      "nascita": "1996-12-18",
-      "citta": "Torino",
+      "nascita": "1991-02-01",
+      "citta": "Brescia",
       "nazionalita": "ITA",
-      "altezza": "196",
-      "peso": "92",
+      "altezza": "193",
+      "peso": "86",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "The Goat Torino",
       "esperienza": "",
-      "note": "Opening Tournament 2025 [R]"
+      "note": "Ala con buon tiro dalla media"
     },
     {
       "id": "p15",
-      "nome": "Matteo",
-      "cognome": "Gherardini",
+      "nome": "Gianluca",
+      "cognome": "Perosino",
       "soprannome": "",
-      "nascita": "1998-05-27",
-      "citta": "Torino",
+      "nascita": "1991-11-19",
+      "citta": "Siena",
       "nazionalita": "ITA",
-      "altezza": "190",
-      "peso": "85",
+      "altezza": "186",
+      "peso": "79",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "The Goat Torino",
       "esperienza": "",
-      "note": "Opening Tournament 2025 [R]"
+      "note": "Playmaker mancino, palleggio sempre in controllo"
     },
     {
       "id": "p16",
-      "nome": "Alberto",
-      "cognome": "Puccioni",
+      "nome": "Lansana",
+      "cognome": "Fofanah",
       "soprannome": "",
-      "nascita": "1995-09-02",
-      "citta": "Torino",
-      "nazionalita": "ITA",
-      "altezza": "202",
-      "peso": "100",
+      "nascita": "2000-05-01",
+      "citta": "Biella",
+      "nazionalita": "GUI",
+      "altezza": "206",
+      "peso": "103",
       "ruolo": "Centro",
       "numero": "",
       "squadra": "The Goat Torino",
       "esperienza": "",
-      "note": "Opening Tournament 2025 [R]"
+      "note": "Centro molto alto, protegge il ferro"
     },
     {
       "id": "p17",
-      "nome": "Pietro",
-      "cognome": "Agostini",
+      "nome": "Marco",
+      "cognome": "Cragnolini",
       "soprannome": "",
-      "nascita": "1999-01-17",
-      "citta": "Legnano",
+      "nascita": "1995-03-31",
+      "citta": "Cremona",
       "nazionalita": "ITA",
-      "altezza": "194",
-      "peso": "89",
+      "altezza": "199",
+      "peso": "96",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "FDC Tunes 2.0",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Sae Scientifica Legnano"
+      "note": "Ala di energia, vive di contropiede"
     },
     {
       "id": "p18",
-      "nome": "Alberto",
-      "cognome": "Bedina",
+      "nome": "Yunior",
+      "cognome": "Valdesco",
       "soprannome": "",
-      "nascita": "1997-06-23",
-      "citta": "Pordenone",
-      "nazionalita": "ITA",
-      "altezza": "190",
-      "peso": "85",
+      "nascita": "1993-07-09",
+      "citta": "Sassari",
+      "nazionalita": "DOM",
+      "altezza": "193",
+      "peso": "93",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "FDC Tunes 2.0",
       "esperienza": "",
-      "note": "Scudetto 2022 con FDC Pro Team [W]"
+      "note": "Guardia esperta, affidabile ai tiri liberi"
     },
     {
       "id": "p19",
-      "nome": "Nicolò",
-      "cognome": "Menardi",
+      "nome": "Fabio",
+      "cognome": "Pitussi",
       "soprannome": "",
-      "nascita": "1998-04-09",
-      "citta": "Pordenone",
+      "nascita": "2002-10-12",
+      "citta": "Parma",
       "nazionalita": "ITA",
-      "altezza": "192",
-      "peso": "87",
+      "altezza": "183",
+      "peso": "80",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "FDC Tunes 2.0",
       "esperienza": "",
-      "note": "Scudetto 2022 con FDC Pro Team [W]"
+      "note": "Playmaker che gestisce i ritmi della partita; referente della squadra"
     },
     {
       "id": "p20",
-      "nome": "Leonardo",
-      "cognome": "Clark",
+      "nome": "Kevin",
+      "cognome": "Dalmonego",
       "soprannome": "",
-      "nascita": "1996-08-14",
-      "citta": "Venezia",
+      "nascita": "1992-11-18",
+      "citta": "Trento",
       "nazionalita": "ITA",
-      "altezza": "198",
-      "peso": "95",
+      "altezza": "203",
+      "peso": "100",
       "ruolo": "Centro",
       "numero": "",
       "squadra": "FDC Tunes 2.0",
       "esperienza": "",
-      "note": "Scudetto 2022 con FDC Pro Team [W]"
+      "note": "Centro mobile, bravo a correre il campo"
     },
     {
       "id": "p21",
-      "nome": "Giacomo",
-      "cognome": "Dell'Agnello",
+      "nome": "Simone",
+      "cognome": "Brusutti",
       "soprannome": "",
-      "nascita": "1994-10-31",
-      "citta": "Cividale del Friuli",
+      "nascita": "1992-01-29",
+      "citta": "Novara",
       "nazionalita": "ITA",
-      "altezza": "192",
-      "peso": "87",
+      "altezza": "196",
+      "peso": "95",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "FVG 3×3",
       "esperienza": "",
-      "note": "A disposizione naz. 3x3 [P]; club 5v5: Gesteco Cividale"
+      "note": "Guardia, difensore di punta; referente della squadra"
     },
     {
       "id": "p22",
-      "nome": "Michele",
-      "cognome": "Peroni",
+      "nome": "Luca",
+      "cognome": "Zorzenon",
       "soprannome": "",
-      "nascita": "1994-07-15",
-      "citta": "Vigevano",
+      "nascita": "1991-11-19",
+      "citta": "Verona",
       "nazionalita": "ITA",
-      "altezza": "195",
-      "peso": "90",
+      "altezza": "198",
+      "peso": "99",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "FVG 3×3",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Elachem Vigevano"
+      "note": "Ala con un tiro da tre molto costante"
     },
     {
       "id": "p23",
-      "nome": "Bruno",
-      "cognome": "Mascolo",
+      "nome": "Alessandro",
+      "cognome": "Cargnelutti",
       "soprannome": "",
-      "nascita": "1996-03-22",
-      "citta": "Treviso",
+      "nascita": "2003-09-05",
+      "citta": "Rimini",
       "nazionalita": "ITA",
-      "altezza": "190",
-      "peso": "85",
+      "altezza": "179",
+      "peso": "76",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "FVG 3×3",
       "esperienza": "",
-      "note": "A disposizione naz. 3x3 [P]; club 5v5: Nutribullet Treviso"
+      "note": "Playmaker con un palleggio molto sicuro"
     },
     {
       "id": "p24",
-      "nome": "Dario",
-      "cognome": "Zucca",
+      "nome": "Daniele",
+      "cognome": "Romanut",
       "soprannome": "",
-      "nascita": "1996-01-05",
-      "citta": "Jesi",
+      "nascita": "1999-06-02",
+      "citta": "Lodi",
       "nazionalita": "ITA",
-      "altezza": "198",
-      "peso": "96",
+      "altezza": "204",
+      "peso": "100",
       "ruolo": "Centro",
       "numero": "",
       "squadra": "FVG 3×3",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Basket Jesi Academy"
+      "note": "Centro che fa blocchi e rimbalzi"
     },
     {
       "id": "p25",
-      "nome": "Andrea",
-      "cognome": "Tassinari",
+      "nome": "Paolo",
+      "cognome": "Gozzoli",
       "soprannome": "",
-      "nascita": "1993-05-16",
-      "citta": "Bologna",
+      "nascita": "1999-03-21",
+      "citta": "Salerno",
       "nazionalita": "ITA",
-      "altezza": "188",
-      "peso": "84",
+      "altezza": "179",
+      "peso": "72",
       "ruolo": "Playmaker",
       "numero": "",
       "squadra": "UB Kings of Kings",
       "esperienza": "",
-      "note": "Scudetto 2021 con Kings of Kings [W]"
+      "note": "Playmaker esperto; referente della squadra"
     },
     {
       "id": "p26",
-      "nome": "Carlos",
-      "cognome": "Rivera",
+      "nome": "Enrico",
+      "cognome": "Tomadini",
       "soprannome": "",
-      "nascita": "1991-11-29",
+      "nascita": "1994-04-01",
       "citta": "",
-      "nazionalita": "DOM",
-      "altezza": "192",
-      "peso": "88",
+      "nazionalita": "ITA",
+      "altezza": "182",
+      "peso": "82",
       "ruolo": "Guardia",
       "numero": "",
       "squadra": "UB Kings of Kings",
       "esperienza": "",
-      "note": "Scudetto 2021 con Kings of Kings [W]"
+      "note": "Guardia atletica, schiaccia in contropiede"
     },
     {
       "id": "p27",
-      "nome": "Mohamed",
-      "cognome": "Touré",
+      "nome": "Stefano",
+      "cognome": "Quaglieri",
       "soprannome": "",
-      "nascita": "1995-08-03",
+      "nascita": "2002-07-04",
       "citta": "",
-      "nazionalita": "GUI",
-      "altezza": "202",
-      "peso": "102",
+      "nazionalita": "ITA",
+      "altezza": "207",
+      "peso": "106",
       "ruolo": "Centro",
       "numero": "",
       "squadra": "UB Kings of Kings",
       "esperienza": "",
-      "note": "Scudetto 2021 con Kings of Kings [W]"
+      "note": "Centro stoppatore"
     },
     {
       "id": "p28",
-      "nome": "Bryant",
-      "cognome": "Inoa Piantini",
+      "nome": "Nicolò",
+      "cognome": "Ardizzone",
       "soprannome": "",
-      "nascita": "1994-02-17",
+      "nascita": "1999-07-06",
       "citta": "",
-      "nazionalita": "DOM",
-      "altezza": "196",
-      "peso": "92",
+      "nazionalita": "ITA",
+      "altezza": "191",
+      "peso": "82",
       "ruolo": "Ala",
       "numero": "",
       "squadra": "UB Kings of Kings",
       "esperienza": "",
-      "note": "Scudetto 2021 con Kings of Kings [W]"
+      "note": "Ala di fisico, difende su tutti i ruoli"
     },
     {
       "id": "p29",
-      "nome": "Giacomo",
-      "cognome": "Bonavida",
+      "nome": "Giulio",
+      "cognome": "Bernardinello",
       "soprannome": "",
-      "nascita": "2001-09-14",
-      "citta": "Iseo",
+      "nascita": "1992-07-19",
+      "citta": "Cuneo",
       "nazionalita": "ITA",
-      "altezza": "192",
-      "peso": "86",
+      "altezza": "186",
+      "peso": "82",
       "ruolo": "Guardia",
       "numero": "",
-      "squadra": "Tortona Evolution",
+      "squadra": "Tortona Evolution 3×3",
       "esperienza": "",
-      "note": "Nazionale 3x3 [P]; club 5v5: Syneto Basket Iseo"
+      "note": "Guardia giovane; referente della squadra"
     },
     {
       "id": "p30",
-      "nome": "Lorenzo",
-      "cognome": "Donadio",
+      "nome": "Mirko",
+      "cognome": "Scardicchio",
       "soprannome": "",
-      "nascita": "2001-04-22",
-      "citta": "Nardò",
+      "nascita": "1996-02-29",
+      "citta": "Bolzano",
       "nazionalita": "ITA",
-      "altezza": "190",
-      "peso": "83",
+      "altezza": "180",
+      "peso": "75",
       "ruolo": "Playmaker",
       "numero": "",
-      "squadra": "Tortona Evolution",
+      "squadra": "Tortona Evolution 3×3",
       "esperienza": "",
-      "note": "A disposizione naz. 3x3 [P]; club 5v5: HDL Nardò"
+      "note": "Playmaker con un buon tiro dal palleggio"
     },
     {
       "id": "p31",
-      "nome": "Luca",
-      "cognome": "Carrea",
+      "nome": "Tiziano",
+      "cognome": "Boccalatte",
       "soprannome": "",
-      "nascita": "2002-06-18",
-      "citta": "Alessandria",
+      "nascita": "1995-07-31",
+      "citta": "Livorno",
       "nazionalita": "ITA",
-      "altezza": "194",
-      "peso": "88",
+      "altezza": "200",
+      "peso": "102",
       "ruolo": "Ala",
       "numero": "",
-      "squadra": "Tortona Evolution",
+      "squadra": "Tortona Evolution 3×3",
       "esperienza": "",
-      "note": "Circuito Classic; club 5v5: sistema Bertram Derthona [E]"
+      "note": "Ala completa, utile in attacco e in difesa"
     },
     {
       "id": "p32",
-      "nome": "Matteo",
-      "cognome": "Repetti",
+      "nome": "Gioele",
+      "cognome": "Garavelli",
       "soprannome": "",
-      "nascita": "2001-11-30",
-      "citta": "Tortona",
+      "nascita": "2000-11-12",
+      "citta": "Lecce",
       "nazionalita": "ITA",
-      "altezza": "196",
-      "peso": "93",
+      "altezza": "207",
+      "peso": "102",
       "ruolo": "Centro",
       "numero": "",
-      "squadra": "Tortona Evolution",
+      "squadra": "Tortona Evolution 3×3",
       "esperienza": "",
-      "note": "Circuito Classic, area Alessandria-Tortona [E]"
+      "note": "Centro giovane, in crescita"
     }
   ],
   "squadre": [
@@ -521,7 +521,7 @@
       "citta": "Roma",
       "anno": "2020",
       "rank": "220",
-      "referente": "Andrea Valentini",
+      "referente": "Riccardo Mortarino",
       "roster": [
         "p01",
         "p02",
@@ -539,7 +539,7 @@
       "citta": "Roma",
       "anno": "2019",
       "rank": "200",
-      "referente": "Francesco Santucci",
+      "referente": "Marina Colasanto",
       "roster": [
         "p09",
         "p10",
@@ -557,7 +557,7 @@
       "citta": "Milano",
       "anno": "2021",
       "rank": "185",
-      "referente": "Carlo Fumagalli",
+      "referente": "Davide Sanguinazzi",
       "roster": [
         "p05",
         "p06",
@@ -575,7 +575,7 @@
       "citta": "Rivalta di Torino",
       "anno": "2022",
       "rank": "165",
-      "referente": "Matteo Corgnati",
+      "referente": "Jacopo Rinaldelli",
       "roster": [
         "p13",
         "p14",
@@ -593,7 +593,7 @@
       "citta": "Pordenone",
       "anno": "2017",
       "rank": "150",
-      "referente": "Nicolò Menardi",
+      "referente": "Fabio Pitussi",
       "roster": [
         "p17",
         "p18",
@@ -611,7 +611,7 @@
       "citta": "Udine",
       "anno": "2018",
       "rank": "130",
-      "referente": "Giacomo Dell'Agnello",
+      "referente": "Simone Brusutti",
       "roster": [
         "p21",
         "p22",
@@ -629,7 +629,7 @@
       "citta": "Bologna",
       "anno": "2014",
       "rank": "110",
-      "referente": "Andrea Tassinari",
+      "referente": "Paolo Gozzoli",
       "roster": [
         "p25",
         "p26",
@@ -647,7 +647,7 @@
       "citta": "Tortona",
       "anno": "2022",
       "rank": "90",
-      "referente": "Giacomo Bonavida",
+      "referente": "Giulio Bernardinello",
       "roster": [
         "p29",
         "p30",
@@ -684,19 +684,19 @@
           "giocatori": [
             {
               "id": "p01",
-              "nome": "Flavio Gay"
+              "nome": "Tommaso Vaccarello"
             },
             {
               "id": "p02",
-              "nome": "Giacomo Leardini"
+              "nome": "Elia Pescarolo"
             },
             {
               "id": "p03",
-              "nome": "Lorenzo Lovato"
+              "nome": "Samuele Ranzatelli"
             },
             {
               "id": "p04",
-              "nome": "Andrea Valentini"
+              "nome": "Riccardo Mortarino"
             }
           ]
         },
@@ -710,19 +710,19 @@
           "giocatori": [
             {
               "id": "p09",
-              "nome": "Federico Frisari"
+              "nome": "Alessio Gambarotta"
             },
             {
               "id": "p10",
-              "nome": "Dario Masciarelli"
+              "nome": "Juniel Pichardo Lantigua"
             },
             {
               "id": "p11",
-              "nome": "Matteo Santucci"
+              "nome": "Filippo Cuccarese"
             },
             {
               "id": "p12",
-              "nome": "Michele Serpilli"
+              "nome": "Mattia Tremolada"
             }
           ]
         },
@@ -735,19 +735,19 @@
           "giocatori": [
             {
               "id": "p05",
-              "nome": "Matteo Airaghi"
+              "nome": "Cesare Talamonti"
             },
             {
               "id": "p06",
-              "nome": "Michele D'Ambrosio"
+              "nome": "Ivan Cerquetti"
             },
             {
               "id": "p07",
-              "nome": "Carlo Fumagalli"
+              "nome": "Davide Sanguinazzi"
             },
             {
               "id": "p08",
-              "nome": "Morgan Rashed"
+              "nome": "Samir Benhalima"
             }
           ]
         },
@@ -761,19 +761,19 @@
           "giocatori": [
             {
               "id": "p13",
-              "nome": "Matteo Corgnati"
+              "nome": "Jacopo Rinaldelli"
             },
             {
               "id": "p14",
-              "nome": "Diego Calzavara"
+              "nome": "Edoardo Spinelloni"
             },
             {
               "id": "p15",
-              "nome": "Matteo Gherardini"
+              "nome": "Gianluca Perosino"
             },
             {
               "id": "p16",
-              "nome": "Alberto Puccioni"
+              "nome": "Lansana Fofanah"
             }
           ]
         },
@@ -785,19 +785,19 @@
           "giocatori": [
             {
               "id": "p17",
-              "nome": "Pietro Agostini"
+              "nome": "Marco Cragnolini"
             },
             {
               "id": "p18",
-              "nome": "Alberto Bedina"
+              "nome": "Yunior Valdesco"
             },
             {
               "id": "p19",
-              "nome": "Nicolò Menardi"
+              "nome": "Fabio Pitussi"
             },
             {
               "id": "p20",
-              "nome": "Leonardo Clark"
+              "nome": "Kevin Dalmonego"
             }
           ]
         },
@@ -809,19 +809,19 @@
           "giocatori": [
             {
               "id": "p21",
-              "nome": "Giacomo Dell'Agnello"
+              "nome": "Simone Brusutti"
             },
             {
               "id": "p22",
-              "nome": "Michele Peroni"
+              "nome": "Luca Zorzenon"
             },
             {
               "id": "p23",
-              "nome": "Bruno Mascolo"
+              "nome": "Alessandro Cargnelutti"
             },
             {
               "id": "p24",
-              "nome": "Dario Zucca"
+              "nome": "Daniele Romanut"
             }
           ]
         },
@@ -833,19 +833,19 @@
           "giocatori": [
             {
               "id": "p25",
-              "nome": "Andrea Tassinari"
+              "nome": "Paolo Gozzoli"
             },
             {
               "id": "p26",
-              "nome": "Carlos Rivera"
+              "nome": "Enrico Tomadini"
             },
             {
               "id": "p27",
-              "nome": "Mohamed Touré"
+              "nome": "Stefano Quaglieri"
             },
             {
               "id": "p28",
-              "nome": "Bryant Inoa Piantini"
+              "nome": "Nicolò Ardizzone"
             }
           ]
         },
@@ -858,19 +858,19 @@
           "giocatori": [
             {
               "id": "p29",
-              "nome": "Giacomo Bonavida"
+              "nome": "Giulio Bernardinello"
             },
             {
               "id": "p30",
-              "nome": "Lorenzo Donadio"
+              "nome": "Mirko Scardicchio"
             },
             {
               "id": "p31",
-              "nome": "Luca Carrea"
+              "nome": "Tiziano Boccalatte"
             },
             {
               "id": "p32",
-              "nome": "Matteo Repetti"
+              "nome": "Gioele Garavelli"
             }
           ]
         }
@@ -1603,19 +1603,19 @@
           "giocatori": [
             {
               "id": "p01",
-              "nome": "Flavio Gay"
+              "nome": "Tommaso Vaccarello"
             },
             {
               "id": "p02",
-              "nome": "Giacomo Leardini"
+              "nome": "Elia Pescarolo"
             },
             {
               "id": "p03",
-              "nome": "Lorenzo Lovato"
+              "nome": "Samuele Ranzatelli"
             },
             {
               "id": "p04",
-              "nome": "Andrea Valentini"
+              "nome": "Riccardo Mortarino"
             }
           ]
         },
@@ -1629,19 +1629,19 @@
           "giocatori": [
             {
               "id": "p13",
-              "nome": "Matteo Corgnati"
+              "nome": "Jacopo Rinaldelli"
             },
             {
               "id": "p14",
-              "nome": "Diego Calzavara"
+              "nome": "Edoardo Spinelloni"
             },
             {
               "id": "p15",
-              "nome": "Matteo Gherardini"
+              "nome": "Gianluca Perosino"
             },
             {
               "id": "p16",
-              "nome": "Alberto Puccioni"
+              "nome": "Lansana Fofanah"
             }
           ]
         },
@@ -1653,19 +1653,19 @@
           "giocatori": [
             {
               "id": "p21",
-              "nome": "Giacomo Dell'Agnello"
+              "nome": "Simone Brusutti"
             },
             {
               "id": "p22",
-              "nome": "Michele Peroni"
+              "nome": "Luca Zorzenon"
             },
             {
               "id": "p23",
-              "nome": "Bruno Mascolo"
+              "nome": "Alessandro Cargnelutti"
             },
             {
               "id": "p24",
-              "nome": "Dario Zucca"
+              "nome": "Daniele Romanut"
             }
           ]
         },
@@ -1678,19 +1678,19 @@
           "giocatori": [
             {
               "id": "p29",
-              "nome": "Giacomo Bonavida"
+              "nome": "Giulio Bernardinello"
             },
             {
               "id": "p30",
-              "nome": "Lorenzo Donadio"
+              "nome": "Mirko Scardicchio"
             },
             {
               "id": "p31",
-              "nome": "Luca Carrea"
+              "nome": "Tiziano Boccalatte"
             },
             {
               "id": "p32",
-              "nome": "Matteo Repetti"
+              "nome": "Gioele Garavelli"
             }
           ]
         },
@@ -1704,19 +1704,19 @@
           "giocatori": [
             {
               "id": "p09",
-              "nome": "Federico Frisari"
+              "nome": "Alessio Gambarotta"
             },
             {
               "id": "p10",
-              "nome": "Dario Masciarelli"
+              "nome": "Juniel Pichardo Lantigua"
             },
             {
               "id": "p11",
-              "nome": "Matteo Santucci"
+              "nome": "Filippo Cuccarese"
             },
             {
               "id": "p12",
-              "nome": "Michele Serpilli"
+              "nome": "Mattia Tremolada"
             }
           ]
         },
@@ -1729,19 +1729,19 @@
           "giocatori": [
             {
               "id": "p05",
-              "nome": "Matteo Airaghi"
+              "nome": "Cesare Talamonti"
             },
             {
               "id": "p06",
-              "nome": "Michele D'Ambrosio"
+              "nome": "Ivan Cerquetti"
             },
             {
               "id": "p07",
-              "nome": "Carlo Fumagalli"
+              "nome": "Davide Sanguinazzi"
             },
             {
               "id": "p08",
-              "nome": "Morgan Rashed"
+              "nome": "Samir Benhalima"
             }
           ]
         },
@@ -1753,19 +1753,19 @@
           "giocatori": [
             {
               "id": "p17",
-              "nome": "Pietro Agostini"
+              "nome": "Marco Cragnolini"
             },
             {
               "id": "p18",
-              "nome": "Alberto Bedina"
+              "nome": "Yunior Valdesco"
             },
             {
               "id": "p19",
-              "nome": "Nicolò Menardi"
+              "nome": "Fabio Pitussi"
             },
             {
               "id": "p20",
-              "nome": "Leonardo Clark"
+              "nome": "Kevin Dalmonego"
             }
           ]
         },
@@ -1777,19 +1777,19 @@
           "giocatori": [
             {
               "id": "p25",
-              "nome": "Andrea Tassinari"
+              "nome": "Paolo Gozzoli"
             },
             {
               "id": "p26",
-              "nome": "Carlos Rivera"
+              "nome": "Enrico Tomadini"
             },
             {
               "id": "p27",
-              "nome": "Mohamed Touré"
+              "nome": "Stefano Quaglieri"
             },
             {
               "id": "p28",
-              "nome": "Bryant Inoa Piantini"
+              "nome": "Nicolò Ardizzone"
             }
           ]
         }
@@ -2525,19 +2525,19 @@
           "giocatori": [
             {
               "id": "p09",
-              "nome": "Federico Frisari"
+              "nome": "Alessio Gambarotta"
             },
             {
               "id": "p10",
-              "nome": "Dario Masciarelli"
+              "nome": "Juniel Pichardo Lantigua"
             },
             {
               "id": "p11",
-              "nome": "Matteo Santucci"
+              "nome": "Filippo Cuccarese"
             },
             {
               "id": "p12",
-              "nome": "Michele Serpilli"
+              "nome": "Mattia Tremolada"
             }
           ]
         },
@@ -2550,19 +2550,19 @@
           "giocatori": [
             {
               "id": "p05",
-              "nome": "Matteo Airaghi"
+              "nome": "Cesare Talamonti"
             },
             {
               "id": "p06",
-              "nome": "Michele D'Ambrosio"
+              "nome": "Ivan Cerquetti"
             },
             {
               "id": "p07",
-              "nome": "Carlo Fumagalli"
+              "nome": "Davide Sanguinazzi"
             },
             {
               "id": "p08",
-              "nome": "Morgan Rashed"
+              "nome": "Samir Benhalima"
             }
           ]
         },
@@ -2574,19 +2574,19 @@
           "giocatori": [
             {
               "id": "p17",
-              "nome": "Pietro Agostini"
+              "nome": "Marco Cragnolini"
             },
             {
               "id": "p18",
-              "nome": "Alberto Bedina"
+              "nome": "Yunior Valdesco"
             },
             {
               "id": "p19",
-              "nome": "Nicolò Menardi"
+              "nome": "Fabio Pitussi"
             },
             {
               "id": "p20",
-              "nome": "Leonardo Clark"
+              "nome": "Kevin Dalmonego"
             }
           ]
         },
@@ -2599,19 +2599,19 @@
           "giocatori": [
             {
               "id": "p29",
-              "nome": "Giacomo Bonavida"
+              "nome": "Giulio Bernardinello"
             },
             {
               "id": "p30",
-              "nome": "Lorenzo Donadio"
+              "nome": "Mirko Scardicchio"
             },
             {
               "id": "p31",
-              "nome": "Luca Carrea"
+              "nome": "Tiziano Boccalatte"
             },
             {
               "id": "p32",
-              "nome": "Matteo Repetti"
+              "nome": "Gioele Garavelli"
             }
           ]
         },
@@ -2623,19 +2623,19 @@
           "giocatori": [
             {
               "id": "p01",
-              "nome": "Flavio Gay"
+              "nome": "Tommaso Vaccarello"
             },
             {
               "id": "p02",
-              "nome": "Giacomo Leardini"
+              "nome": "Elia Pescarolo"
             },
             {
               "id": "p03",
-              "nome": "Lorenzo Lovato"
+              "nome": "Samuele Ranzatelli"
             },
             {
               "id": "p04",
-              "nome": "Andrea Valentini"
+              "nome": "Riccardo Mortarino"
             }
           ]
         },
@@ -2649,19 +2649,19 @@
           "giocatori": [
             {
               "id": "p13",
-              "nome": "Matteo Corgnati"
+              "nome": "Jacopo Rinaldelli"
             },
             {
               "id": "p14",
-              "nome": "Diego Calzavara"
+              "nome": "Edoardo Spinelloni"
             },
             {
               "id": "p15",
-              "nome": "Matteo Gherardini"
+              "nome": "Gianluca Perosino"
             },
             {
               "id": "p16",
-              "nome": "Alberto Puccioni"
+              "nome": "Lansana Fofanah"
             }
           ]
         },
@@ -2673,19 +2673,19 @@
           "giocatori": [
             {
               "id": "p21",
-              "nome": "Giacomo Dell'Agnello"
+              "nome": "Simone Brusutti"
             },
             {
               "id": "p22",
-              "nome": "Michele Peroni"
+              "nome": "Luca Zorzenon"
             },
             {
               "id": "p23",
-              "nome": "Bruno Mascolo"
+              "nome": "Alessandro Cargnelutti"
             },
             {
               "id": "p24",
-              "nome": "Dario Zucca"
+              "nome": "Daniele Romanut"
             }
           ]
         },
@@ -2697,19 +2697,19 @@
           "giocatori": [
             {
               "id": "p25",
-              "nome": "Andrea Tassinari"
+              "nome": "Paolo Gozzoli"
             },
             {
               "id": "p26",
-              "nome": "Carlos Rivera"
+              "nome": "Enrico Tomadini"
             },
             {
               "id": "p27",
-              "nome": "Mohamed Touré"
+              "nome": "Stefano Quaglieri"
             },
             {
               "id": "p28",
-              "nome": "Bryant Inoa Piantini"
+              "nome": "Nicolò Ardizzone"
             }
           ]
         }
@@ -3436,19 +3436,19 @@
           "giocatori": [
             {
               "id": "p01",
-              "nome": "Flavio Gay"
+              "nome": "Tommaso Vaccarello"
             },
             {
               "id": "p02",
-              "nome": "Giacomo Leardini"
+              "nome": "Elia Pescarolo"
             },
             {
               "id": "p03",
-              "nome": "Lorenzo Lovato"
+              "nome": "Samuele Ranzatelli"
             },
             {
               "id": "p04",
-              "nome": "Andrea Valentini"
+              "nome": "Riccardo Mortarino"
             }
           ]
         },
@@ -3462,19 +3462,19 @@
           "giocatori": [
             {
               "id": "p13",
-              "nome": "Matteo Corgnati"
+              "nome": "Jacopo Rinaldelli"
             },
             {
               "id": "p14",
-              "nome": "Diego Calzavara"
+              "nome": "Edoardo Spinelloni"
             },
             {
               "id": "p15",
-              "nome": "Matteo Gherardini"
+              "nome": "Gianluca Perosino"
             },
             {
               "id": "p16",
-              "nome": "Alberto Puccioni"
+              "nome": "Lansana Fofanah"
             }
           ]
         },
@@ -3488,19 +3488,19 @@
           "giocatori": [
             {
               "id": "p09",
-              "nome": "Federico Frisari"
+              "nome": "Alessio Gambarotta"
             },
             {
               "id": "p10",
-              "nome": "Dario Masciarelli"
+              "nome": "Juniel Pichardo Lantigua"
             },
             {
               "id": "p11",
-              "nome": "Matteo Santucci"
+              "nome": "Filippo Cuccarese"
             },
             {
               "id": "p12",
-              "nome": "Michele Serpilli"
+              "nome": "Mattia Tremolada"
             }
           ]
         },
@@ -3513,19 +3513,19 @@
           "giocatori": [
             {
               "id": "p05",
-              "nome": "Matteo Airaghi"
+              "nome": "Cesare Talamonti"
             },
             {
               "id": "p06",
-              "nome": "Michele D'Ambrosio"
+              "nome": "Ivan Cerquetti"
             },
             {
               "id": "p07",
-              "nome": "Carlo Fumagalli"
+              "nome": "Davide Sanguinazzi"
             },
             {
               "id": "p08",
-              "nome": "Morgan Rashed"
+              "nome": "Samir Benhalima"
             }
           ]
         },
@@ -3537,19 +3537,19 @@
           "giocatori": [
             {
               "id": "p17",
-              "nome": "Pietro Agostini"
+              "nome": "Marco Cragnolini"
             },
             {
               "id": "p18",
-              "nome": "Alberto Bedina"
+              "nome": "Yunior Valdesco"
             },
             {
               "id": "p19",
-              "nome": "Nicolò Menardi"
+              "nome": "Fabio Pitussi"
             },
             {
               "id": "p20",
-              "nome": "Leonardo Clark"
+              "nome": "Kevin Dalmonego"
             }
           ]
         },
@@ -3561,19 +3561,19 @@
           "giocatori": [
             {
               "id": "p21",
-              "nome": "Giacomo Dell'Agnello"
+              "nome": "Simone Brusutti"
             },
             {
               "id": "p22",
-              "nome": "Michele Peroni"
+              "nome": "Luca Zorzenon"
             },
             {
               "id": "p23",
-              "nome": "Bruno Mascolo"
+              "nome": "Alessandro Cargnelutti"
             },
             {
               "id": "p24",
-              "nome": "Dario Zucca"
+              "nome": "Daniele Romanut"
             }
           ]
         },
@@ -3585,19 +3585,19 @@
           "giocatori": [
             {
               "id": "p25",
-              "nome": "Andrea Tassinari"
+              "nome": "Paolo Gozzoli"
             },
             {
               "id": "p26",
-              "nome": "Carlos Rivera"
+              "nome": "Enrico Tomadini"
             },
             {
               "id": "p27",
-              "nome": "Mohamed Touré"
+              "nome": "Stefano Quaglieri"
             },
             {
               "id": "p28",
-              "nome": "Bryant Inoa Piantini"
+              "nome": "Nicolò Ardizzone"
             }
           ]
         },
@@ -3610,19 +3610,19 @@
           "giocatori": [
             {
               "id": "p29",
-              "nome": "Giacomo Bonavida"
+              "nome": "Giulio Bernardinello"
             },
             {
               "id": "p30",
-              "nome": "Lorenzo Donadio"
+              "nome": "Mirko Scardicchio"
             },
             {
               "id": "p31",
-              "nome": "Luca Carrea"
+              "nome": "Tiziano Boccalatte"
             },
             {
               "id": "p32",
-              "nome": "Matteo Repetti"
+              "nome": "Gioele Garavelli"
             }
           ]
         }

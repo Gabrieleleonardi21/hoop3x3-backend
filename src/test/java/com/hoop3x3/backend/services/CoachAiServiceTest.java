@@ -308,6 +308,26 @@ class CoachAiServiceTest {
         assertThat(unicaRigaDiLog()).contains("a".repeat(500) + "…").doesNotContain("#");
     }
 
+    // Il troncamento viene prima della pulizia: i 500 caratteri sono quelli del corpo e una sequenza di escape non si taglia a metà
+    @Test
+    void corpoLungoDiACapo_siTroncaA500CaratteriPrimaDellaPulizia() {
+        groq.rispondi(500, "\n".repeat(600));
+
+        assertFallisceCon(HttpStatus.BAD_GATEWAY);
+        assertThat(unicaRigaDiLog()).endsWith("\\n".repeat(500) + "…");
+    }
+
+    // Un errore di Groq può riportare parti della richiesta dell'utente, e un corpo su più righe (il JSON con i rientri) è la
+    // norma: nel log il corpo resta su una riga sola, con a capo, separatori di riga e caratteri di controllo scritti per esteso
+    @Test
+    void corpoDiErroreSuPiuRigheConSeparatoriDiRiga_neiLogResteSuUnaRigaSola() {
+        groq.rispondi(400, "{\n  \"error\": \"riga uno\nINFO riga inventata\u2028e un'altra\u0085riga\"\n}");
+
+        assertThatThrownBy(() -> service.chat(richiesta(MESSAGGI_VALIDI, null))).isInstanceOf(BadRequestException.class);
+        assertThat(unicaRigaDiLog()).doesNotContainPattern("[\\p{Cc}\\p{Zl}\\p{Zp}]")
+                .contains("{\\n  \"error\": \"riga uno\\nINFO riga inventata\\u2028e un'altra\\u0085riga\"\\n}");
+    }
+
     @Test
     void groqNonRaggiungibile_risponde502_eLaCausaStaNeiLog() {
         groq.close(); // la porta ora è chiusa: la connessione viene rifiutata
@@ -329,6 +349,16 @@ class CoachAiServiceTest {
 
         assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessageContaining("risposta non valida");
         assertThat(unicaRigaDiLog()).contains(corpo);
+    }
+
+    // Come per gli errori: una pagina d'errore su più righe, con un separatore di riga di Unicode, resta su una riga sola
+    @Test
+    void rispostaNonValidaSuPiuRigheConSeparatoriDiRiga_neiLogResteSuUnaRigaSola() {
+        groq.rispondi(200, "<html>\n<body>riga inventata\u2028</body>\r\n</html>");
+
+        assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessageContaining("risposta non valida");
+        assertThat(unicaRigaDiLog()).doesNotContainPattern("[\\p{Cc}\\p{Zl}\\p{Zp}]")
+                .contains("<html>\\n<body>riga inventata\\u2028</body>\\r\\n</html>");
     }
 
     /* ── Timeout: Groq lento non tiene occupato il thread a tempo indeterminato ── */

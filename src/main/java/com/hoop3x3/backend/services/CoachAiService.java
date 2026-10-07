@@ -23,6 +23,8 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Set;
 
+import static com.hoop3x3.backend.services.LogSupport.perLog;
+
 /**
  * Proxy verso Groq per il Coach AI: la chiave resta sul server e non arriva mai al browser.
  * Il corpo (messages + tools nel formato OpenAI) è inoltrato dopo un controllo di forma e dimensione;
@@ -101,9 +103,10 @@ public class CoachAiService {
                     .retrieve()
                     .body(String.class);
         } catch (RestClientResponseException e) {
-            // Stato e corpo di Groq restano nei log del server; al client va un messaggio nostro
+            // Stato e corpo di Groq restano nei log del server; al client va un messaggio nostro. Il corpo può riportare parti
+            // della richiesta dell'utente (e di solito sta su più righe): passa da perLog, così resta su una riga sola
             int stato = e.getStatusCode().value();
-            log.warn("Groq ha risposto {}: {}", stato, tronca(e.getResponseBodyAsString()));
+            log.warn("Groq ha risposto {}: {}", stato, perLog(tronca(e.getResponseBodyAsString())));
             if (stato == 429) throw new UpstreamException(HttpStatus.TOO_MANY_REQUESTS, "Limite richieste Coach AI raggiunto, riprova tra poco");
             if (stato == 400 || stato == 413 || stato == 422) throw new BadRequestException("Richiesta al Coach AI non valida o troppo lunga");
             throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Il servizio AI non è disponibile in questo momento");
@@ -123,7 +126,7 @@ public class CoachAiService {
         } catch (JacksonException | IllegalArgumentException _) {
             // Non è JSON (o il corpo manca: readTree(null) lancia IllegalArgumentException): stessa risposta di un JSON non oggetto
         }
-        log.warn("Risposta di Groq non valida, non è un oggetto JSON: {}", tronca(corpo));
+        log.warn("Risposta di Groq non valida, non è un oggetto JSON: {}", perLog(tronca(corpo)));
         throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Il servizio AI ha dato una risposta non valida");
     }
 

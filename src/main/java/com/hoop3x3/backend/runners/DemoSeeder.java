@@ -2,10 +2,9 @@ package com.hoop3x3.backend.runners;
 
 import com.hoop3x3.backend.entities.*;
 import com.hoop3x3.backend.repositories.*;
-import com.hoop3x3.backend.services.LegaService;
+import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.UtenteService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
@@ -17,31 +16,40 @@ import tools.jackson.databind.node.ObjectNode;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 /**
  * Dati di prova del circuito Estathé 3x3 2025 (anagrafe, lega con 4 tappe concluse e archivio),
- * letti da resources/seed/estathe25.json. Attivo solo con SEED_DEMO=true e con l'admin configurato
- * (i dati vengono intestati a lui). Gli id corti del file ("p01", "s01", "t01") diventano UUID:
- * quelli delle tappe sono deterministici, così un secondo avvio riconosce i dati già inseriti.
+ * letti da resources/seed/estathe25.json (le persone, cioè giocatori e referenti, sono di fantasia: nome, data di nascita, misure,
+ * città e note sono inventati e la nazionalità è rimescolata, cioè gli italiani restano italiani e gli stranieri sono spostati su
+ * altri giocatori; restano solo ruolo, squadra e numero. Il file sta nel jar anche con SEED_DEMO=false e non deve contenere dati
+ * di persone reali, lo controlla DatiDiProvaTest). Attivo solo con SEED_DEMO=true e con l'admin configurato
+ * (i dati vengono intestati a lui). Si esegue una sola volta: alla fine scrive il segno «demo» in seed_eseguiti e al
+ * riavvio lo riconosce da lì (perché serve: vedi SeedEseguito). Gli id corti del file ("p01", "s01", "t01") diventano
+ * UUID: quelli delle tappe sono deterministici, e per i database seminati prima del segno la prima tappa demo dice che il
+ * seed è già stato fatto. L'archivio lo riempie ArchivioService.pubblica, lo stesso metodo che usa l'app.
  */
+@Slf4j
 @Component
 @Order(2) // dopo DataSeeder: serve l'admin già creato
 public class DemoSeeder implements CommandLineRunner {
 
-    private static final Logger log = LoggerFactory.getLogger(DemoSeeder.class);
     private static final String FILE = "/seed/estathe25.json";
+    /**
+     * Il nome del segno in seed_eseguiti è quello dell'operazione, non dei dati demo (nome della lega, delle squadre, del
+     * file): i dati possono cambiare e il segno deve restare riconoscibile.
+     */
+    private static final String SEGNO = "demo";
 
     private final UtenteRepository utenti;
     private final AnagrafeGiocatoreRepository giocatori;
     private final AnagrafeSquadraRepository squadre;
     private final LegaRepository leghe;
     private final TappaRepository tappe;
-    private final ArchivioTappaRepository archivio;
-    private final LegaService legaService;
+    private final SeedEseguitoRepository seedEseguiti;
+    private final ArchivioService archivioService;
     private final ObjectMapper mapper;
 
     @Value("${seed.demo:false}")
@@ -50,25 +58,38 @@ public class DemoSeeder implements CommandLineRunner {
     private String adminEmail;
 
     public DemoSeeder(UtenteRepository utenti, AnagrafeGiocatoreRepository giocatori, AnagrafeSquadraRepository squadre,
-                      LegaRepository leghe, TappaRepository tappe, ArchivioTappaRepository archivio,
-                      LegaService legaService, ObjectMapper mapper) {
+                      LegaRepository leghe, TappaRepository tappe, SeedEseguitoRepository seedEseguiti,
+                      ArchivioService archivioService, ObjectMapper mapper) {
         this.utenti = utenti;
         this.giocatori = giocatori;
         this.squadre = squadre;
         this.leghe = leghe;
         this.tappe = tappe;
-        this.archivio = archivio;
-        this.legaService = legaService;
+        this.seedEseguiti = seedEseguiti;
+        this.archivioService = archivioService;
         this.mapper = mapper;
     }
 
     @Override
     @Transactional
     public void run(String... args) throws Exception {
-        if (!abilitato || adminEmail.isBlank()) return;
+        // Ogni salto dice perché nei log: INFO se è la configurazione normale, avviso se chi ha acceso il seed non otterrà i dati
+        if (!abilitato) {
+            log.info("Seed demo saltato: SEED_DEMO non è true");
+            return;
+        }
+        if (adminEmail.isBlank()) {
+            log.warn("Seed demo saltato: SEED_DEMO è true ma ADMIN_EMAIL è vuota, e i dati di prova si intestano all'admin");
+            return;
+        }
         Utente admin = utenti.findByEmail(UtenteService.normalizza(adminEmail)).orElse(null);
         if (admin == null) {
             log.warn("Seed demo saltato: admin {} non trovato", adminEmail);
+            return;
+        }
+
+        if (seedEseguiti.existsById(SEGNO)) {
+            log.info("Seed demo saltato: già eseguito");
             return;
         }
 
@@ -76,13 +97,20 @@ public class DemoSeeder implements CommandLineRunner {
         try (InputStream in = getClass().getResourceAsStream(FILE)) {
             dati = mapper.readTree(in);
         }
-        // La prima tappa già presente vuol dire che il seed è già stato eseguito
-        if (tappe.existsById(uuidPer(dati.path("tappe").path(0).path("id").asString()))) return;
+        // Un database seminato prima del segno non ce l'ha, ma ha ancora la prima tappa demo: il seed è già stato eseguito.
+        // Il segno si scrive adesso, per i prossimi avvii
+        if (tappe.existsById(uuidPer(dati.path("tappe").path(0).path("id").asString()))) {
+            seedEseguiti.save(new SeedEseguito(SEGNO));
+            log.info("Seed demo saltato: già eseguito prima del segno (la prima tappa demo c'è), segno scritto");
+            return;
+        }
 
         Map<String, AnagrafeGiocatore> giocatoriPerId = creaGiocatori(admin, dati.path("giocatori"));
         Map<String, AnagrafeSquadra> squadrePerId = creaSquadre(admin, dati.path("squadre"), giocatoriPerId);
         Lega lega = creaLega(admin, dati, squadrePerId);
         pubblicaInArchivio(admin, lega);
+        // Per ultimo: se qualcosa va storto la transazione annulla anche il segno, e il prossimo avvio riprova da capo
+        seedEseguiti.save(new SeedEseguito(SEGNO));
 
         log.info("Seed demo completato: {} giocatori, {} squadre, {} tappe → lega \"{}\"",
                 giocatoriPerId.size(), squadrePerId.size(), lega.getTappe().size(), lega.getNome());
@@ -159,16 +187,14 @@ public class DemoSeeder implements CommandLineRunner {
         return leghe.save(lega);
     }
 
-    /** Snapshot pubblico di ogni tappa, come farebbe "Pubblica in archivio" dal frontend */
+    /**
+     * Pubblica ogni tappa come farebbe "Pubblica in archivio" dal frontend: con lo stesso metodo del servizio, quindi
+     * c'è un solo modo di costruire lo snapshot. Il seeder non ha un utente autenticato: pubblica l'admin, che della
+     * lega è il proprietario.
+     */
     private void pubblicaInArchivio(Utente admin, Lega lega) {
         for (Tappa t : lega.getTappe()) {
-            ArchivioTappa a = new ArchivioTappa();
-            a.setTappaId(t.getId());
-            a.setLegaNome(lega.getNome());
-            a.setAutore(admin);
-            a.setContenuto(mapper.writeValueAsString(legaService.toDto(t)));
-            a.setPubblicatoIl(LocalDateTime.now());
-            archivio.save(a);
+            archivioService.pubblica(admin, t.getId());
         }
     }
 

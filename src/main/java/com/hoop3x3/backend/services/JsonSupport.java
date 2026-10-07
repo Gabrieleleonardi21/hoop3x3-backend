@@ -43,6 +43,19 @@ public class JsonSupport {
         return serializza(node, campo);
     }
 
+    /**
+     * Il testo da salvare per un blocco: `attuale` (quello già nella colonna) se `nuovo` ha lo stesso contenuto JSON, altrimenti
+     * `nuovo`. I blocchi sono stringhe, e PostgreSQL riscrive il JSONB con degli spazi dopo i due punti e le virgole e con le chiavi
+     * in un altro ordine: confrontate come testo, due versioni dello stesso blocco risultano diverse, Hibernate scrive un UPDATE e
+     * la versione della tappa sale anche se non è cambiato niente (e un altro dispositivo riceve un 409 per niente). Si confrontano
+     * quindi i valori JSON, e se sono uguali resta il testo che c'è già, così Hibernate non vede nessun cambiamento.
+     */
+    public String testoDaSalvare(String attuale, String nuovo) {
+        if (attuale == null || nuovo == null) return nuovo;
+        if (attuale.equals(nuovo) || parse(attuale).equals(parse(nuovo))) return attuale;
+        return nuovo;
+    }
+
     public JsonNode parse(String json) {
         if (json == null) return null;
         return mapper.readTree(json);

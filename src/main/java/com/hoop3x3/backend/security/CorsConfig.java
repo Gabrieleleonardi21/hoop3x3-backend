@@ -3,6 +3,7 @@ package com.hoop3x3.backend.security;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -31,6 +32,9 @@ public class CorsConfig {
         config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        // Il JavaScript di un'altra origine legge solo gli header «sicuri» di CORS (Content-Type...) e quelli esposti qui: senza
+        // Retry-After il client non saprebbe quanto aspettare dopo un 429 dei limiti di frequenza (LimiteRichiesteFilter)
+        config.setExposedHeaders(List.of(HttpHeaders.RETRY_AFTER));
         config.setMaxAge(3600L); // il browser tiene in cache il preflight per 1 ora
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
