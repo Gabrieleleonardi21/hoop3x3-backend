@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Admin iniziale: lo si crea solo con una password di almeno 8 caratteri e diversa da quella dell'esempio.
- * Senza contesto Spring: repository e cifratura sono simulati e i campi @Value si impostano a mano.
+ * Senza contesto Spring: repository e cifratura sono simulati e le proprietà (SeedProperties) si passano al costruttore.
  */
 class DataSeederTest {
 

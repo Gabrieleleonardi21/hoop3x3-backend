@@ -23,7 +23,6 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 import static com.hoop3x3.backend.services.LogSupport.perLog;

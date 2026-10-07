@@ -43,7 +43,7 @@ import static org.mockito.Mockito.when;
 
 /**
  * Le condizioni che fermano il seed demo, e la riga di log che dice quale; il segno che il seed è stato eseguito. Senza
- * contesto Spring e senza database: repository e servizio sono simulati, i campi @Value si impostano a mano. Il seed con il
+ * contesto Spring e senza database: repository e servizio sono simulati, le proprietà (SeedProperties) si passano al costruttore. Il seed con il
  * database vero lo prova DemoSeederIT.
  */
 class DemoSeederTest {
@@ -159,7 +159,6 @@ class DemoSeederTest {
 
     /* ── Aiuti ── */
 
-    /** Imposta i valori che Spring leggerebbe da SEED_DEMO e ADMIN_EMAIL */
     /** Il seeder come lo crea Spring con SEED_DEMO e ADMIN_EMAIL */
     private DemoSeeder nuovoSeeder(boolean abilitato, String adminEmail) {
         return new DemoSeeder(utenti, giocatori, squadre, leghe, tappe, seedEseguiti, archivioService, JsonMapper.builder().build(),

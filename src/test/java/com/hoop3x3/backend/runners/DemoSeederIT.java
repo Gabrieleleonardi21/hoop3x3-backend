@@ -4,6 +4,7 @@ import com.hoop3x3.backend.TestDiIntegrazione;
 import com.hoop3x3.backend.dto.PubTappaDTO;
 import com.hoop3x3.backend.dto.PubTappaMetaDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
+import com.hoop3x3.backend.entities.Lega;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
@@ -14,17 +15,22 @@ import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.LegaService;
+import com.hoop3x3.backend.support.Tempo;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Il seed demo con il database vero: le 4 tappe del circuito Estathé finiscono in archivio con la forma che il frontend
@@ -48,6 +54,7 @@ class DemoSeederIT {
     @Autowired ArchivioService archivioService;
     @Autowired LegaService legaService;
     @Autowired ObjectMapper mapper;
+    @Autowired AutowireCapableBeanFactory fabbrica;
 
     @Test
     void leTappeDelSeedSonoInArchivioUgualiAQuelleSalvateEIntestateAllAdmin() throws Exception {
@@ -152,11 +159,32 @@ class DemoSeederIT {
         assertThat(squadre.findAll()).allSatisfy(s -> assertThat(s.getReferente()).contains(" "));
     }
 
+    // Il seed è una transazione sola (run è @Transactional): se si ferma a metà il database resta com'era, e il prossimo avvio
+    // riprova da capo senza giocatori e squadre doppi. Qui si ferma sulla seconda tappa demo, il cui id c'è già (una tappa di
+    // un'altra lega): giocatori e squadre, scritti prima, non devono restare
+    @Test
+    void seIlSeedSiFermaAMeta_ilDatabaseRestaComEra() {
+        Utente admin = accendiIlSeed();
+        Lega altra = leghe.save(new Lega("Altra lega", admin));
+        UUID secondaTappaDemo = UUID.nameUUIDFromBytes("hoop3x3-seed-t02".getBytes(StandardCharsets.UTF_8));
+        jdbc.update("insert into tappe (id, lega_id, posizione, nome, creato_il, modificato_il) values (?, ?, 0, 'Occupata', ?, ?)",
+                secondaTappaDemo, altra.getId(), Tempo.adesso(), Tempo.adesso());
+
+        assertThatThrownBy(() -> seeder.run()).as("il seed si ferma sulla tappa che c'è già").isNotNull();
+
+        assertThat(giocatori.count()).as("nessun giocatore demo").isZero();
+        assertThat(squadre.count()).as("nessuna squadra demo").isZero();
+        assertThat(leghe.count()).as("solo la lega che c'era").isEqualTo(1);
+        assertThat(segni()).as("nessun segno: il prossimo avvio riprova").isEmpty();
+    }
+
     /** Come all'avvio con SEED_DEMO=true e ADMIN_EMAIL: un admin nel database e il seeder acceso su di lui */
     private Utente accendiIlSeed() {
         Utente admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
-        seeder = new DemoSeeder(utenti, giocatori, squadre, leghe, tappe, seedEseguiti, archivioService, mapper,
+        DemoSeeder acceso = new DemoSeeder(utenti, giocatori, squadre, leghe, tappe, seedEseguiti, archivioService, mapper,
                 new SeedProperties(true, new SeedProperties.Admin(admin.getEmail(), "")));
+        // Passa dai post-processori di Spring come il bean vero: run() resta @Transactional (sull'oggetto creato con new, no)
+        seeder = (DemoSeeder) fabbrica.initializeBean(acceso, "demoSeederAcceso");
         return admin;
     }
 

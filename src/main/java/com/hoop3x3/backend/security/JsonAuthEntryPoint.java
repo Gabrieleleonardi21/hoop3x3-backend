@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 
 /**
  * Richiesta senza token su un endpoint protetto: senza questo entry point Spring Security
