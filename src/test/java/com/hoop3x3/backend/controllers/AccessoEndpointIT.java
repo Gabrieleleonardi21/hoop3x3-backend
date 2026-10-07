@@ -14,6 +14,7 @@ import com.hoop3x3.backend.services.AccessGuard;
 import com.hoop3x3.backend.services.AnagrafeService;
 import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.LegaService;
+import jakarta.validation.Valid;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -21,16 +22,22 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc; // Spring Boot 4: package del modulo webmvc-test
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.method.HandlerMethod;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -202,16 +209,44 @@ class AccessoEndpointIT {
                 .containsAll(protettiConUnaVariabile);
     }
 
+    // I tetti dei campi (CampiDiTesto) valgono solo se l'endpoint che riceve il corpo lo valida: ValidazioneWebTest lo prova su un
+    // endpoint per DTO, questo su tutti. Un parametro @RequestBody senza @Validated (o @Valid) lascerebbe passare qualsiasi corpo
+    // fino al servizio e al database, e nessun altro test se ne accorgerebbe
+    @Test
+    void ogniCorpoDiUnaRichiestaVieneValidato() {
+        List<String> senzaValidazione = new ArrayList<>();
+        int conUnCorpo = 0;
+        for (Map.Entry<RequestMappingInfo, HandlerMethod> handler : handlerDellApplicazione().entrySet()) {
+            for (MethodParameter parametro : handler.getValue().getMethodParameters()) {
+                if (!parametro.hasParameterAnnotation(RequestBody.class)) continue;
+                conUnCorpo++;
+                if (!parametro.hasParameterAnnotation(Validated.class) && !parametro.hasParameterAnnotation(Valid.class)) {
+                    senzaValidazione.add(handler.getValue().getBeanType().getSimpleName() + "." + handler.getValue().getMethod().getName()
+                            + " " + handler.getKey());
+                }
+            }
+        }
+
+        assertThat(conUnCorpo).as("endpoint con un corpo trovati: se è zero il test non guarda niente").isPositive();
+        assertThat(senzaValidazione).as("endpoint con un @RequestBody senza @Validated o @Valid").isEmpty();
+    }
+
     /**
-     * Metodo e percorso («GET /api/leghe/{}») di ogni endpoint dell'applicazione, dalle mappature vere di Spring MVC. Conta ogni
-     * handler il cui tipo sta sotto il pacchetto dell'applicazione, anche in un sottopacchetto: un controller futuro non sfugge
-     * all'audit. Restano fuori quelli di Spring Boot (il controller dell'/error).
+     * Gli handler dell'applicazione, dalle mappature vere di Spring MVC: quelli il cui tipo sta sotto il pacchetto dell'applicazione,
+     * anche in un sottopacchetto, così un controller futuro non sfugge all'audit. Restano fuori quelli di Spring Boot (il
+     * controller dell'/error).
      */
-    private Set<String> endpointDellApplicazione() {
+    private Map<RequestMappingInfo, HandlerMethod> handlerDellApplicazione() {
         String pacchettoDellApplicazione = Hoop3x3BackendApplication.class.getPackageName() + ".";
+        return mappature.getHandlerMethods().entrySet().stream()
+                .filter(handler -> handler.getValue().getBeanType().getName().startsWith(pacchettoDellApplicazione))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    /** Metodo e percorso («GET /api/leghe/{}») di ogni endpoint dell'applicazione */
+    private Set<String> endpointDellApplicazione() {
         Set<String> endpoint = new TreeSet<>();
-        mappature.getHandlerMethods().forEach((mappatura, metodo) -> {
-            if (!metodo.getBeanType().getName().startsWith(pacchettoDellApplicazione)) return;
+        handlerDellApplicazione().keySet().forEach(mappatura -> {
             Set<RequestMethod> metodiHttp = mappatura.getMethodsCondition().getMethods();
             for (String percorso : mappatura.getPathPatternsCondition().getPatternValues()) {
                 if (metodiHttp.isEmpty()) endpoint.add("QUALSIASI " + senzaNomiDeiSegnaposto(percorso));

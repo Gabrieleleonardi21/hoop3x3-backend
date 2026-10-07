@@ -15,8 +15,11 @@ import static org.junit.jupiter.api.Assertions.assertAll;
  * I tetti di lunghezza dei DTO di richiesta contro le colonne vere del database. Per ogni campo di testo (la tabella
  * CampiDiTesto) il massimo del suo @Size, letto dal DTO, non deve superare la lunghezza della colonna in cui il valore viene
  * salvato, letta da information_schema: se un @Size venisse alzato oltre la colonna, il 400 non scatterebbe e il database
- * rifiuterebbe la riga con un 409 senza spiegazioni. Nessun valore è scritto a mano: né i tetti né le lunghezze. L'altra metà,
- * che ogni endpoint applichi il tetto del suo DTO (un carattere oltre dà 400), la prova ValidazioneWebTest sugli stessi campi.
+ * rifiuterebbe la riga con un 409 senza spiegazioni. Nessun valore è scritto a mano: né i tetti né le lunghezze.
+ * <p>
+ * Il confronto garantisce che il tetto dichiarato dal DTO entri nella colonna. Che il tetto venga applicato, cioè che un carattere
+ * oltre dia 400, lo provano due test: ValidazioneWebTest lo prova su un endpoint per ogni DTO della tabella, e
+ * AccessoEndpointIT:ogniCorpoDiUnaRichiestaVieneValidato garantisce che ogni endpoint con un corpo lo validi (@Validated o @Valid).
  */
 @TestDiIntegrazione
 class LimitiColonneIT {

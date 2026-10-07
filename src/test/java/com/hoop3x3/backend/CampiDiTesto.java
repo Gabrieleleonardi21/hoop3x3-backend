@@ -16,8 +16,9 @@ import java.util.List;
 /**
  * La tabella dei campi di testo con un tetto di lunghezza: per ogni campo di un DTO di richiesta, in quali colonne del database
  * finisce. Il tetto non è scritto qui: si legge dal @Size del componente del record, quindi la fonte è una sola, il DTO.
- * LimitiColonneIT lo confronta con la lunghezza vera delle colonne, ValidazioneWebTest prova che l'endpoint che riceve il campo
- * applica quel tetto (un carattere oltre dà 400), e CampiDiTestoTest controlla che nessun campo con un @Size manchi dalla tabella.
+ * LimitiColonneIT lo confronta con la lunghezza vera delle colonne, e CampiDiTestoTest controlla che nessun campo con un @Size
+ * manchi dalla tabella. Che il tetto sia applicato (un carattere oltre dà 400) lo prova ValidazioneWebTest su un endpoint per ogni
+ * DTO; che ogni endpoint con un corpo lo validi lo garantisce AccessoEndpointIT:ogniCorpoDiUnaRichiestaVieneValidato.
  */
 public final class CampiDiTesto {
 
