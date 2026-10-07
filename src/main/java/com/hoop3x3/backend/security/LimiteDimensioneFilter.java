@@ -1,6 +1,7 @@
 package com.hoop3x3.backend.security;
 
 import com.hoop3x3.backend.dto.ErrorsDTO;
+import com.hoop3x3.backend.support.Tempo;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletException;
@@ -75,7 +76,7 @@ public class LimiteDimensioneFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        ErrorsDTO corpo = new ErrorsDTO("La richiesta è troppo grande: il limite è di " + LIMITE_MB + " MB", LocalDateTime.now());
+        ErrorsDTO corpo = new ErrorsDTO("La richiesta è troppo grande: il limite è di " + LIMITE_MB + " MB", Tempo.adesso());
         response.getWriter().write(mapper.writeValueAsString(corpo));
     }
 

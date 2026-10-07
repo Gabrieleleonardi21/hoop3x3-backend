@@ -2,6 +2,7 @@ package com.hoop3x3.backend.exceptions;
 
 import com.hoop3x3.backend.dto.ErrorsDTO;
 import com.hoop3x3.backend.entities.Tappa;
+import com.hoop3x3.backend.support.Tempo;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -164,7 +165,7 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
     /* ── Helper ── */
 
     private static ErrorsDTO errore(String messaggio) {
-        return new ErrorsDTO(messaggio, LocalDateTime.now());
+        return new ErrorsDTO(messaggio, Tempo.adesso());
     }
 
     private static ResponseEntity<ErrorsDTO> risposta(HttpStatus status, String messaggio) {

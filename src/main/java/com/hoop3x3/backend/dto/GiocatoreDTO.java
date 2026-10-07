@@ -1,6 +1,7 @@
 package com.hoop3x3.backend.dto;
 
 import com.hoop3x3.backend.entities.AnagrafeGiocatore;
+import com.hoop3x3.backend.support.Tempo;
 
 import java.util.UUID;
 
@@ -21,7 +22,7 @@ public record GiocatoreDTO(
         return new GiocatoreDTO(g.getId(), g.getNome(), g.getCognome(), g.getSoprannome(), g.getNascita(),
                 g.getCitta(), g.getNazionalita(), g.getAltezza(), g.getPeso(), g.getRuolo(), g.getNumero(),
                 g.getSquadra(), g.getEsperienza(), g.getNote(), g.getAutore().getNome(), g.getAutore().getId(),
-                TempoSupport.inMillisecondi(g.getModificatoIl()));
+                Tempo.inMillisecondi(g.getModificatoIl()));
     }
 
     /**
@@ -33,6 +34,6 @@ public record GiocatoreDTO(
         return new GiocatoreDTO(g.getId(), g.getNome(), g.getCognome(), g.getSoprannome(), RISERVATO,
                 RISERVATO, RISERVATO, RISERVATO, RISERVATO, g.getRuolo(), g.getNumero(),
                 g.getSquadra(), RISERVATO, RISERVATO, RISERVATO, null,
-                TempoSupport.inMillisecondi(g.getModificatoIl()));
+                Tempo.inMillisecondi(g.getModificatoIl()));
     }
 }

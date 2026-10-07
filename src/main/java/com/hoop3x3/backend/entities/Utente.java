@@ -9,7 +9,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -18,7 +17,7 @@ import java.util.UUID;
 @Table(name = "utenti")
 @Getter
 @Setter
-public class Utente implements UserDetails {
+public class Utente extends ConDate implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -39,23 +38,6 @@ public class Utente implements UserDetails {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Ruolo ruolo;
-
-    @Column(name = "creato_il", nullable = false, updatable = false)
-    private LocalDateTime creatoIl;
-
-    @Column(name = "modificato_il", nullable = false)
-    private LocalDateTime modificatoIl;
-
-    @PrePersist
-    private void onCreazione() {
-        this.creatoIl = LocalDateTime.now();
-        this.modificatoIl = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    private void onModifica() {
-        this.modificatoIl = LocalDateTime.now();
-    }
 
     public Utente() {}
 

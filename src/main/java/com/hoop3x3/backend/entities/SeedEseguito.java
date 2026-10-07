@@ -1,5 +1,6 @@
 package com.hoop3x3.backend.entities;
 
+import com.hoop3x3.backend.support.Tempo;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -27,6 +28,6 @@ public class SeedEseguito {
 
     public SeedEseguito(String nome) {
         this.nome = nome;
-        this.eseguitoIl = LocalDateTime.now();
+        this.eseguitoIl = Tempo.adesso();
     }
 }

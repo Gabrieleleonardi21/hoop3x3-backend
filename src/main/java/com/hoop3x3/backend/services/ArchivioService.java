@@ -3,7 +3,7 @@ package com.hoop3x3.backend.services;
 import com.hoop3x3.backend.dto.PubTappaDTO;
 import com.hoop3x3.backend.dto.PubTappaMetaDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
-import com.hoop3x3.backend.dto.TempoSupport;
+import com.hoop3x3.backend.support.Tempo;
 import com.hoop3x3.backend.entities.ArchivioTappa;
 import com.hoop3x3.backend.entities.Lega;
 import com.hoop3x3.backend.entities.Tappa;
@@ -43,7 +43,7 @@ public class ArchivioService {
     public List<PubTappaMetaDTO> tutte() {
         return repo.elenco().stream()
                 .map(v -> new PubTappaMetaDTO(v.getTappaId(), v.getNome(), v.getLuogo(), v.getData(),
-                        v.getNumeroSquadre(), v.getLega(), v.getAutore(), TempoSupport.inMillisecondi(v.getPubblicatoIl())))
+                        v.getNumeroSquadre(), v.getLega(), v.getAutore(), Tempo.inMillisecondi(v.getPubblicatoIl())))
                 .toList();
     }
 
@@ -75,7 +75,7 @@ public class ArchivioService {
         a.setAutore(lega.getOwner());
         a.setLegaNome(lega.getNome());
         a.setContenuto(mapper.writeValueAsString(legaService.toDto(tappa)));
-        a.setPubblicatoIl(LocalDateTime.now());
+        a.setPubblicatoIl(Tempo.adesso());
         return toDto(repo.save(a));
     }
 
@@ -94,6 +94,6 @@ public class ArchivioService {
     private PubTappaDTO toDto(ArchivioTappa a) {
         TappaDTO tappa = mapper.readValue(a.getContenuto(), TappaDTO.class);
         return new PubTappaDTO(tappa, a.getLegaNome(), a.getAutore().getNome(), a.getAutore().getId(),
-                TempoSupport.inMillisecondi(a.getPubblicatoIl()));
+                Tempo.inMillisecondi(a.getPubblicatoIl()));
     }
 }

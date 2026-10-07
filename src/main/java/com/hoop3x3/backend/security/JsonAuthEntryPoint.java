@@ -1,6 +1,7 @@
 package com.hoop3x3.backend.security;
 
 import com.hoop3x3.backend.dto.ErrorsDTO;
+import com.hoop3x3.backend.support.Tempo;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
@@ -31,7 +32,7 @@ public class JsonAuthEntryPoint implements AuthenticationEntryPoint {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        ErrorsDTO body = new ErrorsDTO("Autenticazione richiesta: accedi per continuare", LocalDateTime.now());
+        ErrorsDTO body = new ErrorsDTO("Autenticazione richiesta: accedi per continuare", Tempo.adesso());
         response.getWriter().write(mapper.writeValueAsString(body));
     }
 }

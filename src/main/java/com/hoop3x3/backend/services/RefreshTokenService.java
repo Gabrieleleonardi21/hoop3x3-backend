@@ -5,6 +5,7 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.UnauthorizedException;
 import com.hoop3x3.backend.repositories.RefreshTokenRepository;
+import com.hoop3x3.backend.support.Tempo;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,11 +42,11 @@ public class RefreshTokenService {
     /** Genera un token casuale, ne salva l'hash e restituisce il token in chiaro: esiste solo nel cookie */
     @Transactional
     public String emetti(Utente utente) {
-        repository.eliminaScaduti(utente.getId(), LocalDateTime.now());
+        repository.eliminaScaduti(utente.getId(), Tempo.adesso());
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-        repository.save(new RefreshToken(utente, sha256(token), LocalDateTime.now().plusDays(durataGiorni)));
+        repository.save(new RefreshToken(utente, sha256(token), Tempo.adesso().plusDays(durataGiorni)));
         return token;
     }
 

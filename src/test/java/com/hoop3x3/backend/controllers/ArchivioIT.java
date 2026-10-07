@@ -12,6 +12,7 @@ import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.JWTtools;
 import com.hoop3x3.backend.services.LegaService;
+import com.hoop3x3.backend.support.Tempo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -27,7 +28,6 @@ import tools.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -165,7 +165,7 @@ class ArchivioIT {
         pubblica(tappa.id(), mario).andExpect(status().isOk());
         // La prima pubblicazione risale a ieri: dopo la ripubblicazione la data deve essere quella di adesso
         ArchivioTappa riga = archivio.findById(tappa.id()).orElseThrow();
-        riga.setPubblicatoIl(LocalDateTime.now().minusDays(1));
+        riga.setPubblicatoIl(Tempo.adesso().minusDays(1));
         archivio.save(riga);
 
         // La tappa cambia dopo la prima pubblicazione: la copia pubblica resta com'era finché non si ripubblica
@@ -295,8 +295,8 @@ class ArchivioIT {
         pubblica(roma.id(), mario).andExpect(status().isOk());
         pubblica(milano.id(), luigi).andExpect(status().isOk());
         // Date certe: Roma è di ieri, Milano di adesso
-        LocalDateTime ieri = LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
-        LocalDateTime adesso = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime ieri = Tempo.adesso().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        LocalDateTime adesso = Tempo.adesso().truncatedTo(ChronoUnit.SECONDS);
         pubblicataIl(roma.id(), ieri);
         pubblicataIl(milano.id(), adesso);
 
@@ -436,7 +436,7 @@ class ArchivioIT {
         vecchia.setAutore(autore);
         vecchia.setContenuto(contenuto);
         // Al secondo, senza frazioni: la colonna arrotonda al microsecondo e il confronto con la riga riletta non tornerebbe
-        vecchia.setPubblicatoIl(LocalDateTime.now().minusDays(1).truncatedTo(ChronoUnit.SECONDS));
+        vecchia.setPubblicatoIl(Tempo.adesso().minusDays(1).truncatedTo(ChronoUnit.SECONDS));
         return archivio.save(vecchia);
     }
 
@@ -447,9 +447,9 @@ class ArchivioIT {
         archivio.save(riga);
     }
 
-    /** `ts` dell'API: i millisecondi epoch di una data del database, nel fuso del server */
+    /** `ts` dell'API: i millisecondi epoch di una data del database, in UTC, come il server (Tempo) */
     private static long millis(LocalDateTime data) {
-        return data.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+        return Tempo.inMillisecondi(data);
     }
 
     /* ── Richieste ── */

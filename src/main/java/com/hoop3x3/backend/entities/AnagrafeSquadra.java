@@ -5,7 +5,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -15,7 +14,7 @@ import java.util.UUID;
 @Table(name = "anagrafe_squadre")
 @Getter
 @Setter
-public class AnagrafeSquadra {
+public class AnagrafeSquadra extends ConDate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -49,20 +48,4 @@ public class AnagrafeSquadra {
     @JoinColumn(name = "autore_id", nullable = false)
     private Utente autore;
 
-    @Column(name = "creato_il", nullable = false, updatable = false)
-    private LocalDateTime creatoIl;
-
-    @Column(name = "modificato_il", nullable = false)
-    private LocalDateTime modificatoIl;
-
-    @PrePersist
-    private void onCreazione() {
-        this.creatoIl = LocalDateTime.now();
-        this.modificatoIl = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    private void onModifica() {
-        this.modificatoIl = LocalDateTime.now();
-    }
 }

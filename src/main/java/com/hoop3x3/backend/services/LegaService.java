@@ -9,6 +9,7 @@ import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.NotFoundException;
 import com.hoop3x3.backend.repositories.LegaRepository;
 import com.hoop3x3.backend.repositories.TappaRepository;
+import com.hoop3x3.backend.support.Tempo;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -177,7 +178,7 @@ public class LegaService {
     }
 
     private static LegaMetaDTO toMeta(UUID id, String nome, LocalDateTime modificatoIl, int nTappe) {
-        return new LegaMetaDTO(id, nome, TempoSupport.inMillisecondi(modificatoIl), nTappe);
+        return new LegaMetaDTO(id, nome, Tempo.inMillisecondi(modificatoIl), nTappe);
     }
 
     private Tappa fromDto(TappaDTO dto, Lega lega, int posizione) {
