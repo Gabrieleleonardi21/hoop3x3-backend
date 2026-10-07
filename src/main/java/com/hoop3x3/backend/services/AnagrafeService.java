@@ -10,6 +10,7 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.NotFoundException;
 import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
 import com.hoop3x3.backend.repositories.AnagrafeSquadraRepository;
+import com.hoop3x3.backend.support.Testo;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -132,29 +133,29 @@ public class AnagrafeService {
     private void applica(GiocatoreRequestDTO d, AnagrafeGiocatore g) {
         g.setNome(d.nome().trim());
         g.setCognome(d.cognome().trim());
-        g.setSoprannome(v(d.soprannome()));
-        g.setNascita(v(d.nascita()));
-        g.setCitta(v(d.citta()));
-        g.setNazionalita(v(d.nazionalita()));
-        g.setAltezza(v(d.altezza()));
-        g.setPeso(v(d.peso()));
-        g.setRuolo(v(d.ruolo()));
-        g.setNumero(v(d.numero()));
-        g.setSquadra(v(d.squadra()));
-        g.setEsperienza(v(d.esperienza()));
-        g.setNote(v(d.note()));
+        g.setSoprannome(Testo.ripulito(d.soprannome()));
+        g.setNascita(Testo.ripulito(d.nascita()));
+        g.setCitta(Testo.ripulito(d.citta()));
+        g.setNazionalita(Testo.ripulito(d.nazionalita()));
+        g.setAltezza(Testo.ripulito(d.altezza()));
+        g.setPeso(Testo.ripulito(d.peso()));
+        g.setRuolo(Testo.ripulito(d.ruolo()));
+        g.setNumero(Testo.ripulito(d.numero()));
+        g.setSquadra(Testo.ripulito(d.squadra()));
+        g.setEsperienza(Testo.ripulito(d.esperienza()));
+        g.setNote(Testo.ripulito(d.note()));
     }
 
     private void applica(SquadraRequestDTO d, AnagrafeSquadra s) {
         s.setNome(d.nome().trim());
-        s.setCitta(v(d.citta()));
-        s.setAnno(v(d.anno()));
-        s.setRank(v(d.rank()));
-        s.setReferente(v(d.referente()));
-        s.setLogo(v(d.logo()));
-        s.setWebsite(v(d.website()));
-        s.setInstagram(v(d.instagram()));
-        s.setNote(v(d.note()));
+        s.setCitta(Testo.ripulito(d.citta()));
+        s.setAnno(Testo.ripulito(d.anno()));
+        s.setRank(Testo.ripulito(d.rank()));
+        s.setReferente(Testo.ripulito(d.referente()));
+        s.setLogo(Testo.ripulito(d.logo()));
+        s.setWebsite(Testo.ripulito(d.website()));
+        s.setInstagram(Testo.ripulito(d.instagram()));
+        s.setNote(Testo.ripulito(d.note()));
         // Roster: id sconosciuti vengono ignorati, doppioni rimossi mantenendo l'ordine. I giocatori si leggono con una
         // sola query (findAllById): le righe tornano in un ordine qualsiasi, quindi l'ordine del client si rimette dagli id
         List<UUID> ids = List.of();
@@ -168,11 +169,5 @@ public class AnagrafeService {
         }
         s.getRoster().clear();
         s.getRoster().addAll(roster);
-    }
-
-    /** Campi opzionali: null → stringa vuota (le colonne sono NOT NULL DEFAULT '') */
-    private static String v(String s) {
-        if (s == null) return "";
-        return s.trim();
     }
 }

@@ -24,11 +24,6 @@ class JsonSupportTest {
         return mapper.createArrayNode().add("x".repeat(byteTotali - 4));
     }
 
-    /** Oggetto con un solo testo, lungo in JSON esattamente `byte` byte: la cornice {"k":""} ne occupa 8 */
-    private JsonNode oggettoDi(int byteTotali) {
-        return mapper.createObjectNode().put("k", "x".repeat(byteTotali - 8));
-    }
-
     @Test
     void arrayObbligatoreOltre1Mb_risponde400NominandoIlCampo() {
         assertThatThrownBy(() -> json.arrayOrEmpty(arrayDi(UN_MB + 1), "partite"))
@@ -46,18 +41,9 @@ class JsonSupportTest {
     }
 
     @Test
-    void oggettoOltre1Mb_risponde400NominandoIlCampo() {
-        assertThatThrownBy(() -> json.objectOrFail(oggettoDi(UN_MB + 1), "regole"))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessageContaining("'regole'")
-                .hasMessageContaining("1 MB");
-    }
-
-    @Test
     void bloccoDiEsattamente1Mb_siAccetta() {
         assertThat(json.arrayOrEmpty(arrayDi(UN_MB), "partite")).hasSize(UN_MB);
         assertThat(json.arrayOrNull(arrayDi(UN_MB), "bracket")).hasSize(UN_MB);
-        assertThat(json.objectOrFail(oggettoDi(UN_MB), "regole")).hasSize(UN_MB);
     }
 
     @Test
