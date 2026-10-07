@@ -24,6 +24,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -155,6 +156,24 @@ class VersioneTappeIT {
         // E rimandata com'è, con la versione nuova, resta alla 1
         salva(tappa.id(), punteggioCambiato, 1L).andExpect(status().isOk()).andExpect(jsonPath("$.versione").value(1));
         leggi(lega).andExpect(jsonPath("$.tappe[0].versione").value(1)).andExpect(jsonPath("$.tappe[0].gironi[0][1]").value("s2"));
+    }
+
+    // L'indice delle leghe è ordinato per modificato_il: una PUT identica (per esempio il nuovo invio dopo un salvataggio rimasto
+    // senza risposta) non cambia la tappa, quindi non deve spostare la lega in cima né scrivere l'UPDATE. Una PUT che la cambia sì
+    @Test
+    void unaPutIdentica_nonSpostaLaLegaInCimaAllIndice_unaCheCambiaLaTappaSi() throws Exception {
+        UUID lega = nuovaLega();
+        TappaDTO tappa = TappaDiProva.tappa().squadre(DUE_SQUADRE).partite(PARTITA_GIOCATA).build();
+        aggiungi(lega, tappa, null).andExpect(status().isCreated());
+        LocalDateTime inizio = modificatoIlDellaLega(lega);
+
+        salva(tappa.id(), tappa, 0L).andExpect(status().isOk()).andExpect(jsonPath("$.versione").value(0));
+        assertThat(modificatoIlDellaLega(lega)).isEqualTo(inizio);
+
+        salva(tappa.id(), TappaDiProva.da(tappa).nome("Cambiata").build(), 0L)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.versione").value(1));
+        assertThat(modificatoIlDellaLega(lega)).isAfter(inizio);
     }
 
     /* ── La PUT deve portare la versione letta dal client ── */
@@ -366,6 +385,11 @@ class VersioneTappeIT {
     /** Il salvataggio di un altro dispositivo, scritto e non ancora confermato: la riga della tappa resta bloccata fino al commit */
     private Runnable primoDispositivoSalva(UUID tappaId) {
         return () -> jdbc.update("update tappe set nome = 'Dal primo dispositivo', versione = versione + 1 where id = ?", tappaId);
+    }
+
+    /** Quando il database ha segnato l'ultima modifica della lega: è ciò che ordina l'indice delle leghe */
+    private LocalDateTime modificatoIlDellaLega(UUID lega) {
+        return jdbc.queryForObject("select modificato_il from leghe where id = ?", LocalDateTime.class, lega);
     }
 
     /** GET della lega di Mario con le sue tappe, come le legge il client */

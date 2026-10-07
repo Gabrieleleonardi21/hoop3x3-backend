@@ -118,11 +118,16 @@ public class LegaService {
             throw new ObjectOptimisticLockingFailureException(Tappa.class, tappaId);
         }
         applica(dto, t);
-        t.getLega().touch();
+        long versionePrima = t.getVersione();
         // saveAndFlush: Hibernate aumenta la versione quando scrive l'UPDATE, e la risposta deve portare quella nuova. È anche
         // il momento in cui il flush può respingere la richiesta, se un altro dispositivo ha salvato la tappa mentre questa
         // era in corso (409): la riga dell'ADMIN viene dopo, perché dice che l'intervento c'è stato
         Tappa salvata = tappaRepository.saveAndFlush(t);
+        // La lega sale in cima all'indice (ordinato per modificatoIl) solo se la tappa è cambiata davvero, cioè se la versione
+        // è salita: una PUT identica, come il nuovo invio dopo un salvataggio rimasto senza risposta, non scrive niente
+        if (salvata.getVersione() != versionePrima) {
+            t.getLega().touch();
+        }
         guard.tracciaModifica(utente, t.getLega().getOwner().getId(), "tappa", tappaId);
         return toDto(salvata);
     }
