@@ -189,6 +189,14 @@ class ArchivioIT {
         assertThat(archivio.count()).isZero();
     }
 
+    // La lettura è pubblica: senza token, una tappa che non è in archivio è un 404 e non un 401
+    @Test
+    void laLetturaDiUnaPubblicazioneCheNonEsiste_risponde404() throws Exception {
+        mvc.perform(get("/api/archivio/" + UUID.randomUUID())).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(startsWith("Tappa non presente in archivio")))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
     @Test
     void laTappaDiUnAltroUtente_risponde403ENonPubblicaNulla() throws Exception {
         UUID tappaId = tappaConclusa(mario, "Circuito 2026");
