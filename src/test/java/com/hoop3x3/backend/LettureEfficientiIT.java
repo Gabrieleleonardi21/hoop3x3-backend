@@ -131,12 +131,12 @@ class LettureEfficientiIT {
         UUID conCinque = legaService.crea(mario, new NuovaLegaDTO("Con cinque tappe",
                 List.of(tappa(), tappa(), tappa(), tappa(), tappa()))).id();
 
-        long query = misura(() -> legaService.dettaglio(mario, conUna)).query();
+        long queryConUnaTappa = misura(() -> legaService.dettaglio(mario, conUna)).query();
         var cinque = misura(() -> legaService.dettaglio(mario, conCinque));
 
         assertThat(cinque.risultato().tappe()).hasSize(5);
         assertAll(
-                () -> assertThat(cinque.query()).as("query del dettaglio con 5 tappe").isEqualTo(query),
+                () -> assertThat(cinque.query()).as("query del dettaglio con 5 tappe").isEqualTo(queryConUnaTappa),
                 () -> assertThat(cinque.query()).as("query del dettaglio di una lega").isEqualTo(2));
     }
 
@@ -149,11 +149,11 @@ class LettureEfficientiIT {
         UUID conCinque = legaService.crea(mario, new NuovaLegaDTO("Con cinque tappe",
                 List.of(tappa(), tappa(), tappa(), tappa(), tappa()))).id();
 
-        long query = query(() -> legaService.aggiungiTappa(mario, conUna, tappa()));
-        long queryConCinque = query(() -> legaService.aggiungiTappa(mario, conCinque, tappa()));
+        long queryConUnaTappa = query(() -> legaService.aggiungiTappa(mario, conUna, tappa()));
+        long queryConCinqueTappe = query(() -> legaService.aggiungiTappa(mario, conCinque, tappa()));
 
         assertAll(
-                () -> assertThat(queryConCinque).as("query con 5 tappe già nella lega").isEqualTo(query),
+                () -> assertThat(queryConCinqueTappe).as("query con 5 tappe già nella lega").isEqualTo(queryConUnaTappa),
                 () -> assertThat(caricate(Tappa.class)).as("tappe caricate").isZero());
     }
 
@@ -165,12 +165,12 @@ class LettureEfficientiIT {
         TappaDTO prima = tappa();
         legaService.crea(mario, new NuovaLegaDTO("Con cinque tappe", List.of(prima, tappa(), tappa(), tappa(), tappa())));
 
-        long query = query(() -> legaService.aggiornaTappa(mario, prima.id(),
+        long queryDelSalvataggio = query(() -> legaService.aggiornaTappa(mario, prima.id(),
                 TappaDiProva.da(prima).nome("Cambiata").versione(0L).build()));
 
         assertAll(
                 () -> assertThat(caricate(Tappa.class)).as("tappe caricate dal salvataggio").isEqualTo(1),
-                () -> assertThat(query).as("query del salvataggio di una tappa").isEqualTo(4));
+                () -> assertThat(queryDelSalvataggio).as("query del salvataggio di una tappa").isEqualTo(4));
     }
 
     /* ── Anagrafe: squadre e giocatori in una query, con roster e autore insieme alle righe ── */
