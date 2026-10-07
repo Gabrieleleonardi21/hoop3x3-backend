@@ -1,6 +1,6 @@
 package com.hoop3x3.backend.security;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +11,7 @@ import java.time.Duration;
  * Path=/api/auth (viaggia solo verso gli endpoint di autenticazione). Secure va acceso in produzione con HTTPS.
  */
 @Component
+@EnableConfigurationProperties(AuthProperties.class)
 public class AuthCookies {
 
     public static final String NOME = "hoop3x3_refresh";
@@ -18,10 +19,9 @@ public class AuthCookies {
     private final long durataGiorni;
     private final boolean secure;
 
-    public AuthCookies(@Value("${auth.refresh-giorni:30}") long durataGiorni,
-                       @Value("${auth.cookie-secure:false}") boolean secure) {
-        this.durataGiorni = durataGiorni;
-        this.secure = secure;
+    public AuthCookies(AuthProperties proprieta) {
+        this.durataGiorni = proprieta.refreshGiorni();
+        this.secure = proprieta.cookieSecure();
     }
 
     public ResponseCookie diRefresh(String token) {

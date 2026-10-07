@@ -6,7 +6,7 @@ import com.hoop3x3.backend.exceptions.UpstreamException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -31,6 +31,7 @@ import static com.hoop3x3.backend.services.LogSupport.perLog;
  * modello e limite di token li fissa il server.
  */
 @Service
+@EnableConfigurationProperties(GroqProperties.class)
 public class CoachAiService {
 
     private static final Logger log = LoggerFactory.getLogger(CoachAiService.class);
@@ -45,25 +46,23 @@ public class CoachAiService {
     private static final int MAX_CARATTERI_TOOL = 50_000;
     private static final Set<String> RUOLI = Set.of("system", "user", "assistant", "tool");
 
-    @Value("${groq.api.key:}")
-    private String apiKey;
-
-    // openai/gpt-oss-120b: gratuito su Groq, supporta il tool calling (llama-3.3-70b è stato dismesso)
-    @Value("${groq.model:openai/gpt-oss-120b}")
-    private String model;
-
+    // Chiave e modello da groq.* (GroqProperties)
+    private final String apiKey;
+    private final String model;
     private final ObjectMapper mapper;
     private final String url;
     private final RestClient http;
 
     @Autowired // con due costruttori Spring deve sapere quale usare
-    public CoachAiService(ObjectMapper mapper) {
-        this(mapper, GROQ_URL, TIMEOUT_CONNESSIONE, TIMEOUT_RISPOSTA);
+    public CoachAiService(ObjectMapper mapper, GroqProperties proprieta) {
+        this(mapper, proprieta, GROQ_URL, TIMEOUT_CONNESSIONE, TIMEOUT_RISPOSTA);
     }
 
     /** Per i test: Groq finto su un indirizzo locale e timeout brevi, per non aspettare 60 secondi */
-    CoachAiService(ObjectMapper mapper, String url, Duration timeoutConnessione, Duration timeoutRisposta) {
+    CoachAiService(ObjectMapper mapper, GroqProperties proprieta, String url, Duration timeoutConnessione, Duration timeoutRisposta) {
         this.mapper = mapper;
+        this.apiKey = proprieta.api().key();
+        this.model = proprieta.model();
         this.url = url;
         // Senza timeout una risposta lenta di Groq terrebbe occupato un thread del server a tempo indeterminato
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(

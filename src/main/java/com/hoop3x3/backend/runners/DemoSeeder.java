@@ -5,7 +5,7 @@ import com.hoop3x3.backend.repositories.*;
 import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.UtenteService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -34,6 +34,7 @@ import java.util.UUID;
 @Slf4j
 @Component
 @Order(2) // dopo DataSeeder: serve l'admin già creato
+@EnableConfigurationProperties(SeedProperties.class)
 public class DemoSeeder implements CommandLineRunner {
 
     private static final String FILE = "/seed/estathe25.json";
@@ -52,14 +53,15 @@ public class DemoSeeder implements CommandLineRunner {
     private final ArchivioService archivioService;
     private final ObjectMapper mapper;
 
-    @Value("${seed.demo:false}")
-    private boolean abilitato;
-    @Value("${seed.admin.email:}")
-    private String adminEmail;
+    // SEED_DEMO e ADMIN_EMAIL (seed.*)
+    private final boolean abilitato;
+    private final String adminEmail;
 
     public DemoSeeder(UtenteRepository utenti, AnagrafeGiocatoreRepository giocatori, AnagrafeSquadraRepository squadre,
                       LegaRepository leghe, TappaRepository tappe, SeedEseguitoRepository seedEseguiti,
-                      ArchivioService archivioService, ObjectMapper mapper) {
+                      ArchivioService archivioService, ObjectMapper mapper, SeedProperties proprieta) {
+        this.abilitato = proprieta.demo();
+        this.adminEmail = proprieta.admin().email();
         this.utenti = utenti;
         this.giocatori = giocatori;
         this.squadre = squadre;

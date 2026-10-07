@@ -1,5 +1,6 @@
 package com.hoop3x3.backend.entities;
 
+import com.hoop3x3.backend.support.Tempo;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -35,7 +36,7 @@ public class RefreshToken {
 
     @PrePersist
     private void onCreazione() {
-        this.creatoIl = LocalDateTime.now();
+        this.creatoIl = Tempo.adesso();
     }
 
     public RefreshToken() {}
@@ -47,6 +48,6 @@ public class RefreshToken {
     }
 
     public boolean isScaduto() {
-        return scadeIl.isBefore(LocalDateTime.now());
+        return scadeIl.isBefore(Tempo.adesso());
     }
 }

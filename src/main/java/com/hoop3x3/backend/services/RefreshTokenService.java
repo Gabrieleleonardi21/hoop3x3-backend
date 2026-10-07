@@ -5,7 +5,9 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.UnauthorizedException;
 import com.hoop3x3.backend.repositories.RefreshTokenRepository;
-import org.springframework.beans.factory.annotation.Value;
+import com.hoop3x3.backend.security.AuthProperties;
+import com.hoop3x3.backend.support.Tempo;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,7 +15,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
 
@@ -22,6 +23,7 @@ import java.util.HexFormat;
  * Ogni token vale per un solo rinnovo (rotazione) e scade dopo auth.refresh-giorni.
  */
 @Service
+@EnableConfigurationProperties(AuthProperties.class)
 public class RefreshTokenService {
 
     /** Esito di un rinnovo: a chi appartiene il token e il nuovo token da mettere nel cookie */
@@ -33,19 +35,19 @@ public class RefreshTokenService {
     private final long durataGiorni;
     private final SecureRandom random = new SecureRandom();
 
-    public RefreshTokenService(RefreshTokenRepository repository, @Value("${auth.refresh-giorni:30}") long durataGiorni) {
+    public RefreshTokenService(RefreshTokenRepository repository, AuthProperties proprieta) {
         this.repository = repository;
-        this.durataGiorni = durataGiorni;
+        this.durataGiorni = proprieta.refreshGiorni();
     }
 
     /** Genera un token casuale, ne salva l'hash e restituisce il token in chiaro: esiste solo nel cookie */
     @Transactional
     public String emetti(Utente utente) {
-        repository.eliminaScaduti(utente.getId(), LocalDateTime.now());
+        repository.eliminaScaduti(utente.getId(), Tempo.adesso());
         byte[] bytes = new byte[32];
         random.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-        repository.save(new RefreshToken(utente, sha256(token), LocalDateTime.now().plusDays(durataGiorni)));
+        repository.save(new RefreshToken(utente, sha256(token), Tempo.adesso().plusDays(durataGiorni)));
         return token;
     }
 

@@ -38,11 +38,6 @@ public class JsonSupport {
         return serializza(node, campo);
     }
 
-    public String objectOrFail(JsonNode node, String campo) {
-        if (node == null || !node.isObject()) throw new BadRequestException("Il campo '" + campo + "' deve essere un oggetto");
-        return serializza(node, campo);
-    }
-
     /**
      * Il testo da salvare per un blocco: `attuale` (quello già nella colonna) se `nuovo` ha lo stesso contenuto JSON, altrimenti
      * `nuovo`. I blocchi sono stringhe, e PostgreSQL riscrive il JSONB con degli spazi dopo i due punti e le virgole e con le chiavi
@@ -59,10 +54,6 @@ public class JsonSupport {
     public JsonNode parse(String json) {
         if (json == null) return null;
         return mapper.readTree(json);
-    }
-
-    public String write(Object value) {
-        return mapper.writeValueAsString(value);
     }
 
     /** JSON del blocco, o 400 se pesa più di BLOCCO_MAX_MB: si misurano i byte UTF-8, che sono ciò che occupa in tabella */

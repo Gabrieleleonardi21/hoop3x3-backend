@@ -2,6 +2,7 @@ package com.hoop3x3.backend.dto;
 
 import com.hoop3x3.backend.entities.AnagrafeGiocatore;
 import com.hoop3x3.backend.entities.AnagrafeSquadra;
+import com.hoop3x3.backend.support.Tempo;
 
 import java.util.List;
 import java.util.UUID;
@@ -23,7 +24,7 @@ public record SquadraDTO(
         return new SquadraDTO(s.getId(), s.getNome(), s.getCitta(), s.getAnno(), s.getRank(), s.getReferente(),
                 idDelRoster(s), s.getLogo(), s.getWebsite(), s.getInstagram(), s.getNote(),
                 s.getAutore().getNome(), s.getAutore().getId(),
-                TempoSupport.inMillisecondi(s.getModificatoIl()));
+                Tempo.inMillisecondi(s.getModificatoIl()));
     }
 
     /**
@@ -33,7 +34,7 @@ public record SquadraDTO(
     public static SquadraDTO pubblica(AnagrafeSquadra s) {
         return new SquadraDTO(s.getId(), s.getNome(), s.getCitta(), s.getAnno(), s.getRank(), RISERVATO,
                 idDelRoster(s), s.getLogo(), s.getWebsite(), s.getInstagram(), s.getNote(),
-                RISERVATO, null, TempoSupport.inMillisecondi(s.getModificatoIl()));
+                RISERVATO, null, Tempo.inMillisecondi(s.getModificatoIl()));
     }
 
     /** Gli id dei giocatori del roster, nell'ordine salvato: uguale nelle due forme, che non possono divergere */

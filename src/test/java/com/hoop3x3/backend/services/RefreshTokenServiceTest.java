@@ -6,6 +6,8 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.UnauthorizedException;
 import com.hoop3x3.backend.repositories.RefreshTokenRepository;
+import com.hoop3x3.backend.security.AuthProperties;
+import com.hoop3x3.backend.support.Tempo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -29,7 +31,7 @@ class RefreshTokenServiceTest {
     @BeforeEach
     void setUp() {
         repository = mock(RefreshTokenRepository.class);
-        service = new RefreshTokenService(repository, 30);
+        service = new RefreshTokenService(repository, new AuthProperties(30, false));
     }
 
     @Test
@@ -43,7 +45,7 @@ class RefreshTokenServiceTest {
         assertThat(salvato.getValue().getTokenHash()).isNotEqualTo(token);
         assertThat(salvato.getValue().getUtente()).isSameAs(utente);
         assertThat(salvato.getValue().getScadeIl())
-                .isBetween(LocalDateTime.now().plusDays(30).minusMinutes(1), LocalDateTime.now().plusDays(30).plusMinutes(1));
+                .isBetween(Tempo.adesso().plusDays(30).minusMinutes(1), Tempo.adesso().plusDays(30).plusMinutes(1));
     }
 
     @Test
@@ -59,7 +61,7 @@ class RefreshTokenServiceTest {
 
     @Test
     void ruotaCancellaIlVecchioTokenENeEmetteUnoNuovo() {
-        RefreshToken vecchio = new RefreshToken(utente, RefreshTokenService.sha256("vecchio"), LocalDateTime.now().plusDays(1));
+        RefreshToken vecchio = new RefreshToken(utente, RefreshTokenService.sha256("vecchio"), Tempo.adesso().plusDays(1));
         when(repository.findByTokenHash(RefreshTokenService.sha256("vecchio"))).thenReturn(Optional.of(vecchio));
         when(repository.eliminaPerHash(RefreshTokenService.sha256("vecchio"))).thenReturn(1);   // la riga c'era: la cancella questa richiesta
 
@@ -73,7 +75,7 @@ class RefreshTokenServiceTest {
 
     @Test
     void ruotaRispondeConflittoSeUnAltraRichiestaHaGiaRuotatoIlToken() {
-        RefreshToken vecchio = new RefreshToken(utente, RefreshTokenService.sha256("vecchio"), LocalDateTime.now().plusDays(1));
+        RefreshToken vecchio = new RefreshToken(utente, RefreshTokenService.sha256("vecchio"), Tempo.adesso().plusDays(1));
         when(repository.findByTokenHash(RefreshTokenService.sha256("vecchio"))).thenReturn(Optional.of(vecchio));
         when(repository.eliminaPerHash(RefreshTokenService.sha256("vecchio"))).thenReturn(0);   // un'altra richiesta ha già cancellato la riga
 
@@ -93,7 +95,7 @@ class RefreshTokenServiceTest {
 
     @Test
     void ruotaRifiutaUnTokenScaduto() {
-        RefreshToken scaduto = new RefreshToken(utente, RefreshTokenService.sha256("vecchio"), LocalDateTime.now().minusMinutes(1));
+        RefreshToken scaduto = new RefreshToken(utente, RefreshTokenService.sha256("vecchio"), Tempo.adesso().minusMinutes(1));
         when(repository.findByTokenHash(RefreshTokenService.sha256("vecchio"))).thenReturn(Optional.of(scaduto));
 
         assertThatThrownBy(() -> service.ruota("vecchio")).isInstanceOf(UnauthorizedException.class);

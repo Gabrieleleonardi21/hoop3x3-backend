@@ -7,7 +7,6 @@ import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
@@ -20,7 +19,7 @@ import java.util.UUID;
 @Table(name = "tappe")
 @Getter
 @Setter
-public class Tappa {
+public class Tappa extends ConDate {
 
     @Id
     private UUID id;
@@ -84,20 +83,4 @@ public class Tappa {
     @Setter(AccessLevel.NONE)
     private long versione;
 
-    @Column(name = "creato_il", nullable = false, updatable = false)
-    private LocalDateTime creatoIl;
-
-    @Column(name = "modificato_il", nullable = false)
-    private LocalDateTime modificatoIl;
-
-    @PrePersist
-    private void onCreazione() {
-        this.creatoIl = LocalDateTime.now();
-        this.modificatoIl = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    private void onModifica() {
-        this.modificatoIl = LocalDateTime.now();
-    }
 }

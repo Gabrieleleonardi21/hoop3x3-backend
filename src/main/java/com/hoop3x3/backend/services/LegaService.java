@@ -9,6 +9,8 @@ import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.NotFoundException;
 import com.hoop3x3.backend.repositories.LegaRepository;
 import com.hoop3x3.backend.repositories.TappaRepository;
+import com.hoop3x3.backend.support.Tempo;
+import com.hoop3x3.backend.support.Testo;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -177,7 +179,7 @@ public class LegaService {
     }
 
     private static LegaMetaDTO toMeta(UUID id, String nome, LocalDateTime modificatoIl, int nTappe) {
-        return new LegaMetaDTO(id, nome, TempoSupport.inMillisecondi(modificatoIl), nTappe);
+        return new LegaMetaDTO(id, nome, Tempo.inMillisecondi(modificatoIl), nTappe);
     }
 
     private Tappa fromDto(TappaDTO dto, Lega lega, int posizione) {
@@ -192,8 +194,8 @@ public class LegaService {
     /** Copia i campi del DTO sull'entity (usato sia in creazione che in aggiornamento) */
     private void applica(TappaDTO dto, Tappa t) {
         t.setNome(dto.nome().trim());
-        t.setLuogo(valore(dto.luogo()));
-        t.setData(valore(dto.data()));
+        t.setLuogo(Testo.ripulito(dto.luogo()));
+        t.setData(Testo.ripulito(dto.data()));
         t.setNGironi(dto.nGironi());
         t.setConclusa(Boolean.TRUE.equals(dto.conclusa()));
         t.setRegole(dto.regole().toEntity());
@@ -211,10 +213,5 @@ public class LegaService {
                 RegoleDTO.from(t.getRegole()), json.parse(t.getSquadre()), json.parse(t.getGironi()),
                 json.parse(t.getPartite()), json.parse(t.getVideo()), t.isConclusa(), json.parse(t.getBracket()),
                 t.getVersione());
-    }
-
-    private static String valore(String s) {
-        if (s == null) return "";
-        return s.trim();
     }
 }

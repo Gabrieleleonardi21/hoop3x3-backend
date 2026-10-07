@@ -5,7 +5,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 /** Giocatore dell'anagrafe condivisa del circuito (visibile a tutti, modificabile dall'autore o ADMIN). */
@@ -13,7 +12,7 @@ import java.util.UUID;
 @Table(name = "anagrafe_giocatori")
 @Getter
 @Setter
-public class AnagrafeGiocatore {
+public class AnagrafeGiocatore extends ConDate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -43,20 +42,4 @@ public class AnagrafeGiocatore {
     @JoinColumn(name = "autore_id", nullable = false)
     private Utente autore;
 
-    @Column(name = "creato_il", nullable = false, updatable = false)
-    private LocalDateTime creatoIl;
-
-    @Column(name = "modificato_il", nullable = false)
-    private LocalDateTime modificatoIl;
-
-    @PrePersist
-    private void onCreazione() {
-        this.creatoIl = LocalDateTime.now();
-        this.modificatoIl = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    private void onModifica() {
-        this.modificatoIl = LocalDateTime.now();
-    }
 }

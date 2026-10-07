@@ -6,6 +6,7 @@ import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.RefreshTokenRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
+import com.hoop3x3.backend.support.Tempo;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc; // Spring Boot 4: package del modulo webmvc-test
@@ -72,8 +73,8 @@ class RefreshTokenIT {
         Utente mario = salvaUtente(EMAIL);
         Utente luigi = salvaUtente("luigi@test.it");
         tokens.saveAll(tokenScaduti(mario, 3));
-        RefreshToken validoDiMario = tokens.save(token(mario, LocalDateTime.now().plusDays(1)));
-        RefreshToken scadutoDiLuigi = tokens.save(token(luigi, LocalDateTime.now().minusDays(1)));
+        RefreshToken validoDiMario = tokens.save(token(mario, Tempo.adesso().plusDays(1)));
+        RefreshToken scadutoDiLuigi = tokens.save(token(luigi, Tempo.adesso().minusDays(1)));
 
         assertThat(accesso()).isEqualTo(200);
 
@@ -117,6 +118,6 @@ class RefreshTokenIT {
 
     /** Token scaduti da ieri */
     private static List<RefreshToken> tokenScaduti(Utente utente, int quanti) {
-        return IntStream.range(0, quanti).mapToObj(_ -> token(utente, LocalDateTime.now().minusDays(1))).toList();
+        return IntStream.range(0, quanti).mapToObj(_ -> token(utente, Tempo.adesso().minusDays(1))).toList();
     }
 }

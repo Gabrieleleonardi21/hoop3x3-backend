@@ -1,12 +1,12 @@
 package com.hoop3x3.backend.entities;
 
+import com.hoop3x3.backend.support.Tempo;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.DynamicUpdate;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -22,7 +22,7 @@ import java.util.UUID;
 @Table(name = "leghe")
 @Getter
 @Setter
-public class Lega {
+public class Lega extends ConDate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -43,23 +43,6 @@ public class Lega {
     @OrderBy("posizione ASC, creatoIl ASC, id ASC")
     private List<Tappa> tappe = new ArrayList<>();
 
-    @Column(name = "creato_il", nullable = false, updatable = false)
-    private LocalDateTime creatoIl;
-
-    @Column(name = "modificato_il", nullable = false)
-    private LocalDateTime modificatoIl;
-
-    @PrePersist
-    private void onCreazione() {
-        this.creatoIl = LocalDateTime.now();
-        this.modificatoIl = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    private void onModifica() {
-        this.modificatoIl = LocalDateTime.now();
-    }
-
     public Lega() {}
 
     public Lega(String nome, Utente owner) {
@@ -69,6 +52,6 @@ public class Lega {
 
     /** Aggiorna il timestamp anche quando cambia solo una tappa figlia (usato dall'indice leghe). */
     public void touch() {
-        this.modificatoIl = LocalDateTime.now();
+        setModificatoIl(Tempo.adesso());
     }
 }

@@ -1,6 +1,6 @@
 package com.hoop3x3.backend.security;
 
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -20,16 +20,20 @@ import java.util.List;
  * (POST, PUT, PATCH, DELETE).
  */
 @Configuration
+@EnableConfigurationProperties(CorsProperties.class)
 public class CorsConfig {
 
-    /** Origini consentite, separate da virgola (property cors.origins) */
-    @Value("${cors.origins:http://localhost:5173,http://127.0.0.1:5173}")
-    private List<String> origins;
+    /** Origini consentite (cors.origins) */
+    private final CorsProperties proprieta;
+
+    public CorsConfig(CorsProperties proprieta) {
+        this.proprieta = proprieta;
+    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(origins);
+        config.setAllowedOrigins(proprieta.origins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
         // Il JavaScript di un'altra origine legge solo gli header «sicuri» di CORS (Content-Type...) e quelli esposti qui: senza

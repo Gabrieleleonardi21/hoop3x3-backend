@@ -50,6 +50,7 @@ Lo schema cambia solo con le migrazioni di Flyway in `src/main/resources/db/migr
 - **Tabella nuova**: il suo nome va aggiunto anche alla `TRUNCATE` di `src/test/resources/svuota.sql`, lo controlla `MigrazioniIT`. `flyway_schema_history`, lo storico di Flyway, non ci va mai.
 - `spring.flyway.baseline-on-migrate=true` (in `application.properties`) serve ai database creati a mano prima di Flyway: Flyway li segna come versione 1 invece di rifiutarli. Su un database che ha già lo storico non cambia nulla.
 - `MigrazioniIT` prova i due percorsi, database vuoto e database creato a mano prima di Flyway, su schemi temporanei e qualunque sia lo stato del database di prova: una migrazione nuova (V5, V6…) non richiede ritocchi a quei test.
+- **Le date sono in UTC.** Le colonne delle date (`creato_il`, `modificato_il`, `pubblicato_il`, `scade_il`…) sono `TIMESTAMP` senza fuso: il server le scrive e le rilegge sempre in UTC (`support/Tempo`), quindi il `ts` dell'API non dipende dal fuso della macchina. Su Render il fuso è già UTC e non cambia niente. Un database scritto da un server con un altro fuso prima della fase 3 (per esempio un PC in Italia) ha le date di allora spostate di quella differenza, una o due ore: cambiano solo l'ora mostrata e l'ordine di righe salvate a poca distanza, e i refresh token di allora scadono una o due ore prima o dopo.
 
 ## Coach AI
 
@@ -205,7 +206,7 @@ Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 - **Account** — email fino a 255 caratteri; alla registrazione la password ha da 8 caratteri a 72 byte in UTF-8 (una lettera accentata ne occupa 2, un emoji 4).
 - **Coach AI** — da 1 a 60 messaggi per al massimo 100.000 caratteri, fino a 20 strumenti (50.000 caratteri): vedi la sezione Coach AI. In più, per utente, 20 richieste al minuto e 300 al giorno: vedi «Limiti di frequenza».
 
-**Errori** — ogni errore dell'applicazione ha lo stesso corpo JSON, `{message, timestamp}`, qualunque `Accept` mandi il client: `message` è in italiano e senza dettagli interni (SQL e stack restano nei log), `timestamp` è la data e l'ora locali del server, senza fuso. Gli stati:
+**Errori** — ogni errore dell'applicazione ha lo stesso corpo JSON, `{message, timestamp}`, qualunque `Accept` mandi il client: `message` è in italiano e senza dettagli interni (SQL e stack restano nei log), `timestamp` è la data e l'ora del server in UTC, scritte senza fuso. Gli stati:
 
 - **400** — richiesta non valida: JSON malformato, campo oltre un limite o non valido, identificatore non valido nel percorso, versione mancante nel salvataggio di una tappa, richiesta al Coach AI rifiutata. Il messaggio dice che cosa non va, di solito con il nome del campo.
 - **401** — token mancante, scaduto o non valido; email o password sbagliate; refresh token assente, sconosciuto o scaduto.

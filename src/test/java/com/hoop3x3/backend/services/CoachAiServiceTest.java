@@ -17,7 +17,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
-import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -76,10 +75,12 @@ class CoachAiServiceTest {
 
     /** Servizio puntato sempre a Groq finto, mai a quello vero; chiave e modello finti */
     private CoachAiService nuovoServizio(Duration timeoutRisposta) {
-        CoachAiService s = new CoachAiService(mapper, groq.url(), Duration.ofSeconds(5), timeoutRisposta);
-        ReflectionTestUtils.setField(s, "apiKey", CHIAVE);
-        ReflectionTestUtils.setField(s, "model", "modello-di-test");
-        return s;
+        return nuovoServizio(timeoutRisposta, CHIAVE);
+    }
+
+    private CoachAiService nuovoServizio(Duration timeoutRisposta, String chiave) {
+        GroqProperties proprieta = new GroqProperties(new GroqProperties.Api(chiave), "modello-di-test");
+        return new CoachAiService(mapper, proprieta, groq.url(), Duration.ofSeconds(5), timeoutRisposta);
     }
 
     private CoachChatRequestDTO richiesta(String messages, String tools) {
@@ -136,7 +137,7 @@ class CoachAiServiceTest {
 
     @Test
     void senzaChiave_risponde503() {
-        ReflectionTestUtils.setField(service, "apiKey", "");
+        service = nuovoServizio(Duration.ofSeconds(5), "");
         assertThatThrownBy(() -> service.chat(richiesta(MESSAGGI_VALIDI, null)))
                 .isInstanceOfSatisfying(UpstreamException.class, e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE));
         assertThat(groq.richieste()).isEmpty();
@@ -144,7 +145,7 @@ class CoachAiServiceTest {
 
     @Test
     void senzaChiave_lasciaUnaRigaDiLogConLaCausa() {
-        ReflectionTestUtils.setField(service, "apiKey", "");
+        service = nuovoServizio(Duration.ofSeconds(5), "");
         assertFallisceCon(HttpStatus.SERVICE_UNAVAILABLE);
         assertThat(unicaRigaDiLog()).contains("groq.api.key");
     }

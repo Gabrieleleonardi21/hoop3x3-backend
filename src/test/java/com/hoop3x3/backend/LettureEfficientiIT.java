@@ -101,7 +101,7 @@ class LettureEfficientiIT {
         assertThat(indice).extracting(LegaMetaDTO::id).containsExactly(conTreTappe.id(), senzaTappe.id());
         assertThat(indice).extracting(LegaMetaDTO::nome).containsExactly("Con tre tappe", "Senza tappe");
         assertThat(indice).extracting(LegaMetaDTO::nTappe).containsExactly(3, 0);
-        // ts in millisecondi epoch dall'ora locale del database: se la conversione sbagliasse fuso, sarebbe lontano di ore
+        // ts in millisecondi epoch dall'ora UTC salvata nel database (Tempo): se la conversione sbagliasse fuso, sarebbe lontano di ore
         assertThat(indice).allSatisfy(voce -> assertThat(voce.ts()).isCloseTo(System.currentTimeMillis(), within(60_000L)));
     }
 
