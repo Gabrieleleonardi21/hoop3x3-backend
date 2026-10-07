@@ -290,7 +290,7 @@ src/main/java/com/hoop3x3/backend/
 ├── exceptions/   # eccezioni tipizzate + ExceptionsHandler (corpo uniforme {message, timestamp})
 ├── repositories/ # Spring Data JPA
 ├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/estathe25.json, una volta sola)
-├── security/     # SecurityConfig, JwtFilter, JWTtools, JwtProperties (secret e durata del JWT, validati all'avvio), AuthCookies, CorsConfig, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB), LimiteRichiesteFilter (429 oltre i limiti di frequenza) con LimiteRichieste (il contatore) e LimiteRichiesteProperties
+├── security/     # SecurityConfig, JwtFilter, JwtTools, JwtProperties (secret e durata del JWT, validati all'avvio), AuthCookies, CorsConfig, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB), LimiteRichiesteFilter (429 oltre i limiti di frequenza) con LimiteRichieste (il contatore) e LimiteRichiesteProperties
 └── services/     # logica: proprietà (AccessGuard), JSON delle tappe, proxy Groq, refresh token (RefreshTokenService)
 ```
 

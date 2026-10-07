@@ -7,7 +7,7 @@ import com.hoop3x3.backend.dto.UtenteDTO;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.UnauthorizedException;
 import com.hoop3x3.backend.security.AuthCookies;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.services.RefreshTokenService;
 import com.hoop3x3.backend.services.UtenteService;
 import jakarta.servlet.http.HttpServletResponse;
@@ -36,11 +36,11 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final UtenteService utenteService;
-    private final JWTtools jwtTools;
+    private final JwtTools jwtTools;
     private final RefreshTokenService refreshTokenService;
     private final AuthCookies cookies;
 
-    public AuthController(AuthenticationManager authenticationManager, UtenteService utenteService, JWTtools jwtTools,
+    public AuthController(AuthenticationManager authenticationManager, UtenteService utenteService, JwtTools jwtTools,
                           RefreshTokenService refreshTokenService, AuthCookies cookies) {
         this.authenticationManager = authenticationManager;
         this.utenteService = utenteService;

@@ -9,7 +9,7 @@ import com.hoop3x3.backend.exceptions.ExceptionsHandler;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.AuthCookies;
 import com.hoop3x3.backend.security.CorsConfig;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.security.JsonAuthEntryPoint;
 import com.hoop3x3.backend.security.JwtFilter;
 import com.hoop3x3.backend.security.LimiteDimensioneFilter;
@@ -65,7 +65,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * niente chiamata a Groq.
  */
 @WebMvcTest(controllers = {AuthController.class, CoachController.class})
-@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JWTtools.class, JsonAuthEntryPoint.class,
+@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JwtTools.class, JsonAuthEntryPoint.class,
         AuthCookies.class, ExceptionsHandler.class, OrologioDiProva.Configurazione.class})
 @TestPropertySource(properties = {"jwt.secret=0123456789abcdef0123456789abcdef", "cors.origins=http://localhost:5173"})
 class LimiteRichiesteWebTest {
@@ -77,7 +77,7 @@ class LimiteRichiesteWebTest {
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
-    @Autowired JWTtools jwt;
+    @Autowired JwtTools jwt;
     @Autowired OrologioDiProva orologio;
     @MockitoBean AuthenticationManager authenticationManager;
     @MockitoBean UtenteService utenteService;

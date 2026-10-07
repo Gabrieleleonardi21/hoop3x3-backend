@@ -20,7 +20,7 @@ import com.hoop3x3.backend.exceptions.ExceptionsHandler;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.AuthCookies;
 import com.hoop3x3.backend.security.CorsConfig;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.security.JsonAuthEntryPoint;
 import com.hoop3x3.backend.security.JwtFilter;
 import com.hoop3x3.backend.security.LimiteDimensioneFilter;
@@ -105,7 +105,7 @@ class ValidazioneWebTest {
     @MockitoBean CoachAiService coachAiService;
     @MockitoBean RefreshTokenService refreshTokenService;
     @MockitoBean AuthenticationManager authenticationManager;
-    @MockitoBean JWTtools jwtTools;
+    @MockitoBean JwtTools jwtTools;
     @MockitoBean UtenteRepository utenteRepository;
 
     private static final int TRE_MB = 3 * 1024 * 1024; // oltre il limite di 2 MB del filtro

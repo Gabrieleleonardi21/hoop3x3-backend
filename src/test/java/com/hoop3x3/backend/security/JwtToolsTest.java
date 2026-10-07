@@ -17,8 +17,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Senza contesto Spring: JWTtools si costruisce con un JwtProperties scritto a mano. Si verifica la durata del token. */
-class JWTtoolsTest {
+/** Senza contesto Spring: JwtTools si costruisce con un JwtProperties scritto a mano. Si verifica la durata del token. */
+class JwtToolsTest {
 
     private static final String SEGRETO = "segreto-di-prova-di-almeno-32-caratteri";
     private final UUID id = UUID.randomUUID();
@@ -32,7 +32,7 @@ class JWTtoolsTest {
 
     @Test
     void ilTokenScadeDopoIMinutiConfigurati() {
-        JWTtools jwtTools = new JWTtools(new JwtProperties(SEGRETO, 30));
+        JwtTools jwtTools = new JwtTools(new JwtProperties(SEGRETO, 30));
 
         Claims claims = jwtTools.verifyToken(jwtTools.generateToken(utente));
 
@@ -45,7 +45,7 @@ class JWTtoolsTest {
     @Test
     void unTokenScadutoVieneRespinto() {
         // scade un minuto prima di essere emesso: il record costruito a mano non passa dalla validazione
-        JWTtools jwtTools = new JWTtools(new JwtProperties(SEGRETO, -1));
+        JwtTools jwtTools = new JwtTools(new JwtProperties(SEGRETO, -1));
 
         String scaduto = jwtTools.generateToken(utente);
 
@@ -58,7 +58,7 @@ class JWTtoolsTest {
     @NullSource
     @ValueSource(strings = {"", " ", "   "})
     void unTokenVuotoODiSoliSpaziVieneRespinto(String token) {
-        JWTtools jwtTools = new JWTtools(new JwtProperties(SEGRETO, 30));
+        JwtTools jwtTools = new JwtTools(new JwtProperties(SEGRETO, 30));
 
         assertThatThrownBy(() -> jwtTools.verifyToken(token)).isInstanceOf(UnauthorizedException.class);
     }

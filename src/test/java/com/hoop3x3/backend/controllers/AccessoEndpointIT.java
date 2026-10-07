@@ -9,7 +9,7 @@ import com.hoop3x3.backend.TestDiIntegrazione;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.UtenteRepository;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.services.AccessGuard;
 import com.hoop3x3.backend.services.AnagrafeService;
 import com.hoop3x3.backend.services.ArchivioService;
@@ -154,7 +154,7 @@ class AccessoEndpointIT {
     // Le mappature di Spring MVC: l'elenco vero degli endpoint dell'applicazione
     @Autowired @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping mappature;
     @Autowired ObjectMapper mapper;
-    @Autowired JWTtools jwt;
+    @Autowired JwtTools jwt;
     @Autowired UtenteRepository utenti;
     @Autowired AnagrafeService anagrafeService;
     @Autowired LegaService legaService;

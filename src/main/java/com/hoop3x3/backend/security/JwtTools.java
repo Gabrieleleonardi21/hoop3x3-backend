@@ -19,7 +19,7 @@ import java.util.Date;
  */
 @Component
 @EnableConfigurationProperties(JwtProperties.class)
-public class JWTtools {
+public class JwtTools {
 
     /** Messaggio del 401 per ogni token non valido (alterato, scaduto, malformato, vuoto): lo riusa anche JwtFilter */
     static final String TOKEN_NON_VALIDO = "Sessione scaduta o token non valido: accedi di nuovo";
@@ -28,7 +28,7 @@ public class JWTtools {
     /** Durata del token in minuti: scaduto, il client lo rinnova con il refresh token */
     private final long durataMinuti;
 
-    public JWTtools(JwtProperties props) {
+    public JwtTools(JwtProperties props) {
         // La chiave si costruisce una volta sola, dai byte UTF-8 del secret
         this.chiave = Keys.hmacShaKeyFor(props.secret().getBytes(StandardCharsets.UTF_8));
         this.durataMinuti = props.durataMinuti();

@@ -5,7 +5,7 @@ import com.hoop3x3.backend.exceptions.ExceptionsHandler;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.AuthCookies;
 import com.hoop3x3.backend.security.CorsConfig;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.security.JsonAuthEntryPoint;
 import com.hoop3x3.backend.security.JwtFilter;
 import com.hoop3x3.backend.security.LimiteDimensioneFilter;
@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * registrato nel container, altrimenti il test non vedrebbe niente e passerebbe a vuoto.
  */
 @WebMvcTest(controllers = AuthController.class)
-@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JWTtools.class, JsonAuthEntryPoint.class,
+@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JwtTools.class, JsonAuthEntryPoint.class,
         AuthCookies.class, ExceptionsHandler.class, LimiteDimensioneFilter.class})
 @TestPropertySource(properties = {"jwt.secret=0123456789abcdef0123456789abcdef", "cors.origins=http://localhost:5173"})
 class RegistrazioneFiltriWebTest {

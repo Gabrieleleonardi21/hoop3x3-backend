@@ -3,7 +3,7 @@ package com.hoop3x3.backend;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.UtenteRepository;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc; // Spring Boot 4: package del modulo webmvc-test
@@ -23,7 +23,7 @@ class SaluteIT {
 
     @Autowired MockMvc mvc;
     @Autowired UtenteRepository utenti;
-    @Autowired JWTtools jwt;
+    @Autowired JwtTools jwt;
 
     @Test
     void healthSenzaTokenRispondeUpSenzaDettagli() throws Exception {

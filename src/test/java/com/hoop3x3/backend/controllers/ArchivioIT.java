@@ -10,7 +10,7 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.ArchivioTappaRepository;
 import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.services.LegaService;
 import com.hoop3x3.backend.support.Tempo;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +60,7 @@ class ArchivioIT {
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
-    @Autowired JWTtools jwt;
+    @Autowired JwtTools jwt;
     @Autowired UtenteRepository utenti;
     @Autowired TappaRepository tappe;
     @Autowired ArchivioTappaRepository archivio;
