@@ -23,8 +23,9 @@ import java.util.UUID;
 /**
  * Dati di prova del circuito Estathé 3x3 2025 (anagrafe, lega con 4 tappe concluse e archivio),
  * letti da resources/seed/estathe25.json (le persone, cioè giocatori e referenti, sono di fantasia: nome, data di nascita, misure,
- * città, nazionalità e note sono inventati, restano solo ruolo, squadra e numero; il file sta nel jar anche con SEED_DEMO=false
- * e non deve contenere dati di persone reali, lo controlla DatiDiProvaTest). Attivo solo con SEED_DEMO=true e con l'admin configurato
+ * città e note sono inventati e la nazionalità è rimescolata, cioè gli italiani restano italiani e gli stranieri sono spostati su
+ * altri giocatori; restano solo ruolo, squadra e numero. Il file sta nel jar anche con SEED_DEMO=false e non deve contenere dati
+ * di persone reali, lo controlla DatiDiProvaTest). Attivo solo con SEED_DEMO=true e con l'admin configurato
  * (i dati vengono intestati a lui). Si esegue una sola volta: alla fine scrive il segno «demo» in seed_eseguiti e al
  * riavvio lo riconosce da lì (perché serve: vedi SeedEseguito). Gli id corti del file ("p01", "s01", "t01") diventano
  * UUID: quelli delle tappe sono deterministici, e per i database seminati prima del segno la prima tappa demo dice che il

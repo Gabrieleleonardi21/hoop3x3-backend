@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class AnagrafeDTOTest {
 
-    // L'autore è null: se la forma pubblica lo leggesse sarebbe una NullPointerException, come un autore non caricato
+    // L'autore è null: se la forma pubblica lo leggesse sarebbe una NullPointerException, come per un'entity senza autore
     @Test
     void ilGiocatorePubblicoNonLeggeLAutore() {
         AnagrafeGiocatore g = new AnagrafeGiocatore();
