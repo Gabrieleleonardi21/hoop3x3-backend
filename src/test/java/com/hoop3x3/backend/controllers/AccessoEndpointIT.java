@@ -7,7 +7,6 @@ import com.hoop3x3.backend.TappaDiProva;
 import com.hoop3x3.backend.TestDiIntegrazione;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
-import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.JWTtools;
 import com.hoop3x3.backend.services.AccessGuard;
@@ -111,7 +110,6 @@ class AccessoEndpointIT {
     @Autowired ObjectMapper mapper;
     @Autowired JWTtools jwt;
     @Autowired UtenteRepository utenti;
-    @Autowired AnagrafeGiocatoreRepository giocatori;
     @Autowired AnagrafeService anagrafeService;
     @Autowired LegaService legaService;
     @Autowired ArchivioService archivioService;
@@ -127,7 +125,7 @@ class AccessoEndpointIT {
         mario = utenti.save(new Utente("mario@test.it", "hash", "Mario", Ruolo.USER));
         luigi = utenti.save(new Utente("luigi@test.it", "hash", "Luigi", Ruolo.USER));
         admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
-        cose = new MondoDiProva(giocatori, anagrafeService, legaService, archivioService).crea(mario);
+        cose = new MondoDiProva(anagrafeService, legaService, archivioService).crea(mario);
     }
 
     /* ── 401: senza token nessun endpoint protetto risponde ── */

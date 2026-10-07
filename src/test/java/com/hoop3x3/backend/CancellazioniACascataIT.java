@@ -3,7 +3,6 @@ package com.hoop3x3.backend;
 import com.hoop3x3.backend.MondoDiProva.Mondo;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
-import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.services.AnagrafeService;
 import com.hoop3x3.backend.services.ArchivioService;
@@ -35,7 +34,6 @@ class CancellazioniACascataIT {
             "anagrafe_giocatori", "anagrafe_squadre", "anagrafe_squadre_roster"};
 
     @Autowired UtenteRepository utenti;
-    @Autowired AnagrafeGiocatoreRepository giocatori;
     @Autowired AnagrafeService anagrafeService;
     @Autowired LegaService legaService;
     @Autowired ArchivioService archivioService;
@@ -47,7 +45,7 @@ class CancellazioniACascataIT {
 
     @BeforeEach
     void creaLeCoseDiDueUtenti() {
-        MondoDiProva mondi = new MondoDiProva(giocatori, anagrafeService, legaService, archivioService);
+        MondoDiProva mondi = new MondoDiProva(anagrafeService, legaService, archivioService);
         mario = mondiDi("Mario", mondi);
         luigi = mondiDi("Luigi", mondi);
         // La partenza: ognuno ha tutto, quindi il test non passa perché la fixture è vuota

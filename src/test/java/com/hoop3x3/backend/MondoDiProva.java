@@ -1,11 +1,10 @@
 package com.hoop3x3.backend;
 
+import com.hoop3x3.backend.dto.GiocatoreRequestDTO;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
 import com.hoop3x3.backend.dto.SquadraRequestDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
-import com.hoop3x3.backend.entities.AnagrafeGiocatore;
 import com.hoop3x3.backend.entities.Utente;
-import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
 import com.hoop3x3.backend.services.AnagrafeService;
 import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.LegaService;
@@ -23,14 +22,11 @@ public final class MondoDiProva {
     /** Gli id di ciò che `crea` ha messo nel database */
     public record Mondo(Utente utente, UUID giocatore, UUID squadra, UUID lega, List<UUID> tappe) {}
 
-    private final AnagrafeGiocatoreRepository giocatori;
     private final AnagrafeService anagrafeService;
     private final LegaService legaService;
     private final ArchivioService archivioService;
 
-    public MondoDiProva(AnagrafeGiocatoreRepository giocatori, AnagrafeService anagrafeService, LegaService legaService,
-                        ArchivioService archivioService) {
-        this.giocatori = giocatori;
+    public MondoDiProva(AnagrafeService anagrafeService, LegaService legaService, ArchivioService archivioService) {
         this.anagrafeService = anagrafeService;
         this.legaService = legaService;
         this.archivioService = archivioService;
@@ -38,11 +34,9 @@ public final class MondoDiProva {
 
     /** Le cose di `utente`: i nomi portano il suo nome, così le righe di più utenti si distinguono */
     public Mondo crea(Utente utente) {
-        AnagrafeGiocatore giocatore = new AnagrafeGiocatore();
-        giocatore.setNome(utente.getNome());
-        giocatore.setCognome("Rossi");
-        giocatore.setAutore(utente);
-        UUID idGiocatore = giocatori.save(giocatore).getId();
+        // Nome e cognome, gli unici campi obbligatori: gli altri restano vuoti
+        UUID idGiocatore = anagrafeService.creaGiocatore(utente, new GiocatoreRequestDTO(utente.getNome(), "Rossi", null, null,
+                null, null, null, null, null, null, null, null, null)).id();
         UUID squadra = anagrafeService.creaSquadra(utente, new SquadraRequestDTO("Squadra di " + utente.getNome(), null, null,
                 null, null, null, null, null, null, List.of(idGiocatore))).id();
 
