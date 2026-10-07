@@ -120,6 +120,59 @@ class LettureEfficientiIT {
         assertThat(caricate(Tappa.class)).as("tappe caricate dalla rinomina").isZero();
     }
 
+    /* ── Dettaglio di una lega e scritture sulle tappe: ognuna ha cinque colonne JSONB, quindi si caricano solo quelle che servono ── */
+
+    // Il dettaglio legge la lega e le sue tappe, e l'autore non si carica (il proprietario serve solo per l'id): due query, sia con
+    // una tappa sia con cinque
+    @Test
+    void ilDettaglioDiUnaLegaSiLeggeConDueQuery_ilNumeroNonCresceConLeTappe() {
+        Utente mario = utente("Mario");
+        UUID conUna = legaService.crea(mario, new NuovaLegaDTO("Con una tappa", List.of(tappa()))).id();
+        UUID conCinque = legaService.crea(mario, new NuovaLegaDTO("Con cinque tappe",
+                List.of(tappa(), tappa(), tappa(), tappa(), tappa()))).id();
+
+        long query = misura(() -> legaService.dettaglio(mario, conUna)).query();
+        var cinque = misura(() -> legaService.dettaglio(mario, conCinque));
+
+        assertThat(cinque.risultato().tappe()).hasSize(5);
+        assertAll(
+                () -> assertThat(cinque.query()).as("query del dettaglio con 5 tappe").isEqualTo(query),
+                () -> assertThat(cinque.query()).as("query del dettaglio di una lega").isEqualTo(2));
+    }
+
+    // La tappa nuova si aggiunge senza leggere quelle che la lega ha già: aggiungerla a una lega di cinque tappe non ne carica
+    // nessuna e costa le stesse query che aggiungerla a una lega di una
+    @Test
+    void aggiungereUnaTappaNonCaricaLeTappeDellaLega_leQueryNonDipendonoDalLoroNumero() {
+        Utente mario = utente("Mario");
+        UUID conUna = legaService.crea(mario, new NuovaLegaDTO("Con una tappa", List.of(tappa()))).id();
+        UUID conCinque = legaService.crea(mario, new NuovaLegaDTO("Con cinque tappe",
+                List.of(tappa(), tappa(), tappa(), tappa(), tappa()))).id();
+
+        long query = query(() -> legaService.aggiungiTappa(mario, conUna, tappa()));
+        long queryConCinque = query(() -> legaService.aggiungiTappa(mario, conCinque, tappa()));
+
+        assertAll(
+                () -> assertThat(queryConCinque).as("query con 5 tappe già nella lega").isEqualTo(query),
+                () -> assertThat(caricate(Tappa.class)).as("tappe caricate").isZero());
+    }
+
+    // Il salvataggio di una tappa legge quella tappa e basta, anche se la lega ne ha altre: quattro istruzioni, la lettura della
+    // tappa e della sua lega e i due UPDATE (la tappa, e la data di modifica della lega)
+    @Test
+    void salvareUnaTappaCaricaSoloQuellaTappa() {
+        Utente mario = utente("Mario");
+        TappaDTO prima = tappa();
+        legaService.crea(mario, new NuovaLegaDTO("Con cinque tappe", List.of(prima, tappa(), tappa(), tappa(), tappa())));
+
+        long query = query(() -> legaService.aggiornaTappa(mario, prima.id(),
+                TappaDiProva.da(prima).nome("Cambiata").versione(0L).build()));
+
+        assertAll(
+                () -> assertThat(caricate(Tappa.class)).as("tappe caricate dal salvataggio").isEqualTo(1),
+                () -> assertThat(query).as("query del salvataggio di una tappa").isEqualTo(4));
+    }
+
     /* ── Anagrafe: squadre e giocatori in una query, con roster e autore insieme alle righe ── */
 
     @Test

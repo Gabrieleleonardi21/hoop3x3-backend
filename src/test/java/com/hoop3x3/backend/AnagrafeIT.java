@@ -54,6 +54,36 @@ class AnagrafeIT {
         assertThat(rosterSalvato(creata.id())).containsExactlyElementsOf(attesi);
     }
 
+    // L'anagrafe è condivisa: la squadra la modifica chi l'ha creata, ma nel roster può mettere i giocatori di chiunque (il controllo
+    // di proprietà riguarda la squadra, non chi la compone)
+    @Test
+    void ilRosterPuoContenereGiocatoriDiAltriAutori() {
+        Utente mario = utenti.save(new Utente("mario@test.it", "hash", "Mario", Ruolo.USER));
+        Utente luigi = utenti.save(new Utente("luigi@test.it", "hash", "Luigi", Ruolo.USER));
+        UUID suo = giocatori.save(giocatore(mario, "Suo")).getId();
+        UUID diLuigi = giocatori.save(giocatore(luigi, "Di Luigi")).getId();
+
+        SquadraDTO creata = anagrafeService.creaSquadra(mario, richiesta(List.of(suo, diLuigi)));
+
+        assertThat(creata.roster()).containsExactly(suo, diLuigi);
+        assertThat(rosterSalvato(creata.id())).containsExactly(suo, diLuigi);
+    }
+
+    // Un roster vuoto toglie tutti i giocatori dalla squadra, e le righe del ponte spariscono con loro (non resta nessun buco)
+    @Test
+    void unRosterVuotoSvuotaLaSquadra_senzaEliminareIGiocatori() {
+        Utente mario = utenti.save(new Utente("mario@test.it", "hash", "Mario", Ruolo.USER));
+        UUID uno = giocatori.save(giocatore(mario, "Uno")).getId();
+        UUID due = giocatori.save(giocatore(mario, "Due")).getId();
+        SquadraDTO creata = anagrafeService.creaSquadra(mario, richiesta(List.of(uno, due)));
+
+        SquadraDTO svuotata = anagrafeService.aggiornaSquadra(mario, creata.id(), richiesta(List.of()));
+
+        assertThat(svuotata.roster()).isEmpty();
+        assertThat(rosterSalvato(creata.id())).isEmpty();
+        assertThat(giocatori.count()).isEqualTo(2);
+    }
+
     // Le forme degli elenchi si costruiscono dentro la transazione di lettura (open-in-view è spento), con il roster e l'autore
     // caricati dalla stessa query: dal database vero la forma pubblica esce senza dati personali, e la completa li ha
     @Test

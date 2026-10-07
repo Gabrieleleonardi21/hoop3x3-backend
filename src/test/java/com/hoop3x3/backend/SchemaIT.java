@@ -3,6 +3,7 @@ package com.hoop3x3.backend;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.UtenteRepository;
+import jakarta.persistence.EntityManagerFactory;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ class SchemaIT {
 
     @Autowired UtenteRepository utenti;
     @Autowired JdbcTemplate jdbc;
+    @Autowired EntityManagerFactory emf;
 
     // Il database che i test devono usare: quello di TEST_DB_URL, altrimenti quello predefinito
     @Value("${TEST_DB_URL:" + TestDiIntegrazione.URL_PREDEFINITO + "}")
@@ -41,6 +43,13 @@ class SchemaIT {
     void ogniTestParteDaTabelleVuote() {
         // Il test precedente ha salvato un utente: prima di questo le tabelle sono state svuotate
         assertThat(utenti.count()).isZero();
+    }
+
+    // Il contesto parte solo se le entity combaciano con le tabelle delle migrazioni, perché Hibernate le controlla con validate:
+    // è ciò che fa di ogni test di integrazione una prova dello schema. Con none o update la garanzia sparirebbe in silenzio
+    @Test
+    void hibernateControllaLoSchemaConValidate() {
+        assertThat(emf.getProperties()).containsEntry("hibernate.hbm2ddl.auto", "validate");
     }
 
     @Test
