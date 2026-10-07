@@ -2,6 +2,8 @@
 
 API REST del gestionale [Hoop 3x3](https://github.com/Gabrieleleonardi21/Hoops-3x3): Spring Boot 4 (Java 25), Spring Security + JWT, JPA/Hibernate, PostgreSQL. Porta `3001`.
 
+Servono Java 25 e un PostgreSQL (la CI usa la 18). Maven non va installato: c'è il Maven Wrapper, `./mvnw` (`mvnw.cmd` su Windows).
+
 ## Avvio
 
 **1. Database** — crea un database vuoto, senza tabelle (in pgAdmin: clic destro su Databases → Create → Database, nome `hoop3x3`), oppure:
@@ -20,12 +22,12 @@ psql -d hoop3x3 -f src/main/resources/db/migration/V1__schema_iniziale.sql
 
 Va bene sia prima del primo avvio sia dopo un primo avvio fallito.
 
-**2. Configurazione** — copia `env.properties.example` in `env.properties` (ignorato da git) e compila i valori. I segreti si controllano all'avvio, perché un esempio lasciato com'è renderebbe nota a tutti la chiave dei token o la password dell'amministratore:
+**2. Configurazione** — copia `env.properties.example` in `env.properties` (ignorato da git), nella cartella da cui lanci il server: di solito la radice del repository, perché `application.properties` lo cerca con un percorso relativo. Compila i valori. I segreti si controllano all'avvio, perché un esempio lasciato com'è renderebbe nota a tutti la chiave dei token o la password dell'amministratore:
 
 - `JWT_SECRET` (obbligatorio) — almeno 32 caratteri casuali, per esempio generati con `openssl rand -base64 48`. Se manca, è più corto o è ancora il valore d'esempio del vecchio `env.properties.example` (`cambia-questa-stringa-...`), il server non parte e spiega perché; il valore del secret non finisce mai nei log. Cambiarlo invalida i JWT già emessi: gli utenti rifanno il login.
 - `ADMIN_EMAIL` e `ADMIN_PASSWORD` — l'ADMIN creato al primo avvio. La password deve avere almeno 8 caratteri ed essere diversa da `admin123`: altrimenti, anche se è vuota, l'admin non viene creato e nei log compare un avviso (senza admin neanche `SEED_DEMO` carica i dati di prova). Con l'email vuota il seeder è spento e una riga INFO nei log lo dice; se però la password c'è, compare un avviso, perché di solito è l'email dimenticata. Un admin già presente nel database non viene toccato (una riga INFO lo dice), quindi neanche il controllo sulla password lo riguarda.
-- `DB_USERNAME`, `DB_PASSWORD` e, facoltativa, `GROQ_API_KEY` per il Coach AI.
-- Facoltative: `DB_HOST`, `DB_PORT`, `DB_NAME` (default `localhost`, `5432`, `hoop3x3`) e `PORT` (default `3001`).
+- `DB_USERNAME` e `DB_PASSWORD` (di base `postgres` e password vuota) e, facoltativa, `GROQ_API_KEY` per il Coach AI.
+- Tutte le altre sono facoltative e hanno un valore di base: vedi «Variabili di configurazione».
 
 **3. Server**
 
@@ -35,10 +37,61 @@ Va bene sia prima del primo avvio sia dopo un primo avvio fallito.
 
 Il frontend in sviluppo inoltra `/api` verso `http://localhost:3001` tramite il proxy di Vite.
 
+## Variabili di configurazione
+
+I valori di base sono in `src/main/resources/application.properties`. Le variabili si scrivono in `env.properties` (una riga `NOME=valore`) oppure si impostano nell'ambiente del sistema (Render, `docker run -e`). Le proprietà con un prefisso le raccolgono i record `JwtProperties`, `AuthProperties`, `CorsProperties`, `GroqProperties`, `SeedProperties` e `LimiteRichiesteProperties`; quelle di `jwt.*` e `limite.*` sono validate all'avvio: un valore non valido ferma il server e dice quale.
+
+| Variabile | Proprietà | Valore di base | A che cosa serve |
+|---|---|---|---|
+| `PORT` | `server.port` | `3001` | porta del server; su Render la assegna Render |
+| `DB_HOST`, `DB_PORT`, `DB_NAME` | `spring.datasource.url` | `localhost`, `5432`, `hoop3x3` | dove sta il database |
+| `DB_USERNAME` | `spring.datasource.username` | `postgres` | utente del database |
+| `DB_PASSWORD` | `spring.datasource.password` | vuota | password del database |
+| `JWT_SECRET` | `jwt.secret` | nessuno: obbligatoria | firma i JWT; almeno 32 caratteri e diversa dal valore d'esempio, altrimenti il server non parte |
+| `AUTH_COOKIE_SECURE` | `auth.cookie-secure` | `false` | `true` in produzione con HTTPS: il cookie di refresh viaggia solo su connessioni cifrate |
+| `CORS_ORIGINS` | `cors.origins` | `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:4173` | origini del frontend ammesse, separate da virgola |
+| `GROQ_API_KEY` | `groq.api.key` | vuota | chiave Groq del Coach AI; vuota = Coach disattivato |
+| `GROQ_MODEL` | `groq.model` | `openai/gpt-oss-120b` | modello del Coach AI |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | `seed.admin.email`, `seed.admin.password` | vuote | l'ADMIN creato al primo avvio (regole nel passo 2 di «Avvio») |
+| `SEED_DEMO` | `seed.demo` | `false` | `true` = al primo avvio carica i dati di prova (vedi «Dati di prova») |
+
+Queste proprietà hanno un valore di base ma `application.properties` non le legge da una variabile:
+
+| Proprietà | Variabile d'ambiente | Valore di base | A che cosa serve |
+|---|---|---|---|
+| `jwt.durata-minuti` | `JWT_DURATA_MINUTI` | `30` (da 5 a 1440) | durata del JWT di accesso (vedi «Sessioni e refresh token») |
+| `auth.refresh-giorni` | `AUTH_REFRESH_GIORNI` | `30` | durata del refresh token e del suo cookie |
+| `limite.auth-al-minuto` | `LIMITE_AUTH_AL_MINUTO` | `10` | login, registrazione e rinnovo del token, per indirizzo IP (vedi «Limiti di frequenza») |
+| `limite.coach-al-minuto` | `LIMITE_COACH_AL_MINUTO` | `20` | Coach AI, per utente |
+| `limite.coach-al-giorno` | `LIMITE_COACH_AL_GIORNO` | `300` | Coach AI, per utente |
+| `server.forward-headers-strategy` | `SERVER_FORWARD_HEADERS_STRATEGY` | non impostata | `native` dietro un reverse proxy, perché il limite per indirizzo veda il visitatore e non il proxy (proprietà di Spring Boot, vedi «Limiti di frequenza») |
+
+**Come si scrivono.** La prima tabella ha lo stesso nome in `env.properties` e nell'ambiente. Per la seconda, in `env.properties` va il nome della proprietà (`limite.auth-al-minuto=60`) e nell'ambiente il nome in maiuscolo: scritto dentro `env.properties` il nome in maiuscolo (`LIMITE_AUTH_AL_MINUTO=60`) non ha effetto, perché Spring Boot lo riconosce solo tra le variabili d'ambiente del sistema, e la riga viene ignorata senza nessun errore. Le variabili dei test di integrazione (`TEST_DB_*`) sono nella sezione «Test».
+
 ## Test
 
-- `./mvnw test`: test senza database (web con MockMvc, servizi con Mockito).
-- `./mvnw verify -Pintegrazione`: anche i test di integrazione con PostgreSQL (classi `*IT`). Usano il database di prova `hoop3x3_test` sul PostgreSQL locale, da creare una volta, vuoto, con `createdb hoop3x3_test`: all'avvio dei test lo schema lo creano le migrazioni di Flyway (un database di prova che ha già le tabelle, create a mano prima di Flyway, viene riconosciuto come versione 1) e prima di ogni test le tabelle vengono svuotate, tranne lo storico di Flyway. L'utente dei test (`TEST_DB_USERNAME`) deve poter creare schemi nel database di prova, per esempio perché ne è il proprietario: `MigrazioniIT` prova le migrazioni su schemi temporanei, e senza il permesso i suoi test che li creano falliscono con «permission denied». Per un altro database c'è `TEST_DB_URL`, con `TEST_DB_USERNAME` e `TEST_DB_PASSWORD`; altrimenti valgono `DB_USERNAME` e `DB_PASSWORD` di `env.properties`. Le variabili `SPRING_DATASOURCE_*` non hanno effetto sui test di integrazione. Lo script che svuota le tabelle si rifiuta di girare su un database il cui nome non contiene «test». Il profilo «test» alza i limiti di frequenza (vedi «Limiti di frequenza»): gli IT fanno più accessi insieme dallo stesso indirizzo e con i valori di produzione verrebbero respinti con 429.
+- `./mvnw test` — i test unitari e web: filtri, servizi con Mockito, controller e sicurezza con MockMvc, validazione dei DTO, lettura dei dati di prova. Non serve nessun database.
+- `./mvnw verify -Pintegrazione` — anche i test di integrazione (classi `*IT`, eseguite da Failsafe) su un PostgreSQL vero: migrazioni di Flyway, JSONB, cascate, numero di query, concorrenza, refresh token e la tabella degli accessi (`AccessoEndpointIT`, vedi «Endpoint»). Senza il profilo non partono: `./mvnw verify` da solo esegue i test unitari.
+
+**I test di integrazione cancellano i dati.** Prima di ogni test `src/test/resources/svuota.sql` svuota tutte le tabelle (tranne `flyway_schema_history`, lo storico di Flyway), quindi `TEST_DB_URL`, `TEST_DB_USERNAME` e `TEST_DB_PASSWORD` devono puntare a un **database di prova**, mai a quello vero. Lo script si rifiuta di girare su un database il cui nome non contiene «test», ma è l'ultima difesa e non la prima. Il database lo scelgono solo queste variabili (`TestDiIntegrazione`):
+
+| Variabile | Se manca |
+|---|---|
+| `TEST_DB_URL` | `jdbc:postgresql://localhost:5432/hoop3x3_test` |
+| `TEST_DB_USERNAME` | `DB_USERNAME` (di `env.properties` o dell'ambiente), poi `postgres` |
+| `TEST_DB_PASSWORD` | `DB_PASSWORD` (come sopra), poi vuota |
+
+Le variabili `SPRING_DATASOURCE_*` non hanno effetto sui test di integrazione: quelle esportate nel terminale per il server vero non portano i test su un database che non è di prova.
+
+```bash
+createdb hoop3x3_test
+TEST_DB_URL=jdbc:postgresql://localhost:5432/hoop3x3_test TEST_DB_USERNAME=postgres TEST_DB_PASSWORD=la-tua-password \
+  ./mvnw verify -Pintegrazione
+```
+
+Il database di prova si crea una volta, vuoto: all'avvio dei test lo schema lo creano le migrazioni di Flyway (un database di prova che ha già le tabelle, create a mano prima di Flyway, viene riconosciuto come versione 1). L'utente dei test (`TEST_DB_USERNAME`) deve poter creare schemi nel database di prova, per esempio perché ne è il proprietario: `MigrazioniIT` prova le migrazioni su schemi temporanei, e senza il permesso i suoi test che li creano falliscono con «permission denied». Il profilo «test» (`src/test/resources/application-test.properties`) alza i limiti di frequenza (vedi «Limiti di frequenza»): gli IT fanno più accessi insieme dallo stesso indirizzo e con i valori di produzione verrebbero respinti con 429.
+
+La CI (`.github/workflows/ci.yml`) fa lo stesso a ogni push su `main` e a ogni pull request: un PostgreSQL 18 come servizio, il database `hoop3x3_test` e `./mvnw -B verify -Pintegrazione` con le tre variabili `TEST_DB_*`.
 
 ## Migrazioni del database
 
@@ -51,6 +104,48 @@ Lo schema cambia solo con le migrazioni di Flyway in `src/main/resources/db/migr
 - `spring.flyway.baseline-on-migrate=true` (in `application.properties`) serve ai database creati a mano prima di Flyway: Flyway li segna come versione 1 invece di rifiutarli. Su un database che ha già lo storico non cambia nulla.
 - `MigrazioniIT` prova i due percorsi, database vuoto e database creato a mano prima di Flyway, su schemi temporanei e qualunque sia lo stato del database di prova: una migrazione nuova (V5, V6…) non richiede ritocchi a quei test.
 - **Le date sono in UTC.** Le colonne delle date (`creato_il`, `modificato_il`, `pubblicato_il`, `scade_il`…) sono `TIMESTAMP` senza fuso: il server le scrive e le rilegge sempre in UTC (`support/Tempo`), quindi il `ts` dell'API non dipende dal fuso della macchina. Su Render il fuso è già UTC e non cambia niente. Un database scritto da un server con un altro fuso prima della fase 3 (per esempio un PC in Italia) ha le date di allora spostate di quella differenza, una o due ore: cambiano solo l'ora mostrata e l'ordine di righe salvate a poca distanza, e i refresh token di allora scadono una o due ore prima o dopo.
+
+## Endpoint
+
+La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/controllers/`), che dichiara endpoint per endpoint chi può chiamarlo, in tre liste: `endpointSuUnaRisorsa()`, `altriEndpointProtetti()` (le prime due insieme sono `endpointProtetti()`) e `endpointPubblici()`. Il test le prova con il database e la catena di sicurezza veri: 401 senza token, 403 a chi non è il proprietario, 404 se la risorsa non esiste, esito positivo per il proprietario e per un ADMIN. `ogniEndpointDellApplicazioneStaInUnaDelleListe` confronta le liste con le mappature vere dei controller: un endpoint nuovo che non sta in nessuna lista fa cadere i test di integrazione, e uno protetto con una variabile nel percorso deve stare tra quelli «su una risorsa», cioè con il 403 e il 404 provati. Il README non lo controlla nessun test: se cambia una lista, cambia anche questa tabella.
+
+- **Pubblico** — senza token. Un `Authorization: Bearer` presente ma scaduto o non valido dà comunque 401 (`JwtFilter`), tranne su login, registrazione, rinnovo e uscita, che non passano dal filtro.
+- **Autenticato** — serve un JWT valido, di qualsiasi utente; senza, 401. Ogni percorso che non è tra i pubblici lo chiede (`anyRequest().authenticated()` in `SecurityConfig`).
+- **Proprietario o ADMIN** — autenticato e proprietario della risorsa; un ADMIN passa sempre (`AccessGuard`) e, se scrive sui dati di un altro, lascia una riga di log (vedi «Log»). Gli altri ricevono 403 («Solo chi ha creato questa lega (o un ADMIN) può modificarla»); se la risorsa non esiste, 404 per tutti.
+- **ADMIN** — solo il ruolo ADMIN (`@PreAuthorize`); gli altri ricevono 403 («Non hai i permessi necessari per questa operazione»).
+
+| Metodo | Percorso | Chi può chiamarlo | Risposta |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | Pubblico | 201 `{token, user}` e cookie di refresh |
+| `POST` | `/api/auth/login` | Pubblico | 200 `{token, user}` e cookie di refresh |
+| `POST` | `/api/auth/refresh` | Pubblico: si autentica con il cookie di refresh, non con il Bearer | 200 `{token, user}` e nuovo cookie |
+| `POST` | `/api/auth/logout` | Pubblico: come `refresh`, con il cookie | 204 |
+| `GET` | `/api/auth/me` | Autenticato | 200 l'utente del token |
+| `GET` | `/api/utenti` | ADMIN | 200 tutti gli utenti, senza password |
+| `GET` | `/api/leghe` | Autenticato | 200 le proprie leghe (anche per un ADMIN) |
+| `POST` | `/api/leghe` | Autenticato | 201; con `tappe` nel corpo è l'import di una lega |
+| `GET` | `/api/leghe/{id}` | Proprietario o ADMIN | 200 la lega con le sue tappe |
+| `PATCH` | `/api/leghe/{id}` | Proprietario o ADMIN | 200 la lega rinominata |
+| `DELETE` | `/api/leghe/{id}` | Proprietario o ADMIN | 204; elimina anche le tappe |
+| `POST` | `/api/leghe/{id}/tappe` | Proprietario o ADMIN | 201 la tappa |
+| `PUT` | `/api/tappe/{id}` | Proprietario o ADMIN (della lega della tappa) | 200 la tappa; 400 senza `versione`, 409 se non è più quella del database |
+| `DELETE` | `/api/tappe/{id}` | Proprietario o ADMIN (della lega della tappa) | 204 |
+| `GET` | `/api/anagrafe/giocatori` | Pubblico | 200; forma pubblica senza token, completa con un token valido |
+| `POST` | `/api/anagrafe/giocatori` | Autenticato | 201 |
+| `PUT` | `/api/anagrafe/giocatori/{id}` | Autore della scheda o ADMIN | 200 |
+| `DELETE` | `/api/anagrafe/giocatori/{id}` | Autore della scheda o ADMIN | 204 |
+| `GET` | `/api/anagrafe/squadre` | Pubblico | 200; due forme come per i giocatori |
+| `POST` | `/api/anagrafe/squadre` | Autenticato | 201 |
+| `PUT` | `/api/anagrafe/squadre/{id}` | Autore della scheda o ADMIN | 200 |
+| `DELETE` | `/api/anagrafe/squadre/{id}` | Autore della scheda o ADMIN | 204 |
+| `GET` | `/api/archivio` | Pubblico | 200 l'elenco sintetico (`VoceArchivioDTO`) |
+| `GET` | `/api/archivio/{tappaId}` | Pubblico | 200 la copia pubblica per intero (`CopiaPubblicaDTO`); 404 se non è in archivio |
+| `PUT` | `/api/archivio/{tappaId}` | Proprietario della lega della tappa o ADMIN | 200 la copia pubblica; senza corpo; 409 se la tappa non è conclusa |
+| `DELETE` | `/api/archivio/{tappaId}` | Autore della pubblicazione (il proprietario della lega) o ADMIN | 204 |
+| `GET` | `/api/coach/status` | Autenticato | 200 `{available}` |
+| `POST` | `/api/coach/chat` | Autenticato | 200 la risposta di Groq; 429 oltre i limiti di frequenza |
+
+`GET /actuator/health` è pubblico ma non è un controller dell'applicazione, quindi non sta nelle liste del test: lo prova `SaluteIT`. Risponde 200 `{"status":"UP"}` o 503 `{"status":"DOWN"}`, senza dettagli (vedi «Deploy su Render»).
 
 ## Coach AI
 
@@ -79,15 +174,15 @@ Salvare una tappa (`PUT /api/tappe/{id}`) sostituisce la tappa intera, partite c
 - `DELETE /api/tappe/{id}` non porta la versione. Se un altro dispositivo salva la tappa nello stesso istante in cui la si elimina, risponde con lo stesso 409 e la tappa resta com'è stata salvata. Lo stesso vale per `DELETE /api/leghe/{id}`, che elimina anche le tappe: se una di loro viene salvata in quel momento, la lega resta e la risposta è il 409.
 - **Le altre risorse.** Hibernate dà lo stesso tipo di errore ogni volta che un UPDATE o un DELETE non trova più la riga, anche per una entity senza versione: due eliminazioni insieme della stessa scheda dell'anagrafe o della stessa pubblicazione, una rinomina mentre la lega viene eliminata. Anche questi sono un **409**, con un messaggio generico che non parla di una tappa: «I dati sono stati modificati o eliminati da un'altra richiesta: ricarica» (prima erano un 500).
 - Le tappe in archivio portano la `versione` che avevano quando sono state pubblicate (lo snapshot è la tappa come la restituiscono le API): è una fotografia e non serve a salvare. Le pubblicazioni fatte prima della V4 non ce l'hanno (`versione: null`).
-- **Ordine di pubblicazione.** Prima il frontend che manda la versione, subito dopo questo backend: vedi «Ordine di pubblicazione della fase 2». Un frontend vecchio con questo backend riceve 400 a ogni salvataggio di tappa.
+- **Compatibilità.** Un client che non manda la `versione` (per esempio una scheda rimasta aperta da prima dell'aggiornamento del frontend) riceve 400 a ogni salvataggio di tappa, finché non ricarica la pagina.
 
 ## Archivio circuito
 
 Le tappe concluse si pubblicano nell'archivio del circuito. Leggerlo è pubblico, senza account; pubblicare e ritirare chiedono il login.
 
-- `GET /api/archivio` — l'elenco, dalla pubblicazione più recente, in forma sintetica: ogni voce è `{tappaId, nome, luogo, data, nSquadre, lega, autore, ts}`, cioè ciò che serve a mostrare l'elenco e ad aprire la tappa (`nSquadre` è il numero delle squadre iscritte, `autore` il nome visualizzato, `ts` i millisecondi della pubblicazione). Non contiene la tappa né l'id dell'autore: la tappa si legge con il dettaglio. I campi si estraggono dal JSONB con una sola query, senza leggere né interpretare il contenuto delle tappe nell'applicazione. Le pubblicazioni del vecchio endpoint avevano la tappa scelta dal client e possono avere forme strane: `nome`, `luogo` e `data` mancanti sono stringhe vuote, e un elenco di squadre che non è un array conta 0. La forma cambia rispetto al backend precedente (che restituiva le pubblicazioni per intero): per l'ordine di pubblicazione vedi «Ordine di pubblicazione della fase 2».
-- `GET /api/archivio/{tappaId}` — la tappa per intero, `{tappa, lega, autore, autoreId, ts}`; 404 se non è in archivio.
-- `PUT /api/archivio/{tappaId}` — pubblica la tappa, o la ripubblica aggiornando la copia. **Non ha corpo**: la copia pubblica (lo snapshot) la costruisce il server dalla tappa che ha salvato, nella forma delle API delle tappe, quindi nessuno può pubblicare risultati inventati; un corpo eventuale si ignora (non si legge né si valida). Risponde 200 con `{tappa, lega, autore, autoreId, ts}`. La copia ha i dati che il server ha in quel momento: il client salva la tappa e poi la pubblica. Il vecchio `PUT /api/archivio`, con la tappa nel corpo, non esiste più (405): per l'ordine di pubblicazione vedi «Ordine di pubblicazione della fase 2».
+- `GET /api/archivio` — l'elenco, dalla pubblicazione più recente, in forma sintetica (`VoceArchivioDTO`): ogni voce è `{tappaId, nome, luogo, data, nSquadre, lega, autore, ts}`, cioè ciò che serve a mostrare l'elenco e ad aprire la tappa (`nSquadre` è il numero delle squadre iscritte, `autore` il nome visualizzato, `ts` i millisecondi della pubblicazione). Non contiene la tappa né l'id dell'autore: la tappa si legge con il dettaglio. I campi si estraggono dal JSONB con una sola query, senza leggere né interpretare il contenuto delle tappe nell'applicazione. Le pubblicazioni del vecchio endpoint avevano la tappa scelta dal client e possono avere forme strane: `nome`, `luogo` e `data` mancanti sono stringhe vuote, e un elenco di squadre che non è un array conta 0.
+- `GET /api/archivio/{tappaId}` — la tappa per intero (`CopiaPubblicaDTO`), `{tappa, lega, autore, autoreId, ts}`; 404 se non è in archivio.
+- `PUT /api/archivio/{tappaId}` — pubblica la tappa, o la ripubblica aggiornando la copia. **Non ha corpo**: la copia pubblica (lo snapshot) la costruisce il server dalla tappa che ha salvato, nella forma delle API delle tappe, quindi nessuno può pubblicare risultati inventati; un corpo eventuale si ignora (non si legge né si valida). Risponde 200 con `{tappa, lega, autore, autoreId, ts}`. La copia ha i dati che il server ha in quel momento: il client salva la tappa e poi la pubblica. Il vecchio `PUT /api/archivio`, con la tappa nel corpo, non esiste più: un client non aggiornato riceve 405 e non pubblica niente.
   - **404** se la tappa non esiste, **403** se non è di una lega dell'utente (un ADMIN può pubblicare qualsiasi tappa), **409** se la tappa non è conclusa («concludila prima di pubblicarla in archivio»). I controlli vanno in quest'ordine: chi non è il proprietario non scopre se la tappa è conclusa.
   - L'autore è sempre il proprietario della lega, anche quando pubblica un ADMIN o quando si ripubblica: così lui e gli ADMIN possono sempre ritirare la pubblicazione.
   - Se una tappa pubblicata viene riaperta (non più conclusa), la copia pubblica resta quella dell'ultima pubblicazione: ripubblicare dà 409 finché la tappa non torna conclusa, mentre ritirare si può sempre.
@@ -125,18 +220,7 @@ Giocatori e squadre dell'anagrafe sono condivisi: leggerli non chiede l'account,
 
 Il `ts` (millisecondi dell'ultima modifica) è lo stesso nelle due forme.
 
-**Ordine di pubblicazione.** Prima il frontend che svuota la cache dell'anagrafe al login e al logout, subito dopo questo backend: vedi «Ordine di pubblicazione della fase 2». Con il backend precedente il frontend nuovo non cambia niente, perché tutti ricevono già la forma completa. Con un frontend che non la svuota, chi accede dopo aver aperto l'anagrafe da ospite si tiene la forma pubblica finché non ricarica la pagina, e un ADMIN che in quel caso modifica una scheda rimanda al server i campi riservati vuoti, che li sovrascrivono.
-
-## Ordine di pubblicazione della fase 2
-
-La fase 2 cambia ciò che frontend e backend si scambiano: la `versione` delle tappe, la pubblicazione in archivio senza corpo, la forma sintetica dell'elenco dell'archivio, l'anagrafe con due forme. Le due metà non vanno online nello stesso istante, quindi l'ordine conta. Vale per tutti i punti della fase (tappe, archivio, anagrafe), ed è uno solo:
-
-- **L'ordine.** Prima il frontend, subito dopo questo backend, in un momento senza tornei in corso (nessuno sta salvando una tappa). Poi si ricaricano le schede aperte.
-- **Perché non il backend per primo.** Il frontend vecchio non manda la `versione`: riceverebbe 400 a ogni salvataggio di tappa. E non svuota la cache dell'anagrafe al login: un ADMIN che modifica una scheda dopo aver aperto l'anagrafe da ospite rimanderebbe i campi riservati vuoti e li svuoterebbe sul server. Il frontend nuovo, invece, può andare online per primo: il backend precedente ignora i campi del corpo che non conosce (la `versione`) e dà già a tutti la forma completa dell'anagrafe.
-- **Che cosa succede nei minuti tra le due pubblicazioni** (frontend nuovo online, backend ancora quello vecchio). Sono tre effetti temporanei, tutti attesi:
-  - pubblicare una tappa in archivio risponde 405: il frontend nuovo chiama `PUT /api/archivio/{tappaId}`, che il backend vecchio non ha;
-  - l'elenco dell'archivio non si legge, perché ha ancora la forma vecchia: il frontend mostra un errore con «Riprova», non una schermata bianca. Non c'è nessun codice di compatibilità per la forma vecchia;
-  - le pagine caricate in questa finestra hanno tappe senza `versione`: quando il backend nuovo va online, il loro primo salvataggio riceve 400 «Manca la versione della tappa…», e il frontend nuovo lo gestisce rileggendo la lega e rimandando una volta. Ricaricare le schede aperte evita anche questo.
+**Cache del client.** La forma dipende dal token, quindi il client deve svuotare la cache dell'anagrafe quando cambia chi la guarda, al login e al logout (il frontend lo fa: `svuota` in `useAnagrafeStore`). Se non lo fa, chi accede dopo aver aperto l'anagrafe da ospite si tiene la forma pubblica finché non ricarica la pagina, e un ADMIN che in quel caso modifica una scheda rimanda al server i campi riservati vuoti, che li sovrascrivono: il `PUT` salva ciò che riceve.
 
 ## Sessioni e refresh token
 
@@ -180,11 +264,11 @@ Su origini diverse l'origine del frontend deve comunque stare in `CORS_ORIGINS`:
 Il deploy completo (frontend, questo backend e PostgreSQL) è descritto dal Blueprint `render.yaml` nel repository del [frontend](https://github.com/Gabrieleleonardi21/Hoops-3x3), con i passi nella sezione «Deploy su Render» del suo README. Da questo lato servono:
 
 - **`Dockerfile`** — Render non ha un runtime Java nativo, quindi il backend gira in un container: la prima fase compila il jar con il Maven Wrapper (senza test, che girano in CI), la seconda tiene solo il JRE 25 e il jar, con un utente senza privilegi. `.dockerignore` tiene fuori `target/` e soprattutto `env.properties`. La CI (`.github/workflows/ci.yml`) costruisce l'immagine a ogni pull request (`docker build .`, senza pubblicarla): se il Dockerfile non combacia più con il repository, la pull request si ferma lì e non al deploy.
-- **Variabili d'ambiente** al posto di `env.properties`: `PORT` la imposta Render, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME` e `DB_PASSWORD` arrivano dal database collegato, `JWT_SECRET` lo genera Render.
-- **Schema del database** — lo crea solo Flyway all'avvio (non c'è pgAdmin e non serve nessuno script né nessuna variabile): un database vuoto riceve V1-V4. Il database di Render già in uso, creato in passato dallo script SQL delle versioni precedenti (oggi non c'è più), ha le tabelle ma non lo storico di Flyway: al primo avvio Flyway lo segna come versione 1 (baseline, `spring.flyway.baseline-on-migrate=true`) senza toccare i dati e applica V2-V4. È il percorso che `MigrazioniIT` prova su uno schema temporaneo. Il vecchio meccanismo che eseguiva quello script a ogni avvio non esiste più: una variabile rimasta sul servizio per attivarlo non ha effetto e si può togliere.
+- **Variabili d'ambiente** al posto di `env.properties` (elenco in «Variabili di configurazione»): `PORT` la imposta Render; `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USERNAME` e `DB_PASSWORD` arrivano dal database collegato; `JWT_SECRET` lo genera Render; `AUTH_COOKIE_SECURE`, `CORS_ORIGINS`, `SERVER_FORWARD_HEADERS_STRATEGY`, `LIMITE_AUTH_AL_MINUTO` e `SEED_DEMO` hanno il loro valore nel `render.yaml`; `ADMIN_EMAIL`, `ADMIN_PASSWORD` e `GROQ_API_KEY` non stanno nel repository e Render li chiede alla creazione del Blueprint.
+- **Schema del database** — lo crea solo Flyway all'avvio (non c'è pgAdmin e non serve nessuno script né nessuna variabile): un database vuoto riceve V1-V4. Il database di Render già in uso, creato in passato dallo script SQL delle versioni precedenti (oggi non c'è più), ha le tabelle ma non lo storico di Flyway: al primo avvio Flyway lo segna come versione 1 (baseline, `spring.flyway.baseline-on-migrate=true`) senza toccare i dati e applica V2-V4. È il percorso che `MigrazioniIT` prova su uno schema temporaneo. Il vecchio meccanismo che eseguiva quello script a ogni avvio non esiste più: nessuna proprietà legge più `DB_INIT_MODE`, e se è rimasta tra le variabili del servizio non ha effetto e si può togliere.
 - **Controllo di salute** — `GET /actuator/health` (pubblico, unico endpoint esposto dell'actuator) risponde 200 `{"status":"UP"}` quando server e database funzionano, altrimenti 503 `DOWN`; i dettagli restano nascosti. Il Blueprint lo usa come `healthCheckPath`: Render attiva un nuovo deploy solo quando risponde 200 e riavvia il servizio se smette di rispondere.
 - **Stessa origine** — il frontend inoltra `/api/*` a questo servizio con una regola di rewrite di Render, quindi per il browser pagina e API hanno la stessa origine: il cookie di refresh funziona con la configurazione attuale (`SameSite=Lax`), basta `AUTH_COOKIE_SECURE=true` e l'origine pubblica del frontend in `CORS_ORIGINS` (vedi «Sessioni e refresh token»).
-- **Limite di frequenza dietro la rewrite** — le chiamate del browser arrivano a questo servizio dalla rewrite del sito statico, quindi `getRemoteAddr()` (che usa `LimiteRichiesteFilter`) può essere l'indirizzo del proxy e non quello del visitatore: il limite di login, registrazione e rinnovo diventerebbe uno solo per tutto il sito, 10 accessi al minuto in tutto. Sul servizio vanno impostate `SERVER_FORWARD_HEADERS_STRATEGY=native` e, finché non si è verificato quale indirizzo arriva, `LIMITE_AUTH_AL_MINUTO=60`. Il `render.yaml` sta nel repository del frontend e le due variabili le imposta la pull request del frontend. Come verificarlo dopo il deploy, e quando riabbassare il limite: vedi «Limiti di frequenza».
+- **Limite di frequenza dietro la rewrite** — le chiamate del browser arrivano a questo servizio dalla rewrite del sito statico, quindi `getRemoteAddr()` (che usa `LimiteRichiesteFilter`) può essere l'indirizzo del proxy e non quello del visitatore: il limite di login, registrazione e rinnovo diventerebbe uno solo per tutto il sito, 10 accessi al minuto in tutto. Sul servizio vanno impostate `SERVER_FORWARD_HEADERS_STRATEGY=native` e, finché non si è verificato quale indirizzo arriva, `LIMITE_AUTH_AL_MINUTO=60`. Il `render.yaml` sta nel repository del frontend e le imposta già entrambe. Come verificarlo dopo il deploy, e quando riabbassare il limite: vedi «Limiti di frequenza».
 
 Per provare l'immagine in locale (serve Docker e un PostgreSQL raggiungibile dal container):
 
@@ -247,7 +331,7 @@ Gli altri messaggi sono «Troppe richieste di registrazione», «Troppi rinnovi 
 - `limite.auth-al-minuto=10` — login, registrazione e rinnovo, per indirizzo;
 - `limite.coach-al-minuto=20` e `limite.coach-al-giorno=300` — Coach AI, per utente.
 
-Si cambiano in `env.properties` o con le variabili d'ambiente `LIMITE_AUTH_AL_MINUTO`, `LIMITE_COACH_AL_MINUTO` e `LIMITE_COACH_AL_GIORNO` (utile per provare il server con molte richieste dallo stesso computer). Il profilo di test li alza a 100000 al minuto e 1000000 al giorno; i test dei limiti scelgono da sé valori bassi e usano un orologio che si sposta a comando.
+Si cambiano in `env.properties` con il nome della proprietà (`limite.auth-al-minuto=60`) o con le variabili d'ambiente `LIMITE_AUTH_AL_MINUTO`, `LIMITE_COACH_AL_MINUTO` e `LIMITE_COACH_AL_GIORNO` (utile per provare il server con molte richieste dallo stesso computer); il nome in maiuscolo scritto dentro `env.properties` non ha effetto (vedi «Variabili di configurazione»). Il profilo di test li alza a 100000 al minuto e 1000000 al giorno; i test dei limiti scelgono da sé valori bassi e usano un orologio che si sposta a comando.
 
 **Indirizzo del client e reverse proxy** — il limite per indirizzo usa `request.getRemoteAddr()`, l'indirizzo della connessione. Dietro un reverse proxy (nginx, un hosting...) è quello del proxy: **se non si fa altro, tutti gli utenti condividono un contatore solo** (10 accessi al minuto in tutto il sito) e il login si chiude a tutti. Chi pubblica il server dietro un proxy deve:
 
@@ -281,17 +365,22 @@ L'applicazione scrive nei log (console) ciò che serve a capire un problema in p
 ## Struttura
 
 ```
-env.properties.example          # segreti: copiare in env.properties
+env.properties.example          # segreti e impostazioni: copiare in env.properties
+Dockerfile, .dockerignore       # immagine per Render (vedi «Deploy su Render»)
+.github/workflows/ci.yml        # CI: build, test di integrazione con PostgreSQL e docker build
 src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 = archivio legato alle tappe, V3 = segno dei seed eseguiti, V4 = versione delle tappe), applicate all'avvio
+src/main/resources/seed/        # estathe25.json: i dati di prova (vedi «Dati di prova»)
 src/main/java/com/hoop3x3/backend/
 ├── controllers/  # REST (auth, utenti, leghe, tappe, anagrafe, archivio, coach)
-├── dto/          # record con validazione Bean Validation
+├── dto/          # record con validazione Bean Validation; per l'archivio CopiaPubblicaDTO (la tappa pubblicata per intero) e VoceArchivioDTO (la voce dell'elenco)
 ├── entities/     # JPA: Utente, RefreshToken, Lega, Tappa (+Regole), AnagrafeGiocatore/Squadra, ArchivioTappa, SeedEseguito
 ├── exceptions/   # eccezioni tipizzate + ExceptionsHandler (corpo uniforme {message, timestamp})
 ├── repositories/ # Spring Data JPA
-├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/estathe25.json, una volta sola)
-├── security/     # SecurityConfig, JwtFilter, JwtTools, JwtProperties (secret e durata del JWT, validati all'avvio), AuthCookies, CorsConfig, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB), LimiteRichiesteFilter (429 oltre i limiti di frequenza) con LimiteRichieste (il contatore) e LimiteRichiesteProperties
-└── services/     # logica: proprietà (AccessGuard), JSON delle tappe, proxy Groq, refresh token (RefreshTokenService)
+├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/estathe25.json, una volta sola), SeedProperties
+├── security/     # SecurityConfig, JwtFilter, JwtTools (emette e verifica il JWT) con JwtJson (il suo JSON, con Jackson 3) e JwtProperties (secret e durata del JWT, validati all'avvio), AuthCookies con AuthProperties, CorsConfig con CorsProperties, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB), LimiteRichiesteFilter (429 oltre i limiti di frequenza) con LimiteRichieste (il contatore) e LimiteRichiesteProperties
+├── services/     # logica: proprietà (AccessGuard), JSON delle tappe (JsonSupport), proxy Groq (CoachAiService, GroqProperties), refresh token (RefreshTokenService), log sicuri (LogSupport)
+└── support/      # Tempo (le date sempre in UTC), Testo
+src/test/         # test unitari e *IT (vedi «Test»); resources/svuota.sql svuota il database di prova
 ```
 
 ## Dati di prova
