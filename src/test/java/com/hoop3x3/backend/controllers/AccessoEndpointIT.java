@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc; // Spring Boot 4: package del modulo webmvc-test
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -25,11 +26,16 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,7 +60,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * potrebbe nascondere un 400. Un rifiuto non scrive niente: il database resta com'era.
  * <p>
  * I casi più fini (messaggi, ordine dei controlli, righe di log) li provano le classi dedicate: ArchivioIT, VersioneTappeIT,
- * LogApplicativiTest. Un endpoint nuovo si aggiunge a una delle due liste qui sotto.
+ * LogApplicativiTest. Un endpoint nuovo si aggiunge a una delle liste qui sotto (protetti o pubblici): se manca, cade
+ * ogniEndpointDellApplicazioneStaInUnaDelleListe.
  */
 @TestDiIntegrazione
 @AutoConfigureMockMvc
@@ -106,7 +113,36 @@ class AccessoEndpointIT {
         return Stream.concat(endpointSuUnaRisorsa(), altriEndpointProtetti());
     }
 
+    /** Un endpoint pubblico e lo stato che risponde a chi non ha un token */
+    record Pubblico(Endpoint endpoint, int statoSenzaToken) {
+        @Override
+        public String toString() {
+            return endpoint + " -> " + statoSenzaToken;
+        }
+    }
+
+    /**
+     * Gli endpoint che non chiedono un account, dichiarati a mano: la regola è in SecurityConfig, e un endpoint nuovo sotto un
+     * percorso già pubblico (le GET di anagrafe e archivio) lo diventerebbe senza che nessuno lo decida. Qui chi lo aggiunge
+     * deve dire che è pubblico, o metterlo tra i protetti (e allora il 401 lo prova).
+     */
+    static Stream<Pubblico> endpointPubblici() {
+        return Stream.of(
+                // Senza un corpo valido il controller risponde 400: la sicurezza ha lasciato passare
+                new Pubblico(new Endpoint(POST, "/api/auth/register", Map.of()), 400),
+                new Pubblico(new Endpoint(POST, "/api/auth/login", Map.of()), 400),
+                // Rinnovo e uscita si autenticano con il cookie, non con il token: il 401 senza cookie è quello del controller
+                new Pubblico(new Endpoint(POST, "/api/auth/refresh", null), 401),
+                new Pubblico(new Endpoint(POST, "/api/auth/logout", null), 204),
+                new Pubblico(new Endpoint(GET, "/api/anagrafe/giocatori", null), 200),
+                new Pubblico(new Endpoint(GET, "/api/anagrafe/squadre", null), 200),
+                new Pubblico(new Endpoint(GET, "/api/archivio", null), 200),
+                new Pubblico(new Endpoint(GET, "/api/archivio/{tappa}", null), 200));
+    }
+
     @Autowired MockMvc mvc;
+    // Le mappature di Spring MVC: l'elenco vero degli endpoint dell'applicazione
+    @Autowired @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping mappature;
     @Autowired ObjectMapper mapper;
     @Autowired JWTtools jwt;
     @Autowired UtenteRepository utenti;
@@ -126,6 +162,39 @@ class AccessoEndpointIT {
         luigi = utenti.save(new Utente("luigi@test.it", "hash", "Luigi", Ruolo.USER));
         admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
         cose = new MondoDiProva(anagrafeService, legaService, archivioService).crea(mario);
+    }
+
+    /* ── L'elenco è completo: ogni endpoint dell'applicazione ha le sue regole provate qui sotto ── */
+
+    // Senza questo test un endpoint nuovo potrebbe nascere senza il suo 401, 403 e 404: nessuno lo vedrebbe finché non lo prova
+    // qualcuno. Confronta le mappature vere dei controller con le due liste: manca o è in più, il messaggio dice quale
+    @Test
+    void ogniEndpointDellApplicazioneStaInUnaDelleListe() {
+        Set<String> dellApplicazione = new TreeSet<>();
+        mappature.getHandlerMethods().forEach((mappatura, metodo) -> {
+            // Solo i controller dell'applicazione: Spring Boot ne aggiunge uno suo per /error
+            if (!metodo.getBeanType().getPackageName().equals(AuthController.class.getPackageName())) return;
+            Set<RequestMethod> metodiHttp = mappatura.getMethodsCondition().getMethods();
+            for (String percorso : mappatura.getPathPatternsCondition().getPatternValues()) {
+                if (metodiHttp.isEmpty()) dellApplicazione.add("QUALSIASI " + senzaNomiDeiSegnaposto(percorso));
+                for (RequestMethod metodoHttp : metodiHttp) {
+                    dellApplicazione.add(metodoHttp + " " + senzaNomiDeiSegnaposto(percorso));
+                }
+            }
+        });
+        Set<String> elencati = Stream.concat(endpointProtetti(), endpointPubblici().map(Pubblico::endpoint))
+                .map(endpoint -> endpoint.metodo() + " " + senzaNomiDeiSegnaposto(endpoint.percorso()))
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        assertThat(dellApplicazione).as("endpoint dei controller, contro quelli elencati in endpointProtetti e endpointPubblici")
+                .containsExactlyInAnyOrderElementsOf(elencati);
+    }
+
+    // La lista dei pubblici non è solo una dichiarazione: senza token questi endpoint rispondono davvero, e non con un 401 della sicurezza
+    @ParameterizedTest
+    @MethodSource("endpointPubblici")
+    void gliEndpointPubbliciRispondonoSenzaToken(Pubblico pubblico) throws Exception {
+        invia(pubblico.endpoint(), null).andExpect(status().is(pubblico.statoSenzaToken()));
     }
 
     /* ── 401: senza token nessun endpoint protetto risponde ── */
@@ -225,6 +294,11 @@ class AccessoEndpointIT {
                 .replace("{squadra}", squadra.toString())
                 .replace("{lega}", lega.toString())
                 .replace("{tappa}", tappa.toString());
+    }
+
+    /** «/api/leghe/{id}» e «/api/leghe/{lega}» sono lo stesso percorso: si confrontano senza i nomi dei segnaposto */
+    private static String senzaNomiDeiSegnaposto(String percorso) {
+        return percorso.replaceAll("\\{[^}]+}", "{}");
     }
 
     /** Il token c'è solo se `chi` non è null, e il corpo solo se l'endpoint ne ha uno */
