@@ -18,8 +18,6 @@ WORKDIR /app
 # Utente senza privilegi: il processo Java non gira come root
 RUN groupadd --system hoop && useradd --system --gid hoop hoop
 COPY --from=build /app/target/hoop-3x3-backend-*.jar app.jar
-# Letto all'avvio quando DB_INIT_MODE=always (spring.sql.init.schema-locations=file:db/schema.sql)
-COPY db/schema.sql db/schema.sql
 USER hoop
 # La JVM usa al massimo il 75% della RAM del container (il piano free di Render ne ha 512 MB)
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75"

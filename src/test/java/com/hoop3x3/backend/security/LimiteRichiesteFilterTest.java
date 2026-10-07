@@ -139,11 +139,13 @@ class LimiteRichiesteFilterTest {
         postPassano(RINNOVO, INDIRIZZO, 3);
     }
 
-    // Si contano solo le POST agli endpoint limitati: la GET dello stesso percorso, il logout, le altre API e un percorso che
-    // somiglia soltanto a «/api/auth/login» passano sempre
+    // Si contano solo le POST agli endpoint limitati: la GET dello stesso percorso, il logout, le altre API (il controllo di
+    // salute di Render compreso, che arriva sempre dallo stesso indirizzo) e un percorso che somiglia soltanto a
+    // «/api/auth/login» passano sempre
     @Test
     void ilRestoNonSiContaMai() throws Exception {
         for (int i = 0; i < 10; i++) {
+            assertThat(passa("GET", "/actuator/health", INDIRIZZO)).isTrue();
             assertThat(passa("GET", LOGIN, INDIRIZZO)).isTrue();
             assertThat(postPassa("/api/auth/logout", INDIRIZZO)).isTrue();
             assertThat(postPassa("/api/leghe", INDIRIZZO)).isTrue();
