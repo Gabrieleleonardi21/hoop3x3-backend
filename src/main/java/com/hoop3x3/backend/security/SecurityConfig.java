@@ -1,5 +1,7 @@
 package com.hoop3x3.backend.security;
 
+import jakarta.servlet.Filter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -38,6 +40,25 @@ public class SecurityConfig {
     @Bean
     public Clock orologio() {
         return Clock.systemUTC();
+    }
+
+    // JwtFilter e LimiteRichiesteFilter sono @Component: senza queste due registrazioni disattivate Spring Boot li metterebbe
+    // anche tra i filtri del container, e ogni richiesta li incontrerebbe due volte (la seconda non fa danni solo perché sono
+    // OncePerRequestFilter). Devono girare solo nella catena di sicurezza qui sotto, come raccomanda Spring Security
+    @Bean
+    public FilterRegistrationBean<JwtFilter> jwtFilterSoloNellaCatena(JwtFilter filtro) {
+        return registrazioneDisattivata(filtro);
+    }
+
+    @Bean
+    public FilterRegistrationBean<LimiteRichiesteFilter> limiteFilterSoloNellaCatena(LimiteRichiesteFilter filtro) {
+        return registrazioneDisattivata(filtro);
+    }
+
+    private static <T extends Filter> FilterRegistrationBean<T> registrazioneDisattivata(T filtro) {
+        FilterRegistrationBean<T> registrazione = new FilterRegistrationBean<>(filtro);
+        registrazione.setEnabled(false);
+        return registrazione;
     }
 
     @Bean
