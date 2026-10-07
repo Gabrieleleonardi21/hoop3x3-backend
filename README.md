@@ -55,7 +55,7 @@ I valori di base sono in `src/main/resources/application.properties`. Le variabi
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | `seed.admin.email`, `seed.admin.password` | vuote | l'ADMIN creato al primo avvio (regole nel passo 2 di «Avvio») |
 | `SEED_DEMO` | `seed.demo` | `false` | `true` = al primo avvio carica i dati di prova (vedi «Dati di prova») |
 
-Queste proprietà hanno un valore di base ma `application.properties` non le legge da una variabile:
+Queste proprietà non hanno una variabile in `application.properties`: o hanno lì il loro valore, o (`server.forward-headers-strategy`) restano al valore di Spring Boot, e si cambiano così:
 
 | Proprietà | Variabile d'ambiente | Valore di base | A che cosa serve |
 |---|---|---|---|
@@ -107,11 +107,11 @@ Lo schema cambia solo con le migrazioni di Flyway in `src/main/resources/db/migr
 
 ## Endpoint
 
-La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/controllers/`), che dichiara endpoint per endpoint chi può chiamarlo, in tre liste: `endpointSuUnaRisorsa()`, `altriEndpointProtetti()` (le prime due insieme sono `endpointProtetti()`) e `endpointPubblici()`. Il test le prova con il database e la catena di sicurezza veri: 401 senza token, 403 a chi non è il proprietario, 404 se la risorsa non esiste, esito positivo per il proprietario e per un ADMIN. `ogniEndpointDellApplicazioneStaInUnaDelleListe` confronta le liste con le mappature vere dei controller: un endpoint nuovo che non sta in nessuna lista fa cadere i test di integrazione, e uno protetto con una variabile nel percorso deve stare tra quelli «su una risorsa», cioè con il 403 e il 404 provati. Il README non lo controlla nessun test: se cambia una lista, cambia anche questa tabella.
+La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/controllers/`), che dichiara endpoint per endpoint chi può chiamarlo, in tre liste: `endpointSuUnaRisorsa()`, `altriEndpointProtetti()` (le prime due insieme sono `endpointProtetti()`) e `endpointPubblici()`. Il test le prova con il database e la catena di sicurezza veri: 401 senza token, 403 a chi non è il proprietario, 404 se la risorsa non esiste, esito positivo per il proprietario e per un ADMIN. `ogniEndpointDellApplicazioneStaInUnaDelleListe` confronta le liste con le mappature vere dei controller: un endpoint nuovo che non sta in nessuna lista fa cadere i test di integrazione. `ogniEndpointProtettoConUnaVariabileDiPercorsoStaTraQuelliSuUnaRisorsa` aggiunge la regola per gli endpoint protetti con una variabile nel percorso: devono stare tra quelli «su una risorsa», cioè con il 403 e il 404 provati. Il README non lo controlla nessun test: se cambia una lista, cambia anche questa tabella.
 
 - **Pubblico** — senza token. Un `Authorization: Bearer` presente ma scaduto o non valido dà comunque 401 (`JwtFilter`), tranne su login, registrazione, rinnovo e uscita, che non passano dal filtro.
 - **Autenticato** — serve un JWT valido, di qualsiasi utente; senza, 401. Ogni percorso che non è tra i pubblici lo chiede (`anyRequest().authenticated()` in `SecurityConfig`).
-- **Proprietario o ADMIN** — autenticato e proprietario della risorsa; un ADMIN passa sempre (`AccessGuard`) e, se scrive sui dati di un altro, lascia una riga di log (vedi «Log»). Gli altri ricevono 403 («Solo chi ha creato questa lega (o un ADMIN) può modificarla»); se la risorsa non esiste, 404 per tutti.
+- **Proprietario o ADMIN** — autenticato e proprietario della risorsa; un ADMIN passa sempre (`AccessGuard`) e, se scrive sui dati di un altro, lascia una riga di log (vedi «Log»). Gli altri ricevono 403, per esempio «Solo chi ha creato questa lega (o un ADMIN) può modificarla» (`AccessGuard` scrive la risorsa nel messaggio: lega, tappa, scheda giocatore, squadra, pubblicazione); se la risorsa non esiste, 404 per tutti.
 - **ADMIN** — solo il ruolo ADMIN (`@PreAuthorize`); gli altri ricevono 403 («Non hai i permessi necessari per questa operazione»).
 
 | Metodo | Percorso | Chi può chiamarlo | Risposta |
@@ -141,7 +141,7 @@ La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/cont
 | `GET` | `/api/archivio` | Pubblico | 200 l'elenco sintetico (`VoceArchivioDTO`) |
 | `GET` | `/api/archivio/{tappaId}` | Pubblico | 200 la copia pubblica per intero (`CopiaPubblicaDTO`); 404 se non è in archivio |
 | `PUT` | `/api/archivio/{tappaId}` | Proprietario della lega della tappa o ADMIN | 200 la copia pubblica; senza corpo; 409 se la tappa non è conclusa |
-| `DELETE` | `/api/archivio/{tappaId}` | Autore della pubblicazione (il proprietario della lega) o ADMIN | 204 |
+| `DELETE` | `/api/archivio/{tappaId}` | Autore della pubblicazione (per quelle nuove, il proprietario della lega) o ADMIN | 204 |
 | `GET` | `/api/coach/status` | Autenticato | 200 `{available}` |
 | `POST` | `/api/coach/chat` | Autenticato | 200 la risposta di Groq; 429 oltre i limiti di frequenza |
 
@@ -377,7 +377,7 @@ src/main/java/com/hoop3x3/backend/
 ├── exceptions/   # eccezioni tipizzate + ExceptionsHandler (corpo uniforme {message, timestamp})
 ├── repositories/ # Spring Data JPA
 ├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/estathe25.json, una volta sola), SeedProperties
-├── security/     # SecurityConfig, JwtFilter, JwtTools (emette e verifica il JWT) con JwtJson (il suo JSON, con Jackson 3) e JwtProperties (secret e durata del JWT, validati all'avvio), AuthCookies con AuthProperties, CorsConfig con CorsProperties, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB), LimiteRichiesteFilter (429 oltre i limiti di frequenza) con LimiteRichieste (il contatore) e LimiteRichiesteProperties
+├── security/     # SecurityConfig, JwtFilter, JwtTools (emette e verifica il JWT) con JwtJson (il suo JSON, con Jackson 3 e un mapper privato) e JwtProperties (secret e durata del JWT, validati all'avvio), AuthCookies con AuthProperties, CorsConfig con CorsProperties, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB), LimiteRichiesteFilter (429 oltre i limiti di frequenza) con LimiteRichieste (il contatore) e LimiteRichiesteProperties
 ├── services/     # logica: proprietà (AccessGuard), JSON delle tappe (JsonSupport), proxy Groq (CoachAiService, GroqProperties), refresh token (RefreshTokenService), log sicuri (LogSupport)
 └── support/      # Tempo (le date sempre in UTC), Testo
 src/test/         # test unitari e *IT (vedi «Test»); resources/svuota.sql svuota il database di prova
