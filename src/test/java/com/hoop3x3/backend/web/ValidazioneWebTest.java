@@ -1,11 +1,19 @@
 package com.hoop3x3.backend.web;
 
+import com.hoop3x3.backend.CampiDiTesto;
 import com.hoop3x3.backend.controllers.AnagrafeController;
 import com.hoop3x3.backend.controllers.ArchivioController;
 import com.hoop3x3.backend.controllers.AuthController;
 import com.hoop3x3.backend.controllers.CoachController;
 import com.hoop3x3.backend.controllers.LegaController;
 import com.hoop3x3.backend.controllers.TappaController;
+import com.hoop3x3.backend.dto.GiocatoreRequestDTO;
+import com.hoop3x3.backend.dto.LoginRequestDTO;
+import com.hoop3x3.backend.dto.NuovaLegaDTO;
+import com.hoop3x3.backend.dto.PatchLegaDTO;
+import com.hoop3x3.backend.dto.RegisterRequestDTO;
+import com.hoop3x3.backend.dto.SquadraRequestDTO;
+import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ExceptionsHandler;
@@ -50,6 +58,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -335,51 +344,48 @@ class ValidazioneWebTest {
         return Stream.of(arguments(POST, urlNuovaTappa()), arguments(PUT, "/api/tappe/" + UUID.randomUUID()));
     }
 
-    /* ── Tetti dei campi di testo: uguali alle colonne del database (le prova LimitiColonneIT con il database vero) ── */
+    /* ── Tetti dei campi di testo: la tabella è CampiDiTesto, e LimitiColonneIT la confronta con le colonne del database ── */
 
-    /** Ogni campo di testo con un tetto: il tipo di scheda, il campo e la lunghezza massima della colonna */
+    /** Come si scrive ciò che porta un DTO: metodo, indirizzo e un corpo valido, nuovo a ogni richiesta */
+    private record Scrittura(HttpMethod metodo, String url, Supplier<Map<String, Object>> corpo) {}
+
+    private static final Map<Class<?>, Scrittura> SCRITTURE_PER_DTO = Map.of(
+            NuovaLegaDTO.class, new Scrittura(POST, "/api/leghe", ValidazioneWebTest::nuovaLega),
+            // La rinomina porta lo stesso corpo di una lega nuova: il solo nome
+            PatchLegaDTO.class, new Scrittura(PATCH, "/api/leghe/" + UUID.randomUUID(), ValidazioneWebTest::nuovaLega),
+            TappaDTO.class, new Scrittura(POST, urlNuovaTappa(), ValidazioneWebTest::tappa),
+            GiocatoreRequestDTO.class, new Scrittura(POST, "/api/anagrafe/giocatori", ValidazioneWebTest::giocatore),
+            SquadraRequestDTO.class, new Scrittura(POST, "/api/anagrafe/squadre", ValidazioneWebTest::squadra),
+            RegisterRequestDTO.class, new Scrittura(POST, "/api/auth/register", () -> registrazione("mario@x.it")),
+            LoginRequestDTO.class, new Scrittura(POST, "/api/auth/login", () -> accesso("mario@x.it")));
+
+    /** Ogni campo della tabella con l'endpoint che lo riceve, un corpo valido e il suo tetto (letto dal DTO) */
     static Stream<Arguments> campiConUnTetto() {
-        return Stream.of(
-                arguments("lega", "nome", 120),
-                arguments("giocatore", "nome", 80),
-                arguments("giocatore", "cognome", 80),
-                arguments("giocatore", "soprannome", 80),
-                arguments("giocatore", "nascita", 10),
-                arguments("giocatore", "citta", 120),
-                arguments("giocatore", "nazionalita", 80),
-                arguments("giocatore", "altezza", 10),
-                arguments("giocatore", "peso", 10),
-                arguments("giocatore", "ruolo", 40),
-                arguments("giocatore", "numero", 5),
-                arguments("giocatore", "squadra", 120),
-                arguments("giocatore", "esperienza", 40),
-                arguments("squadra", "nome", 120),
-                arguments("squadra", "citta", 120),
-                arguments("squadra", "anno", 4),
-                arguments("squadra", "rank", 10),
-                arguments("squadra", "referente", 120),
-                arguments("squadra", "logo", 500),
-                arguments("squadra", "website", 500),
-                arguments("squadra", "instagram", 500),
-                arguments("registrazione", "name", 80));
+        return CampiDiTesto.TUTTI.stream().map(campo -> {
+            Scrittura scrittura = SCRITTURE_PER_DTO.get(campo.dto());
+            if (scrittura == null) throw new IllegalStateException("Manca l'endpoint che riceve " + campo);
+            return arguments(campo.toString(), scrittura.metodo(), scrittura.url(), scrittura.corpo(), campo.componente(), campo.tetto());
+        });
     }
 
-    @ParameterizedTest(name = "{0}.{1}: al massimo {2} caratteri")
+    @ParameterizedTest(name = "{0}: al massimo {5} caratteri")
     @MethodSource("campiConUnTetto")
-    void testoAlTettoDellaColonna_siAccetta(String tipo, String campo, int tetto) throws Exception {
-        Map<String, Object> corpo = corpoValido(tipo);
-        corpo.put(campo, "x".repeat(tetto));
+    void testoAlTettoDelDto_siAccetta(String etichetta, HttpMethod metodo, String url, Supplier<Map<String, Object>> corpo,
+                                      String campo, int tetto) throws Exception {
+        Map<String, Object> richiesta = corpo.get();
+        richiesta.put(campo, testoDi(campo, tetto));
 
-        accettata(POST, urlDiCreazione(tipo), corpo);
+        accettata(metodo, url, richiesta);
     }
 
-    @ParameterizedTest(name = "{0}.{1}: oltre {2} caratteri")
+    @ParameterizedTest(name = "{0}: oltre {5} caratteri")
     @MethodSource("campiConUnTetto")
-    void testoOltreIlTettoDellaColonna_risponde400ConIlCampo(String tipo, String campo, int tetto) throws Exception {
-        Map<String, Object> corpo = corpoValido(tipo);
-        corpo.put(campo, "x".repeat(tetto + 1));
+    void testoOltreIlTettoDelDto_risponde400ConIlCampo(String etichetta, HttpMethod metodo, String url,
+                                                       Supplier<Map<String, Object>> corpo, String campo, int tetto) throws Exception {
+        Map<String, Object> richiesta = corpo.get();
+        richiesta.put(campo, testoDi(campo, tetto + 1));
 
-        rifiutata(POST, urlDiCreazione(tipo), corpo, campo);
+        rifiutata(metodo, url, richiesta, campo);
     }
 
     // Il nome della registrazione ha anche un minimo: un carattere solo non basta
@@ -391,26 +397,10 @@ class ValidazioneWebTest {
         rifiutata(POST, "/api/auth/register", r, "name");
     }
 
-    /** L'endpoint che crea quel tipo di scheda (o l'account) */
-    private static String urlDiCreazione(String tipo) {
-        return switch (tipo) {
-            case "lega" -> "/api/leghe";
-            case "giocatore" -> "/api/anagrafe/giocatori";
-            case "squadra" -> "/api/anagrafe/squadre";
-            case "registrazione" -> "/api/auth/register";
-            default -> throw new IllegalArgumentException("Tipo sconosciuto: " + tipo);
-        };
-    }
-
-    /** Un corpo valido per quell'endpoint: il test cambia solo il campo che mette alla prova */
-    private static Map<String, Object> corpoValido(String tipo) {
-        return switch (tipo) {
-            case "lega" -> nuovaLega();
-            case "giocatore" -> giocatore();
-            case "squadra" -> squadra();
-            case "registrazione" -> registrazione("mario@x.it");
-            default -> throw new IllegalArgumentException("Tipo sconosciuto: " + tipo);
-        };
+    /** Un testo lungo `lunghezza` caratteri: un'email deve restare un'email valida, altrimenti il 400 non sarebbe per la lunghezza */
+    private static String testoDi(String campo, int lunghezza) {
+        if (campo.equals("email")) return emailDi(lunghezza);
+        return "x".repeat(lunghezza);
     }
 
     /* ── Pubblicazione in archivio: il server non legge nessun corpo ── */
