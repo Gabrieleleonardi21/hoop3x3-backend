@@ -161,6 +161,8 @@ class LogApplicativiTest {
         when(giocatori.findById(ID_GIOCATORE)).thenReturn(Optional.of(giocatore));
         when(giocatori.findById(ID_GIOCATORE_DELL_ADMIN)).thenReturn(Optional.of(giocatoreDellAdmin));
         when(giocatori.save(any(AnagrafeGiocatore.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
+        // Le PUT salvano con flush, così la risposta porta il ts e la versione del salvataggio appena fatto
+        when(giocatori.saveAndFlush(any(AnagrafeGiocatore.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
 
         AnagrafeSquadra squadra = new AnagrafeSquadra();
         ReflectionTestUtils.setField(squadra, "id", ID_SQUADRA);
@@ -169,6 +171,7 @@ class LogApplicativiTest {
         squadra.setModificatoIl(LocalDateTime.now());
         when(squadre.findById(ID_SQUADRA)).thenReturn(Optional.of(squadra));
         when(squadre.save(any(AnagrafeSquadra.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
+        when(squadre.saveAndFlush(any(AnagrafeSquadra.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
 
         // Una lega di mario con una tappa conclusa, e la sua pubblicazione in archivio
         Lega lega = new Lega("Circuito 2026", mario);
