@@ -84,6 +84,43 @@ class AnagrafeIT {
         assertThat(giocatori.count()).isEqualTo(2);
     }
 
+    /* ── Roster con buchi: una riga del ponte cancellata dalla cascata del database, senza passare da Hibernate ── */
+
+    // Cancellare un utente in SQL (README, pulizia dei dati demo) elimina i suoi giocatori e, con ON DELETE CASCADE, le loro
+    // righe nei roster delle squadre di altri: le posizioni restano con un buco e Hibernate lo legge come un null nella lista.
+    // Gli elenchi (GET /api/anagrafe/squadre, per tutti) non devono cadere con un 500: il buco si salta
+    @Test
+    void unRosterConUnBuco_gliElenchiSaltanoIlBuco() {
+        Utente mario = utenti.save(new Utente("mario@test.it", "hash", "Mario", Ruolo.USER));
+        Utente luigi = utenti.save(new Utente("luigi@test.it", "hash", "Luigi", Ruolo.USER));
+        UUID diLuigi = giocatori.save(giocatore(luigi, "Di Luigi")).getId();
+        UUID suo = giocatori.save(giocatore(mario, "Suo")).getId();
+        anagrafeService.creaSquadra(mario, richiesta(List.of(diLuigi, suo)));
+
+        jdbc.update("delete from utenti where id = ?", luigi.getId()); // il buco è in posizione 0
+
+        assertThat(anagrafeService.tutteSquadre().getFirst().roster()).containsExactly(suo);
+        assertThat(anagrafeService.tutteSquadrePubbliche().getFirst().roster()).containsExactly(suo);
+    }
+
+    // Eliminare un giocatore da una squadra con un buco non deve cadere sul null: il roster si ricompatta senza il buco
+    @Test
+    void eliminareUnGiocatoreDaUnRosterConUnBuco_ricompattaIlRoster() {
+        Utente mario = utenti.save(new Utente("mario@test.it", "hash", "Mario", Ruolo.USER));
+        Utente luigi = utenti.save(new Utente("luigi@test.it", "hash", "Luigi", Ruolo.USER));
+        UUID diLuigi = giocatori.save(giocatore(luigi, "Di Luigi")).getId();
+        UUID suo = giocatori.save(giocatore(mario, "Suo")).getId();
+        UUID altro = giocatori.save(giocatore(mario, "Altro")).getId();
+        SquadraDTO creata = anagrafeService.creaSquadra(mario, richiesta(List.of(diLuigi, suo, altro)));
+        jdbc.update("delete from utenti where id = ?", luigi.getId());
+
+        anagrafeService.eliminaGiocatore(mario, suo);
+
+        assertThat(rosterSalvato(creata.id())).containsExactly(altro);
+        assertThat(jdbc.queryForList("select posizione from anagrafe_squadre_roster where squadra_id = ?", Integer.class,
+                creata.id())).containsExactly(0);
+    }
+
     // Le forme degli elenchi si costruiscono dentro la transazione di lettura (open-in-view è spento), con il roster e l'autore
     // caricati dalla stessa query: dal database vero la forma pubblica esce senza dati personali, e la completa li ha
     @Test
