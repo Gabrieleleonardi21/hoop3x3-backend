@@ -367,7 +367,8 @@ L'applicazione scrive nei log (console) ciò che serve a capire un problema in p
 ```
 env.properties.example          # segreti e impostazioni: copiare in env.properties
 Dockerfile, .dockerignore       # immagine per Render (vedi «Deploy su Render»)
-.github/workflows/ci.yml        # CI: build, test di integrazione con PostgreSQL e docker build
+.github/workflows/ci.yml        # CI: build, test di integrazione con PostgreSQL e docker build (token in sola lettura, un push nuovo annulla la CI in corso)
+.github/dependabot.yml          # aggiornamenti settimanali di dipendenze Maven, azioni di GitHub e immagini Docker
 src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 = archivio legato alle tappe, V3 = segno dei seed eseguiti, V4 = versione delle tappe), applicate all'avvio
 src/main/resources/seed/        # estathe25.json: i dati di prova (vedi «Dati di prova»)
 src/main/java/com/hoop3x3/backend/

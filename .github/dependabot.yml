@@ -1,0 +1,19 @@
+# Dependabot: una volta alla settimana apre le pull request di aggiornamento delle dipendenze Maven (pom.xml), delle azioni
+# di GitHub (ci.yml) e delle immagini del Dockerfile. Poche pull request alla volta, così non sommergono quelle del lavoro
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
