@@ -7,6 +7,7 @@ import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.ArchivioTappa;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
+import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.repositories.ArchivioTappaRepository;
 import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
@@ -168,24 +170,43 @@ class ArchivioIT {
 
     // Gli id delle tappe sono pubblici e li sceglie il client, e la chiave dell'archivio è l'id della tappa. Prima chiunque
     // poteva creare una tappa con l'id di una pubblicazione orfana (visibile nell'elenco pubblico) e, pubblicandola, sostituire
-    // il contenuto e l'autore della pubblicazione di un altro con i suoi. Ora la tappa si crea (l'id è libero in `tappe`), ma
-    // la pubblicazione risponde 403 e la riga resta com'era
+    // il contenuto e l'autore della pubblicazione di un altro con i suoi; e anche senza pubblicare, eliminando poi la tappa (o la
+    // lega) la chiave esterna della V2 cancellava la pubblicazione dell'altro. Ora la tappa non si crea nemmeno: 409 sia una alla
+    // volta sia nell'import, e la riga resta com'era. L'autore della pubblicazione (e un ADMIN) può invece ricrearla
     @Test
-    void unaTappaCreataConLIdDiUnaPubblicazioneOrfana_nonPuoSovrascriverla() throws Exception {
+    void unaTappaConLIdDiUnaPubblicazioneOrfanaDiUnAltro_nonSiCrea409ELaRigaResta() throws Exception {
         UUID orfana = UUID.randomUUID();
         ArchivioTappa diMario = pubblicazioneOrfana(orfana, mario);
-        // Luigi si crea la tappa con quell'id: in `tappe` l'id è libero, quindi la creazione passa
-        legaService.aggiungiTappa(luigi, lega(luigi, "Lega di Luigi"), tappaDto(orfana, "Tappa di Luigi", true));
+        UUID legaDiLuigi = lega(luigi, "Lega di Luigi");
+        String messaggio = "L'id " + orfana + " è già di una pubblicazione in archivio di un altro utente";
 
-        pubblica(orfana, luigi).andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.message").value(containsString("questa pubblicazione")));
+        assertThatThrownBy(() -> legaService.aggiungiTappa(luigi, legaDiLuigi, tappaDto(orfana, "Tappa di Luigi", true)))
+                .isInstanceOf(ConflictException.class).hasMessage(messaggio);
+        assertThatThrownBy(() -> legaService.crea(luigi, new NuovaLegaDTO("Importata", List.of(tappaDto(orfana, "Importata", true)))))
+                .isInstanceOf(ConflictException.class).hasMessage(messaggio);
 
+        assertThat(tappe.existsById(orfana)).isFalse();
         ArchivioTappa dopo = archivio.findById(orfana).orElseThrow();
         assertThat(dopo.getAutore().getId()).isEqualTo(mario.getId());
         assertThat(dopo.getLegaNome()).isEqualTo("Nome vecchio");
         assertThat(mapper.readTree(dopo.getContenuto())).isEqualTo(mapper.readTree(diMario.getContenuto()));
         assertThat(dopo.getPubblicatoIl()).isEqualTo(diMario.getPubblicatoIl());
         assertThat(letta(orfana).at("/tappa/nome").asString()).isEqualTo("Tappa vecchia");
+
+        // Mario, autore della pubblicazione, può ricreare la sua tappa con quell'id (per esempio reimportando la lega da file)
+        legaService.aggiungiTappa(mario, lega(mario, "Lega di Mario"), tappaDto(orfana, "Tappa di Mario", true));
+        pubblica(orfana, mario).andExpect(status().isOk()).andExpect(jsonPath("$.tappa.nome").value("Tappa di Mario"));
+    }
+
+    // Il 409 ferma anche la via indiretta: con la tappa che non esiste, la cancellazione a cascata non ha niente da cancellare
+    @Test
+    void unAdminPuoCreareLaTappaConLIdDiUnaPubblicazioneOrfanaDiUnAltro() throws Exception {
+        UUID orfana = UUID.randomUUID();
+        pubblicazioneOrfana(orfana, mario);
+
+        legaService.aggiungiTappa(admin, lega(admin, "Lega dell'admin"), tappaDto(orfana, "Tappa dell'admin", true));
+
+        assertThat(tappe.existsById(orfana)).isTrue();
     }
 
     @Test

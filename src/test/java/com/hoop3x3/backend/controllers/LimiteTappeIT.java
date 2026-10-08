@@ -67,6 +67,18 @@ class LimiteTappeIT {
         assertThat(tappe.countByLegaId(lega)).isEqualTo(Lega.MAX_TAPPE);
     }
 
+    // La centesima POST è stata salvata ma la risposta si è persa (Render che si sveglia): il frontend la rimanda uguale, e
+    // deve ricevere il 409 «Esiste già», che sa riconciliare, non il 400 del tetto, che non saprebbe come trattare
+    @Test
+    void rimandareLaCentesimaTappaGiaSalvata_risponde409ENon400() throws Exception {
+        UUID lega = legaCon(Lega.MAX_TAPPE - 1);
+        TappaDTO centesima = TappaDiProva.tappa().build();
+        aggiungi(lega, centesima).andExpect(status().isCreated());
+
+        aggiungi(lega, centesima).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Esiste già una tappa con id " + centesima.id()));
+    }
+
     // Il tetto è per lega, non per utente: una lega piena non toglie tappe alle altre dello stesso proprietario
     @Test
     void unaLegaPienaNonBloccaLeAltreDelloStessoProprietario() throws Exception {
@@ -85,7 +97,11 @@ class LimiteTappeIT {
 
     /** POST di una tappa nuova di Mario nella lega */
     private ResultActions aggiungi(UUID lega) throws Exception {
+        return aggiungi(lega, TappaDiProva.tappa().build());
+    }
+
+    private ResultActions aggiungi(UUID lega, TappaDTO tappa) throws Exception {
         return mvc.perform(post("/api/leghe/" + lega + "/tappe").header(AUTHORIZATION, "Bearer " + jwt.generateToken(mario))
-                .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(TappaDiProva.tappa().build())));
+                .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(tappa)));
     }
 }
