@@ -42,4 +42,13 @@ public class AnagrafeGiocatore extends ConDate {
     @JoinColumn(name = "autore_id", nullable = false)
     private Utente autore;
 
+    /**
+     * Versione della scheda (migrazione V5), come per Tappa: Hibernate la aumenta a ogni UPDATE e la mette nella condizione
+     * dell'UPDATE, così due salvataggi insieme non si sovrascrivono. Il client la riceve con la scheda e può rimandarla con la
+     * PUT (AnagrafeService.controllaVersione). Senza setter: la gestisce Hibernate
+     */
+    @Version
+    @Setter(AccessLevel.NONE)
+    private long versione;
+
 }

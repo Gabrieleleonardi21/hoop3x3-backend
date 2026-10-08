@@ -133,7 +133,7 @@ class AnagrafeIT {
         g.setSquadra("Roma 3x3");
         g = giocatori.save(g);
         anagrafeService.creaSquadra(mario, new SquadraRequestDTO("Roma 3x3", "Roma", null, null, "Luigi Bianchi", null, null,
-                null, null, List.of(g.getId())));
+                null, null, List.of(g.getId()), null));
 
         GiocatoreDTO giocatorePubblico = anagrafeService.tuttiGiocatoriPubblici().getFirst();
         SquadraDTO squadraPubblica = anagrafeService.tutteSquadrePubbliche().getFirst();
@@ -171,7 +171,7 @@ class AnagrafeIT {
     }
 
     private static SquadraRequestDTO richiesta(List<UUID> roster) {
-        return new SquadraRequestDTO("Squadra", null, null, null, null, null, null, null, null, roster);
+        return new SquadraRequestDTO("Squadra", null, null, null, null, null, null, null, null, roster, null);
     }
 
     /** Gli id del roster come sono nella tabella ponte, per posizione */

@@ -62,7 +62,7 @@ class AnagrafeServiceTest {
     }
 
     private SquadraRequestDTO modificaDelRoster() {
-        return new SquadraRequestDTO("Roma 3x3", null, null, null, null, null, null, null, null, List.of(idGiocatore));
+        return new SquadraRequestDTO("Roma 3x3", null, null, null, null, null, null, null, null, List.of(idGiocatore), null);
     }
 
     @Test
@@ -102,7 +102,7 @@ class AnagrafeServiceTest {
         when(giocatori.findAllById(List.of(c, a, b))).thenReturn(List.of(giocatore(a), giocatore(b), giocatore(c)));
 
         servizio.aggiornaSquadra(admin, idSquadra, new SquadraRequestDTO("Roma 3x3", null, null, null, null, null, null,
-                null, null, List.of(c, a, b)));
+                null, null, List.of(c, a, b), null));
 
         assertThat(squadra.getRoster()).extracting(AnagrafeGiocatore::getId).containsExactly(c, a, b);
         verify(giocatori, times(1)).findAllById(any());
@@ -120,7 +120,7 @@ class AnagrafeServiceTest {
         when(giocatori.findAllById(List.of(a, sconosciuto, b))).thenReturn(List.of(giocatore(b), giocatore(a)));
 
         servizio.aggiornaSquadra(admin, idSquadra, new SquadraRequestDTO("Roma 3x3", null, null, null, null, null, null,
-                null, null, List.of(a, sconosciuto, a, b)));
+                null, null, List.of(a, sconosciuto, a, b), null));
 
         assertThat(squadra.getRoster()).extracting(AnagrafeGiocatore::getId).containsExactly(a, b);
     }
@@ -138,7 +138,7 @@ class AnagrafeServiceTest {
         when(giocatori.findAllById(List.of(b, a))).thenReturn(List.of(giocatore(a), giocatore(b)));
 
         servizio.creaSquadra(mario, new SquadraRequestDTO("Roma 3x3", null, null, null, null, null, null, null, null,
-                List.of(b, a)));
+                List.of(b, a), null));
 
         ArgumentCaptor<AnagrafeSquadra> salvata = ArgumentCaptor.forClass(AnagrafeSquadra.class);
         verify(squadre).save(salvata.capture());
@@ -153,7 +153,7 @@ class AnagrafeServiceTest {
         squadra.getRoster().add(giocatore(idGiocatore));
 
         servizio.aggiornaSquadra(admin, idSquadra, new SquadraRequestDTO("Roma 3x3", null, null, null, null, null, null,
-                null, null, null));
+                null, null, null, null));
 
         assertThat(squadra.getRoster()).isEmpty();
         verify(giocatori, never()).findById(any());

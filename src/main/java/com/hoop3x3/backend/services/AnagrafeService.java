@@ -11,6 +11,7 @@ import com.hoop3x3.backend.exceptions.NotFoundException;
 import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
 import com.hoop3x3.backend.repositories.AnagrafeSquadraRepository;
 import com.hoop3x3.backend.support.Testo;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,6 +64,7 @@ public class AnagrafeService {
     public GiocatoreDTO aggiornaGiocatore(Utente utente, UUID id, GiocatoreRequestDTO dto) {
         AnagrafeGiocatore g = trovaGiocatore(id);
         guard.checkOwner(utente, g.getAutore().getId(), "questa scheda giocatore");
+        controllaVersione(dto.versione(), g.getVersione(), AnagrafeGiocatore.class, id);
         applica(dto, g);
         guard.tracciaModifica(utente, g.getAutore().getId(), "giocatore", id);
         // saveAndFlush: la data di modifica (@PreUpdate) la scrive Hibernate al flush, e senza flush il DTO porterebbe il ts
@@ -110,6 +112,7 @@ public class AnagrafeService {
     public SquadraDTO aggiornaSquadra(Utente utente, UUID id, SquadraRequestDTO dto) {
         AnagrafeSquadra s = trovaSquadra(id);
         guard.checkOwner(utente, s.getAutore().getId(), "questa squadra");
+        controllaVersione(dto.versione(), s.getVersione(), AnagrafeSquadra.class, id);
         applica(dto, s);
         guard.tracciaModifica(utente, s.getAutore().getId(), "squadra", id);
         return SquadraDTO.from(squadre.saveAndFlush(s)); // flush: il ts della risposta è quello di adesso (vedi aggiornaGiocatore)
@@ -124,6 +127,19 @@ public class AnagrafeService {
     }
 
     /* ── Helper ── */
+
+    /**
+     * La versione che il client ha letto contro quella del database. Facoltativa: un client che non la manda (il frontend di
+     * prima, uno script) salva senza controllo, come sempre; chi la manda e la trova cambiata ha davanti una scheda salvata
+     * nel frattempo da un altro dispositivo (o da un ADMIN) e riceve 409, senza sovrascriverla. L'eccezione è quella che
+     * lancerebbe Hibernate al flush se la scheda cambiasse mentre si salva: le due strade hanno un solo gestore
+     * (ExceptionsHandler), con il messaggio generico «I dati sono stati modificati...». Va dopo checkOwner: chi non è
+     * l'autore non scopre la versione di una scheda altrui provando dei numeri
+     */
+    private static void controllaVersione(Long letta, long attuale, Class<?> entity, UUID id) {
+        if (letta == null) return;
+        if (letta != attuale) throw new ObjectOptimisticLockingFailureException(entity, id);
+    }
 
     private AnagrafeGiocatore trovaGiocatore(UUID id) {
         return giocatori.findById(id).orElseThrow(() -> new NotFoundException("Giocatore non trovato: " + id));

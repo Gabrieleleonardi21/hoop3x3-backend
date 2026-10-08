@@ -115,11 +115,12 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
     }
 
     // Una richiesta ha trovato i dati cambiati o spariti per mano di un'altra. Hibernate lancia questa eccezione quando un UPDATE o
-    // un DELETE non trova più la riga che si aspettava, per qualunque entity: versione cambiata (solo Tappa ha @Version) oppure
-    // riga eliminata (due eliminazioni insieme, una rinomina mentre la lega viene eliminata). La lancia anche
-    // LegaService.aggiornaTappa quando la versione della PUT è già vecchia. Per una tappa è il conflitto tra dispositivi: un
-    // messaggio suo, lo stesso per le due strade. Per le altre entity uno generico, perché dire «la tappa» di una lega o di una
-    // scheda dell'anagrafe sarebbe sbagliato (prima erano 500). Non è un guasto: niente riga nei log
+    // un DELETE non trova più la riga che si aspettava, per qualunque entity: versione cambiata (Tappa e le schede dell'anagrafe
+    // hanno @Version) oppure riga eliminata (due eliminazioni insieme, una rinomina mentre la lega viene eliminata). La lanciano
+    // anche LegaService.aggiornaTappa e AnagrafeService.controllaVersione quando la versione della PUT è già vecchia. Per una
+    // tappa è il conflitto tra dispositivi: un messaggio suo, lo stesso per le due strade. Per le altre entity, anagrafe
+    // compresa, uno generico, perché dire «la tappa» di una lega o di una scheda sarebbe sbagliato (prima erano 500). Non è un
+    // guasto: niente riga nei log
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<ErrorsDTO> handleModificaConcorrente(OptimisticLockingFailureException ex) {
         if (ex instanceof ObjectOptimisticLockingFailureException oggetto

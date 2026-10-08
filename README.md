@@ -14,7 +14,7 @@ createdb hoop3x3
 
 Le tabelle le crea il server al primo avvio con le migrazioni di [Flyway](https://flywaydb.org) (`src/main/resources/db/migration`): non c'è nessuno script da eseguire. Flyway segna le migrazioni applicate nella tabella `flyway_schema_history`, accanto alle altre. L'utente del database (`DB_USERNAME`) deve poter creare e modificare tabelle nello schema `public`, per esempio perché è il proprietario del database: Flyway crea `flyway_schema_history` e applica le migrazioni, e con un utente che può solo leggere e scrivere i dati il primo avvio fallisce.
 
-Un database già esistente, creato a mano prima di Flyway con lo script SQL delle versioni precedenti (oggi non c'è più), non va ricreato né toccato: al primo avvio Flyway trova le tabelle ma non lo storico e lo segna come versione 1 (`V1__schema_iniziale.sql` è quello schema) senza rieseguire niente, quindi i dati restano com'erano. Da quel momento ogni cambio di schema arriva come migrazione nuova (V2, V3, V4…) e il server la applica da solo all'avvio: la V2 lega le pubblicazioni dell'archivio alle loro tappe e lascia dove sono le eventuali pubblicazioni orfane di un database già in uso (vedi «Archivio circuito»); la V3 aggiunge `seed_eseguiti`, il segno dei seed già eseguiti (vedi «Dati di prova»); la V4 aggiunge `tappe.versione` e lascia alle tappe già salvate la versione 0 (vedi «Tappe e modifiche da più dispositivi»). Il database deve avere lo schema attuale, compresa la tabella `refresh_tokens`: se manca, il server non parte e dice quale tabella manca (`Schema validation: missing table [refresh_tokens]`). In quel caso riesegui il file intero, che è idempotente (tutto `IF NOT EXISTS`, i dati non si toccano, i messaggi `already exists, skipping` sono normali), e riavvia:
+Un database già esistente, creato a mano prima di Flyway con lo script SQL delle versioni precedenti (oggi non c'è più), non va ricreato né toccato: al primo avvio Flyway trova le tabelle ma non lo storico e lo segna come versione 1 (`V1__schema_iniziale.sql` è quello schema) senza rieseguire niente, quindi i dati restano com'erano. Da quel momento ogni cambio di schema arriva come migrazione nuova (V2, V3, V4…) e il server la applica da solo all'avvio: la V2 lega le pubblicazioni dell'archivio alle loro tappe e lascia dove sono le eventuali pubblicazioni orfane di un database già in uso (vedi «Archivio circuito»); la V3 aggiunge `seed_eseguiti`, il segno dei seed già eseguiti (vedi «Dati di prova»); la V4 aggiunge `tappe.versione` e lascia alle tappe già salvate la versione 0 (vedi «Tappe e modifiche da più dispositivi»); la V5 fa lo stesso per le schede dell'anagrafe (`anagrafe_giocatori.versione`, `anagrafe_squadre.versione`, vedi «Anagrafe del circuito»). Il database deve avere lo schema attuale, compresa la tabella `refresh_tokens`: se manca, il server non parte e dice quale tabella manca (`Schema validation: missing table [refresh_tokens]`). In quel caso riesegui il file intero, che è idempotente (tutto `IF NOT EXISTS`, i dati non si toccano, i messaggi `already exists, skipping` sono normali), e riavvia:
 
 ```bash
 psql -d hoop3x3 -f src/main/resources/db/migration/V1__schema_iniziale.sql
@@ -132,11 +132,11 @@ La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/cont
 | `DELETE` | `/api/tappe/{id}` | Proprietario o ADMIN (della lega della tappa) | 204 |
 | `GET` | `/api/anagrafe/giocatori` | Pubblico | 200; forma pubblica senza token, completa con un token valido |
 | `POST` | `/api/anagrafe/giocatori` | Autenticato | 201 |
-| `PUT` | `/api/anagrafe/giocatori/{id}` | Autore della scheda o ADMIN | 200 |
+| `PUT` | `/api/anagrafe/giocatori/{id}` | Autore della scheda o ADMIN | 200; 409 se il corpo porta una `versione` che non è più quella del database |
 | `DELETE` | `/api/anagrafe/giocatori/{id}` | Autore della scheda o ADMIN | 204 |
 | `GET` | `/api/anagrafe/squadre` | Pubblico | 200; due forme come per i giocatori |
 | `POST` | `/api/anagrafe/squadre` | Autenticato | 201 |
-| `PUT` | `/api/anagrafe/squadre/{id}` | Autore della scheda o ADMIN | 200 |
+| `PUT` | `/api/anagrafe/squadre/{id}` | Autore della scheda o ADMIN | 200; 409 come per i giocatori |
 | `DELETE` | `/api/anagrafe/squadre/{id}` | Autore della scheda o ADMIN | 204 |
 | `GET` | `/api/archivio` | Pubblico | 200 l'elenco sintetico (`VoceArchivioDTO`) |
 | `GET` | `/api/archivio/{tappaId}` | Pubblico | 200 la copia pubblica per intero (`CopiaPubblicaDTO`); 404 se non è in archivio |
@@ -172,7 +172,7 @@ Salvare una tappa (`PUT /api/tappe/{id}`) sostituisce la tappa intera, partite c
   - I controlli vanno in quest'ordine: 400 (versione mancante), poi 404 e 403 (tappa inesistente o di un altro utente), poi 409. Chi non è il proprietario non può scoprire la versione di una tappa altrui provando dei numeri.
 - Il 409 della PUT non è quello della POST («Esiste già una tappa con id …»): il client li distingue dal metodo.
 - `DELETE /api/tappe/{id}` non porta la versione. Se un altro dispositivo salva la tappa nello stesso istante in cui la si elimina, risponde con lo stesso 409 e la tappa resta com'è stata salvata. Lo stesso vale per `DELETE /api/leghe/{id}`, che elimina anche le tappe: se una di loro viene salvata in quel momento, la lega resta e la risposta è il 409.
-- **Le altre risorse.** Hibernate dà lo stesso tipo di errore ogni volta che un UPDATE o un DELETE non trova più la riga, anche per una entity senza versione: due eliminazioni insieme della stessa scheda dell'anagrafe o della stessa pubblicazione, una rinomina mentre la lega viene eliminata. Anche questi sono un **409**, con un messaggio generico che non parla di una tappa: «I dati sono stati modificati o eliminati da un'altra richiesta: ricarica» (prima erano un 500).
+- **Le altre risorse.** Le schede dell'anagrafe hanno la loro versione, facoltativa nella PUT (vedi «Anagrafe del circuito»). Hibernate dà lo stesso tipo di errore ogni volta che un UPDATE o un DELETE non trova più la riga, anche per una entity senza versione: due eliminazioni insieme della stessa scheda dell'anagrafe o della stessa pubblicazione, una rinomina mentre la lega viene eliminata. Anche questi sono un **409**, con un messaggio generico che non parla di una tappa: «I dati sono stati modificati o eliminati da un'altra richiesta: ricarica» (prima erano un 500).
 - Le tappe in archivio portano la `versione` che avevano quando sono state pubblicate (lo snapshot è la tappa come la restituiscono le API): è una fotografia e non serve a salvare. Le pubblicazioni fatte prima della V4 non ce l'hanno (`versione: null`).
 - **Compatibilità.** Un client che non manda la `versione` (per esempio una scheda rimasta aperta da prima dell'aggiornamento del frontend) riceve 400 a ogni salvataggio di tappa, finché non ricarica la pagina.
 
@@ -219,6 +219,12 @@ Giocatori e squadre dell'anagrafe sono condivisi: leggerli non chiede l'account,
 - Le due forme si leggono con le stesse query: la forma pubblica non legge l'autore della scheda, ma non costa né più né meno.
 
 Il `ts` (millisecondi dell'ultima modifica) è lo stesso nelle due forme, e la risposta di una `PUT` porta quello del salvataggio appena fatto (prima portava quello precedente).
+
+**Modifiche da più dispositivi.** Salvare una scheda la sostituisce per intero, e due dispositivi dello stesso autore, o l'autore e un ADMIN, aperti sulla stessa scheda si sovrascrivevano in silenzio. Ogni scheda (giocatore e squadra) ha quindi una `versione` (colonna `versione`, migrazione V5), come le tappe:
+
+- `versione` è in ogni risposta che porta la scheda, nelle due forme (non è un dato personale): parte da 0 e sale di 1 a ogni salvataggio che la cambia (per una squadra anche quando cambia solo il roster). Le schede che c'erano prima della V5 hanno la versione 0.
+- `PUT /api/anagrafe/giocatori/{id}` e `PUT /api/anagrafe/squadre/{id}` accettano nel corpo una `versione` **facoltativa**: se c'è e non è più quella del database, **409** con il corpo di tutti i conflitti tra richieste, `{"message": "I dati sono stati modificati o eliminati da un'altra richiesta: ricarica", "timestamp": ...}`, e della richiesta non si salva niente; il client rilegge l'elenco e riparte dalla scheda del server. Se va a buon fine la risposta porta la versione nuova, da rimandare con la PUT successiva. Il controllo viene dopo il 403: chi non è l'autore non scopre la versione di una scheda altrui provando dei numeri.
+- **Senza `versione` nel corpo non si controlla niente** e la PUT salva come sempre: un client di prima (il frontend già in produzione, uno script) non cambia comportamento. La `POST` la ignora: una scheda nuova parte da 0.
 
 **Cache del client.** La forma dipende dal token, quindi il client deve svuotare la cache dell'anagrafe quando cambia chi la guarda, al login e al logout (il frontend lo fa: `svuota` in `useAnagrafeStore`). Se non lo fa, chi accede dopo aver aperto l'anagrafe da ospite si tiene la forma pubblica finché non ricarica la pagina, e un ADMIN che in quel caso modifica una scheda rimanda al server i campi riservati vuoti, che li sovrascrivono: il `PUT` salva ciò che riceve.
 
@@ -297,7 +303,7 @@ Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 - **403** — ruolo insufficiente, oppure risorsa di un altro utente.
 - **404** — risorsa o percorso inesistente.
 - **405** — metodo non consentito per quell'indirizzo.
-- **409** — conflitto con dati già salvati (email già registrata, tappa con lo stesso id, vincolo del database), tappa salvata da un altro dispositivo dopo che il client l'ha letta (versione della PUT non più quella del database), dati modificati o eliminati da un'altra richiesta nello stesso istante, tappa non ancora conclusa che si prova a pubblicare in archivio, oppure sessione già rinnovata da un'altra richiesta.
+- **409** — conflitto con dati già salvati (email già registrata, tappa con lo stesso id, vincolo del database), tappa o scheda dell'anagrafe salvata da un altro dispositivo dopo che il client l'ha letta (versione della PUT non più quella del database), dati modificati o eliminati da un'altra richiesta nello stesso istante, tappa non ancora conclusa che si prova a pubblicare in archivio, oppure sessione già rinnovata da un'altra richiesta.
 - **413** — richiesta oltre 2 MB.
 - **415** — corpo che non è JSON.
 - **429** — troppe richieste: il limite di frequenza di login, registrazione, rinnovo del token e Coach AI, con `Retry-After` (vedi «Limiti di frequenza»). Per il Coach AI è 429 anche quando è Groq a limitare le richieste, con un altro messaggio e senza `Retry-After`.
@@ -369,7 +375,7 @@ env.properties.example          # segreti e impostazioni: copiare in env.propert
 Dockerfile, .dockerignore       # immagine per Render (vedi «Deploy su Render»)
 .github/workflows/ci.yml        # CI: build, test di integrazione con PostgreSQL e docker build (token in sola lettura, un push nuovo annulla la CI in corso)
 .github/dependabot.yml          # aggiornamenti settimanali di dipendenze Maven, azioni di GitHub e immagini Docker
-src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 = archivio legato alle tappe, V3 = segno dei seed eseguiti, V4 = versione delle tappe), applicate all'avvio
+src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 = archivio legato alle tappe, V3 = segno dei seed eseguiti, V4 = versione delle tappe, V5 = versione delle schede dell'anagrafe), applicate all'avvio
 src/main/resources/seed/        # estathe25.json: i dati di prova (vedi «Dati di prova»)
 src/main/java/com/hoop3x3/backend/
 ├── controllers/  # REST (auth, utenti, leghe, tappe, anagrafe, archivio, coach)

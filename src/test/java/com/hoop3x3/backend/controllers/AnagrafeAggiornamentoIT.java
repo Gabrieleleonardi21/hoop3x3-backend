@@ -31,9 +31,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Le PUT dell'anagrafe (giocatori e squadre) con il database vero e la catena di sicurezza vera: la risposta è la scheda come
- * sta nel database dopo il salvataggio, a cominciare dal `ts`. La data di modifica la scrive Hibernate al flush, e senza
- * flush il DTO della risposta portava quella di prima: il client la rimandava e la cache restava indietro.
+ * Le PUT dell'anagrafe (giocatori e squadre) con il database vero e la catena di sicurezza vera.
+ * <ul>
+ *   <li>La risposta è la scheda come sta nel database dopo il salvataggio, a cominciare dal `ts`: la data di modifica la
+ *   scrive Hibernate al flush, e senza flush il DTO portava quella di prima, il client la rimandava e la cache restava indietro.</li>
+ *   <li>La versione (migrazione V5): due dispositivi dello stesso autore, o l'autore e un ADMIN, aperti sulla stessa scheda
+ *   si sovrascrivevano in silenzio. Ora ogni scheda porta una `versione` e il client può rimandarla con la PUT: se non è più
+ *   quella del database, 409 e niente salvato. Senza versione nel corpo la PUT passa come prima: i client di prima non cambiano.</li>
+ * </ul>
  */
 @TestDiIntegrazione
 @AutoConfigureMockMvc
@@ -83,15 +88,81 @@ class AnagrafeAggiornamentoIT {
                 .isGreaterThan(Tempo.inMillisecondi(Tempo.adesso().minusHours(1)));
     }
 
+    /* ── Versione: la scheda nuova parte da 0, sale a ogni salvataggio che la cambia, e la PUT può pretenderla ── */
+
+    // Il contratto con il frontend: la risposta porta la versione nuova, che il client rimanda con la PUT successiva
+    @Test
+    void laPutConLaVersioneGiusta_salvaERispondeConLaVersioneSuccessiva() throws Exception {
+        assertThat(versioneNelDatabase("anagrafe_giocatori", giocatore)).as("una scheda nuova parte da 0").isZero();
+
+        JsonNode prima = json(salvaGiocatore(giocatore("Bianchi", 0L)).andExpect(status().isOk()));
+        JsonNode seconda = json(salvaGiocatore(giocatore("Verdi", prima.get("versione").asLong())).andExpect(status().isOk()));
+
+        assertThat(prima.get("versione").asLong()).isEqualTo(1);
+        assertThat(seconda.get("versione").asLong()).isEqualTo(2);
+        assertThat(versioneNelDatabase("anagrafe_giocatori", giocatore)).isEqualTo(2);
+        // L'elenco porta la stessa versione: è da lì che il client la legge quando apre la scheda
+        assertThat(anagrafeService.tuttiGiocatori().getFirst().versione()).isEqualTo(2);
+    }
+
+    // Il caso del brief: due dispositivi leggono la scheda alla versione 0, il primo salva, il secondo salva la sua copia vecchia
+    @Test
+    void laPutConUnaVersioneVecchia_risponde409ConIlCorpoDeiConflittiENonSalvaNulla() throws Exception {
+        salvaGiocatore(giocatore("Dal primo dispositivo", 0L)).andExpect(status().isOk());
+
+        JsonNode errore = json(salvaGiocatore(giocatore("Dal secondo dispositivo", 0L)).andExpect(status().isConflict()));
+
+        // Lo stesso corpo {message, timestamp} degli altri conflitti tra richieste (ExceptionsHandler)
+        assertThat(errore.propertyNames()).containsExactlyInAnyOrder("message", "timestamp");
+        assertThat(errore.get("message").asString()).isEqualTo("I dati sono stati modificati o eliminati da un'altra richiesta: ricarica");
+        assertThat(jdbc.queryForObject("select cognome from anagrafe_giocatori where id = ?", String.class, giocatore))
+                .isEqualTo("Dal primo dispositivo");
+        assertThat(versioneNelDatabase("anagrafe_giocatori", giocatore)).isEqualTo(1);
+    }
+
+    @Test
+    void laPutDiUnaSquadraConUnaVersioneVecchia_risponde409() throws Exception {
+        salvaSquadra(squadra("Roma 3x3 Elite", 0L)).andExpect(status().isOk());
+
+        salvaSquadra(squadra("Roma 3x3 Pro", 0L)).andExpect(status().isConflict());
+
+        assertThat(jdbc.queryForObject("select nome from anagrafe_squadre where id = ?", String.class, squadra))
+                .isEqualTo("Roma 3x3 Elite");
+    }
+
+    // Compatibilità: il frontend in produzione non manda la versione, e deve continuare a salvare come prima
+    @Test
+    void laPutSenzaVersione_salvaComePrima() throws Exception {
+        salvaGiocatore(giocatore("Bianchi", 0L)).andExpect(status().isOk());
+
+        JsonNode risposta = json(salvaGiocatore(giocatore("Senza versione", null)).andExpect(status().isOk()));
+
+        assertThat(risposta.get("cognome").asString()).isEqualTo("Senza versione");
+        assertThat(risposta.get("versione").asLong()).isEqualTo(2);
+    }
+
     /* ── Richieste e dati di prova ── */
 
-    /** Un giocatore con quel cognome: nome e cognome sono gli unici campi obbligatori */
+    /** Un giocatore con quel cognome, senza versione: nome e cognome sono gli unici campi obbligatori */
     private static GiocatoreRequestDTO giocatore(String cognome) {
-        return new GiocatoreRequestDTO("Mario", cognome, null, null, null, null, null, null, null, null, null, null, null);
+        return giocatore(cognome, null);
+    }
+
+    /** Lo stesso giocatore con la versione che il client ha letto (null: il client non la manda) */
+    private static GiocatoreRequestDTO giocatore(String cognome, Long versione) {
+        return new GiocatoreRequestDTO("Mario", cognome, null, null, null, null, null, null, null, null, null, null, null, versione);
     }
 
     private static SquadraRequestDTO squadra(String nome) {
-        return new SquadraRequestDTO(nome, null, null, null, null, null, null, null, null, List.of());
+        return squadra(nome, null);
+    }
+
+    private static SquadraRequestDTO squadra(String nome, Long versione) {
+        return new SquadraRequestDTO(nome, null, null, null, null, null, null, null, null, List.of(), versione);
+    }
+
+    private long versioneNelDatabase(String tabella, UUID id) {
+        return jdbc.queryForObject("select versione from " + tabella + " where id = ?", Long.class, id);
     }
 
     private ResultActions salvaGiocatore(GiocatoreRequestDTO corpo) throws Exception {

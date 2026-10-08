@@ -137,6 +137,24 @@ class MigrazioniIT {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    // Come la V4 per le tappe: le schede dell'anagrafe già salvate partono dalla versione 0, e così una riga inserita senza
+    // nominare la colonna. Si ferma alla V4 per avere una scheda «di prima»
+    @Test
+    void laV5DaVersioneZeroAlleSchedeGiaSalvateEAQuelleInseriteSenzaNominarla() {
+        String schema = nuovoSchema();
+        configurazionePer(schema).target("4").load().migrate();
+        UUID autore = nuovoUtente(schema);
+        nuovoGiocatore(schema, autore);
+        nuovaSquadra(schema, autore);
+
+        configurazionePer(schema).target("5").load().migrate();
+        nuovoGiocatore(schema, autore);
+        nuovaSquadra(schema, autore);
+
+        assertThat(valori("select versione::text from " + schema + ".anagrafe_giocatori")).containsExactly("0", "0");
+        assertThat(valori("select versione::text from " + schema + ".anagrafe_squadre")).containsExactly("0", "0");
+    }
+
     // Una tabella che manca dalla TRUNCATE di svuota.sql resterebbe piena tra un test e l'altro. Lo storico di Flyway
     // invece non va mai svuotato: dice quali migrazioni il database ha già, e svuotarlo le farebbe riapplicare
     @Test
@@ -197,6 +215,16 @@ class MigrazioniIT {
         jdbc.update("insert into " + schema + ".tappe (id, lega_id, nome, creato_il, modificato_il) "
                 + "values (?, ?, 'Tappa', now(), now())", tappa, lega);
         return tappa;
+    }
+
+    private void nuovoGiocatore(String schema, UUID autore) {
+        jdbc.update("insert into " + schema + ".anagrafe_giocatori (id, nome, cognome, autore_id, creato_il, modificato_il) "
+                + "values (?, 'Mario', 'Rossi', ?, now(), now())", UUID.randomUUID(), autore);
+    }
+
+    private void nuovaSquadra(String schema, UUID autore) {
+        jdbc.update("insert into " + schema + ".anagrafe_squadre (id, nome, autore_id, creato_il, modificato_il) "
+                + "values (?, 'Roma 3x3', ?, now(), now())", UUID.randomUUID(), autore);
     }
 
     private void nuovaPubblicazione(String schema, UUID tappa, UUID autore) {

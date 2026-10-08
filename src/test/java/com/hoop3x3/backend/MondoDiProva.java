@@ -36,9 +36,9 @@ public final class MondoDiProva {
     public Mondo crea(Utente utente) {
         // Nome e cognome, gli unici campi obbligatori: gli altri restano vuoti
         UUID idGiocatore = anagrafeService.creaGiocatore(utente, new GiocatoreRequestDTO(utente.getNome(), "Rossi", null, null,
-                null, null, null, null, null, null, null, null, null)).id();
+                null, null, null, null, null, null, null, null, null, null)).id();
         UUID squadra = anagrafeService.creaSquadra(utente, new SquadraRequestDTO("Squadra di " + utente.getNome(), null, null,
-                null, null, null, null, null, null, List.of(idGiocatore))).id();
+                null, null, null, null, null, null, List.of(idGiocatore), null)).id();
 
         TappaDTO prima = TappaDiProva.tappa().nome("Prima di " + utente.getNome()).conclusa(true).build();
         TappaDTO seconda = TappaDiProva.tappa().nome("Seconda di " + utente.getNome()).conclusa(true).build();

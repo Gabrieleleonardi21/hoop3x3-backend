@@ -48,4 +48,9 @@ public class AnagrafeSquadra extends ConDate {
     @JoinColumn(name = "autore_id", nullable = false)
     private Utente autore;
 
+    /** Versione della scheda (migrazione V5): vedi AnagrafeGiocatore.versione. Cambia anche quando cambia solo il roster */
+    @Version
+    @Setter(AccessLevel.NONE)
+    private long versione;
+
 }
