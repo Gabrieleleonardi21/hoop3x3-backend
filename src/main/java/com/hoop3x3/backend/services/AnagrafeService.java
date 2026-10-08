@@ -133,8 +133,8 @@ public class AnagrafeService {
      * prima, uno script) salva senza controllo, come sempre; chi la manda e la trova cambiata ha davanti una scheda salvata
      * nel frattempo da un altro dispositivo (o da un ADMIN) e riceve 409, senza sovrascriverla. L'eccezione è quella che
      * lancerebbe Hibernate al flush se la scheda cambiasse mentre si salva: le due strade hanno un solo gestore
-     * (ExceptionsHandler), con il messaggio generico «I dati sono stati modificati...». Va dopo checkOwner: chi non è
-     * l'autore non scopre la versione di una scheda altrui provando dei numeri
+     * (ExceptionsHandler), con il messaggio generico «I dati sono stati modificati...». Va dopo checkOwner, come gli altri
+     * controlli sul corpo: prima si decide chi può scrivere, poi che cosa
      */
     private static void controllaVersione(Long letta, long attuale, Class<?> entity, UUID id) {
         if (letta == null) return;
