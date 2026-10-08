@@ -157,7 +157,7 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
         log.warn("Scrittura rifiutata dal database (SQLState {}): {}", stato, perLog(ex.getMostSpecificCause().getMessage()));
         if (stato != null && stato.startsWith("22")) {
             return risposta(HttpStatus.BAD_REQUEST,
-                    "Dati non validi: un campo contiene un valore che il database non accetta (per esempio un carattere di controllo)");
+                    "Dati non validi: un campo contiene un valore che il database non accetta (non valido o troppo lungo)");
         }
         return risposta(HttpStatus.CONFLICT, "Operazione in conflitto con i dati già salvati");
     }

@@ -18,7 +18,8 @@ import java.util.Optional;
  * quindi senza seeder nessuno potrebbe amministrare. Credenziali in env.properties.
  * Quando non crea l'admin lo scrive sempre nei log, con il motivo: una riga INFO se non è un errore (email non impostata,
  * admin già presente), un avviso se la configurazione è sbagliata (password mancante, debole o oltre i 72 byte di BCrypt,
- * password senza email, email già di un utente normale). Non fa mai fallire l'avvio del server.
+ * password senza email, email già di un utente normale). Nessuno di questi casi ferma l'avvio del server (un database
+ * non raggiungibile sì, come per ogni altro runner).
  */
 @Slf4j
 @Component
