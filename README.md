@@ -52,6 +52,7 @@ I valori di base sono in `src/main/resources/application.properties`. Le variabi
 | `CORS_ORIGINS` | `cors.origins` | `http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:4173` | origini del frontend ammesse, separate da virgola |
 | `GROQ_API_KEY` | `groq.api.key` | vuota | chiave Groq del Coach AI; vuota = Coach disattivato |
 | `GROQ_MODEL` | `groq.model` | `openai/gpt-oss-120b` | modello del Coach AI |
+| `GROQ_REASONING_EFFORT` | `groq.reasoning-effort` | `low` | quanto il modello ragiona prima di rispondere (`reasoning_effort`); vuota = il campo non si manda, per un modello che non lo accetta (vedi «Coach AI») |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | `seed.admin.email`, `seed.admin.password` | vuote | l'ADMIN creato al primo avvio (regole nel passo 2 di «Avvio») |
 | `SEED_DEMO` | `seed.demo` | `false` | `true` = al primo avvio carica i dati di prova (vedi «Dati di prova») |
 
@@ -149,9 +150,14 @@ La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/cont
 
 ## Coach AI
 
-Proxy verso [Groq](https://console.groq.com/) (`POST /api/coach/chat`, autenticato): la chiave resta sul server. Modello di default `openai/gpt-oss-120b`, sovrascrivibile con `GROQ_MODEL` in `env.properties`. Senza chiave il Coach è disattivato e il resto dell'app funziona.
+Proxy verso [Groq](https://console.groq.com/) (`POST /api/coach/chat`, autenticato): la chiave resta sul server. Modello di default `openai/gpt-oss-120b`, sovrascrivibile con `GROQ_MODEL` in `env.properties`. Senza chiave il Coach è disattivato e il resto dell'app funziona. Il server manda a Groq anche `reasoning_effort` (`GROQ_REASONING_EFFORT`, di base `low`: ai modelli gpt-oss basta e lascia token alla risposta); un modello che non accetta il campo risponderebbe 400 a ogni richiesta, e in quel caso la variabile si lascia vuota (`GROQ_REASONING_EFFORT=`) e il campo non si manda.
 
-La richiesta è controllata prima di arrivare a Groq, altrimenti 400: `messages` da 1 a 60 messaggi, ognuno con ruolo `system`, `user`, `assistant` o `tool`, per al massimo 100.000 caratteri; `tools` al massimo 20 strumenti (50.000 caratteri). Modello e limite di token li fissa il server. Groq ha 5 secondi per accettare la connessione e 60 per mandare l'intera risposta.
+La richiesta è controllata prima di arrivare a Groq, altrimenti 400 con un messaggio in italiano:
+
+- `messages` da 1 a 60 messaggi, per al massimo 100.000 caratteri. Il primo può avere il ruolo `system` (le istruzioni al modello, che scrive il Coach dell'app); tutti gli altri solo `user`, `assistant` o `tool`: un secondo `system`, o uno in mezzo alla conversazione, è un client che prova a riscrivere le istruzioni.
+- `tools` al massimo 20 strumenti (50.000 caratteri), e ognuno deve essere una funzione del Coach: `"type": "function"` e `function.name` tra i nomi di `COACH_TOOLS` in `src/coach/toolDefs.ts` del frontend (`crea_lega`, `crea_tappa`, `annulla_risultato`, `aggiorna_squadra`, `registra_squadra`, `registra_giocatore`, `sorteggia_gironi`, `genera_fasi_dirette`, `registra_risultato`, `concludi_tappa`; la copia sta in `CoachAiService.TOOL_AMMESSI`, e uno strumento nuovo va aggiunto da entrambe le parti). Con un altro `type` Groq attiverebbe i suoi strumenti integrati (`browser_search`, `code_interpreter`), pagati con la chiave del server.
+
+Modello e limite di token li fissa il server. Groq ha 5 secondi per accettare la connessione e 60 per mandare l'intera risposta.
 
 Ogni utente può fare 20 richieste al minuto e 300 al giorno: oltre, il server risponde 429 (vedi «Limiti di frequenza»).
 
@@ -296,7 +302,7 @@ Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 - **Anagrafe** — roster di una squadra fino a 12 giocatori; note di giocatori e squadre fino a 2000 caratteri.
 - **Indirizzi web** (`logo`, `website` e `instagram` di una squadra, `url` di ogni video di una tappa) — vuoti o assenti, oppure un indirizzo che comincia con `http://` o `https://` o un percorso del sito (comincia con `/`, come i loghi integrati `/logos/nome.svg`, ma non con `//`), lungo al massimo 2048 caratteri: il frontend li mette in `src` e `href`, e così `javascript:`, `data:` e gli altri schemi non entrano nel database. Altrimenti 400 con il nome del campo (per i video, con il numero del video che non va) e un messaggio in italiano. È la stessa regola di `safeUrl` nel frontend (annotazione `validation/IndirizzoWeb`, riusabile).
 - **Account** — email fino a 255 caratteri; alla registrazione la password ha da 8 caratteri a 72 byte in UTF-8 (una lettera accentata ne occupa 2, un emoji 4).
-- **Coach AI** — da 1 a 60 messaggi per al massimo 100.000 caratteri, fino a 20 strumenti (50.000 caratteri): vedi la sezione Coach AI. In più, per utente, 20 richieste al minuto e 300 al giorno: vedi «Limiti di frequenza».
+- **Coach AI** — da 1 a 60 messaggi per al massimo 100.000 caratteri (ruolo `system` solo nel primo), fino a 20 strumenti (50.000 caratteri), solo le funzioni del Coach dell'app: vedi la sezione Coach AI. In più, per utente, 20 richieste al minuto e 300 al giorno: vedi «Limiti di frequenza».
 
 **Errori** — ogni errore dell'applicazione ha lo stesso corpo JSON, `{message, timestamp}`, qualunque `Accept` mandi il client: `message` è in italiano, anche con un browser in un'altra lingua (la lingua dei messaggi di validazione è fissa, `spring.web.locale=it`, e non segue `Accept-Language`), e senza dettagli interni (SQL e stack restano nei log), `timestamp` è la data e l'ora del server in UTC, scritte senza fuso. Gli stati:
 

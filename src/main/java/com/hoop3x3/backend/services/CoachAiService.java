@@ -44,11 +44,24 @@ public class CoachAiService {
     private static final int MAX_CARATTERI_MESSAGGI = 100_000;
     private static final int MAX_TOOL = 20;
     private static final int MAX_CARATTERI_TOOL = 50_000;
-    private static final Set<String> RUOLI = Set.of("system", "user", "assistant", "tool");
+    private static final String SYSTEM = "system";
+    /** I ruoli dei messaggi dopo il primo: `system` può essere solo il primo, il client non lo infila in mezzo alla conversazione */
+    private static final Set<String> RUOLI_DOPO_IL_PRIMO = Set.of("user", "assistant", "tool");
+    private static final Set<String> RUOLI = Set.of(SYSTEM, "user", "assistant", "tool");
+    /**
+     * Gli strumenti che il Coach può chiedere al modello: i nomi di COACH_TOOLS in Hoops-3x3/src/coach/toolDefs.ts (frontend),
+     * uno per funzione di toolHandlers.ts. Un tool con un altro nome, o di un altro tipo, non passa: con `type` diverso da
+     * «function» Groq attiva i suoi strumenti integrati (browser_search, code_interpreter), pagati con la chiave del server.
+     * Uno strumento nuovo nel frontend va aggiunto anche qui
+     */
+    static final Set<String> TOOL_AMMESSI = Set.of("crea_lega", "crea_tappa", "annulla_risultato", "aggiorna_squadra",
+            "registra_squadra", "registra_giocatore", "sorteggia_gironi", "genera_fasi_dirette", "registra_risultato",
+            "concludi_tappa");
 
-    // Chiave e modello da groq.* (GroqProperties)
+    // Chiave, modello e reasoning effort da groq.* (GroqProperties)
     private final String apiKey;
     private final String model;
+    private final String reasoningEffort;
     private final ObjectMapper mapper;
     private final String url;
     private final RestClient http;
@@ -63,6 +76,7 @@ public class CoachAiService {
         this.mapper = mapper;
         this.apiKey = proprieta.api().key();
         this.model = proprieta.model();
+        this.reasoningEffort = proprieta.reasoningEffort();
         this.url = url;
         // Senza timeout una risposta lenta di Groq terrebbe occupato un thread del server a tempo indeterminato
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(
@@ -86,7 +100,8 @@ public class CoachAiService {
         // gpt-oss ragiona prima di rispondere e i token di reasoning contano nel budget:
         // effort basso + budget più ampio evitano risposte troncate (content vuoto)
         body.put("max_tokens", 1200);
-        body.put("reasoning_effort", "low");
+        // Solo se configurato: un modello che non accetta il campo risponderebbe 400 a ogni richiesta (groq.reasoning-effort vuoto)
+        if (!reasoningEffort.isBlank()) body.put("reasoning_effort", reasoningEffort);
         body.set("messages", req.messages());
         if (req.tools() != null && !req.tools().isEmpty()) {
             body.set("tools", req.tools());
@@ -135,9 +150,15 @@ public class CoachAiService {
         if (!messaggi.isArray() || messaggi.isEmpty() || messaggi.size() > MAX_MESSAGGI) {
             throw new BadRequestException("messages deve essere un elenco da 1 a " + MAX_MESSAGGI + " messaggi");
         }
-        for (JsonNode m : messaggi) {
+        for (int i = 0; i < messaggi.size(); i++) {
+            JsonNode m = messaggi.get(i);
             if (!m.isObject() || !RUOLI.contains(m.path("role").asString(""))) {
                 throw new BadRequestException("Ogni messaggio deve avere un ruolo valido");
+            }
+            // Le istruzioni al modello (system) le scrive il Coach dell'app, in testa: un secondo system, o uno in mezzo alla
+            // conversazione, è un client che prova a riscriverle
+            if (i > 0 && !RUOLI_DOPO_IL_PRIMO.contains(m.path("role").asString())) {
+                throw new BadRequestException("Solo il primo messaggio può avere il ruolo system");
             }
         }
         if (messaggi.toString().length() > MAX_CARATTERI_MESSAGGI) {
@@ -147,6 +168,12 @@ public class CoachAiService {
         if (tool == null || tool.isNull()) return;
         if (!tool.isArray() || tool.size() > MAX_TOOL || tool.toString().length() > MAX_CARATTERI_TOOL) {
             throw new BadRequestException("tools deve essere un elenco di al massimo " + MAX_TOOL + " strumenti");
+        }
+        for (JsonNode t : tool) {
+            if (!t.isObject() || !"function".equals(t.path("type").asString(""))
+                    || !TOOL_AMMESSI.contains(t.path("function").path("name").asString(""))) {
+                throw new BadRequestException("Ogni strumento deve essere una funzione del Coach (type function e un nome tra quelli dell'app)");
+            }
         }
     }
 

@@ -37,6 +37,7 @@ class ProprietaTest {
         GroqProperties groq = leggi(nessuna, "groq", GroqProperties.class);
         assertThat(groq.api().key()).isEmpty();
         assertThat(groq.model()).isEqualTo("openai/gpt-oss-120b");
+        assertThat(groq.reasoningEffort()).isEqualTo("low");
     }
 
     @Test
@@ -45,7 +46,7 @@ class ProprietaTest {
                 "cors.origins", "https://a.it,https://b.it",
                 "auth.refresh-giorni", "7", "auth.cookie-secure", "false",
                 "seed.demo", "true", "seed.admin.email", "a@prova.it", "seed.admin.password", "Segreta-di-prova-1",
-                "groq.api.key", "chiave-di-prova", "groq.model", "modello-di-prova");
+                "groq.api.key", "chiave-di-prova", "groq.model", "modello-di-prova", "groq.reasoning-effort", "");
         assertThat(leggi(valori, "cors", CorsProperties.class).origins()).containsExactly("https://a.it", "https://b.it");
         assertThat(leggi(valori, "auth", AuthProperties.class)).isEqualTo(new AuthProperties(7, false));
         SeedProperties seed = leggi(valori, "seed", SeedProperties.class);
@@ -55,6 +56,7 @@ class ProprietaTest {
         GroqProperties groq = leggi(valori, "groq", GroqProperties.class);
         assertThat(groq.api().key()).isEqualTo("chiave-di-prova");
         assertThat(groq.model()).isEqualTo("modello-di-prova");
+        assertThat(groq.reasoningEffort()).as("vuoto: il campo non si manda a Groq").isEmpty();
     }
 
     // Il toString() automatico di un record scrive tutti i campi: password e chiave non devono finire nei log
@@ -62,7 +64,7 @@ class ProprietaTest {
     void passwordEChiaveNonCompaionoNelToString() {
         assertThat(new SeedProperties(true, new SeedProperties.Admin("a@prova.it", "Segreta-di-prova-1")).toString())
                 .doesNotContain("Segreta-di-prova-1");
-        assertThat(new GroqProperties(new GroqProperties.Api("chiave-di-prova"), "m").toString())
+        assertThat(new GroqProperties(new GroqProperties.Api("chiave-di-prova"), "m", "low").toString())
                 .doesNotContain("chiave-di-prova");
     }
 }
