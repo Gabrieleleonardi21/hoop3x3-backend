@@ -50,8 +50,9 @@ public final class CampiDiTesto {
             // Il nome della lega finisce anche nelle pubblicazioni, che ne tengono una copia
             campo(NuovaLegaDTO.class, "nome", "leghe.nome", "archivio_tappe.lega_nome"),
             campo(PatchLegaDTO.class, "nome", "leghe.nome", "archivio_tappe.lega_nome"),
-            campo(TappaDTO.class, "nome", "tappe.nome"),
-            campo(TappaDTO.class, "luogo", "tappe.luogo"),
+            // Nome e luogo della tappa finiscono anche nelle colonne dell'elenco dell'archivio (V6)
+            campo(TappaDTO.class, "nome", "tappe.nome", "archivio_tappe.nome"),
+            campo(TappaDTO.class, "luogo", "tappe.luogo", "archivio_tappe.luogo"),
             campo(GiocatoreRequestDTO.class, "nome", "anagrafe_giocatori.nome"),
             campo(GiocatoreRequestDTO.class, "cognome", "anagrafe_giocatori.cognome"),
             campo(GiocatoreRequestDTO.class, "soprannome", "anagrafe_giocatori.soprannome"),

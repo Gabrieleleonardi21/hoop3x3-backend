@@ -15,8 +15,6 @@ import com.hoop3x3.backend.services.LegaService;
 import com.hoop3x3.backend.support.Tempo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc; // Spring Boot 4: package del modulo webmvc-test
 import org.springframework.http.MediaType;
@@ -348,44 +346,42 @@ class ArchivioIT {
                 .formatted(milano.id(), millis(adesso), roma.id(), millis(ieri))));
     }
 
-    // Le pubblicazioni fatte con il vecchio endpoint sono tappe scelte dal client: possono mancare luogo e data, e le squadre
-    // possono non essere un array. Una voce così non deve rompere l'elenco (500) né nascondere le altre: ha luogo e data vuoti
-    // e 0 squadre
-    @ParameterizedTest
-    @ValueSource(strings = {
-            "{\"nome\": \"Vecchia\"}",
-            "{\"nome\": \"Vecchia\", \"luogo\": null, \"data\": null, \"squadre\": null}",
-            "{\"nome\": \"Vecchia\", \"squadre\": {\"s1\": \"Team Rome\"}}",
-            "{\"nome\": \"Vecchia\", \"squadre\": \"nessuna\"}"})
-    void unaPubblicazioneVecchiaConCampiMancantiONonValidi_stanellElencoConVuotiEZeroSquadre(String contenuto) throws Exception {
-        verificaLaVoceDellaPubblicazioneVecchia(contenuto, "Vecchia");
+    // L'elenco legge le colonne scritte alla pubblicazione (V6), non il contenuto JSONB: cambiato il contenuto in SQL, la voce
+    // resta quella della pubblicazione, e non c'è più niente da decomprimere a ogni richiesta. Le pubblicazioni di prima della
+    // V6, anche con contenuti strani, le ha riempite la migrazione: lo prova MigrazioniIT
+    @Test
+    void elencoLeggeLeColonneDellaPubblicazione_nonIlContenuto() throws Exception {
+        TappaDTO roma = tappaDto(UUID.randomUUID(), "Tappa di Roma", "Roma", "2026-06-14", SQUADRE, true);
+        lega(mario, "Circuito 2026", roma);
+        pubblica(roma.id(), mario).andExpect(status().isOk());
+
+        jdbc.update("update archivio_tappe set contenuto = '{}'::jsonb where tappa_id = ?", roma.id());
+
+        assertThat(elenco()).singleElement().satisfies(voce -> {
+            assertThat(voce.get("nome").asString()).isEqualTo("Tappa di Roma");
+            assertThat(voce.get("luogo").asString()).isEqualTo("Roma");
+            assertThat(voce.get("data").asString()).isEqualTo("2026-06-14");
+            assertThat(voce.get("nSquadre").asInt()).isEqualTo(2);
+        });
     }
 
-    // Anche il nome può mancare: in un contenuto vuoto, o che non è nemmeno un oggetto. Il test sopra fissa il nome «Vecchia»,
-    // quindi la difesa del nome è provata qui: la voce ha il nome vuoto e il resto come sopra, e l'elenco non dà errore
-    @ParameterizedTest
-    @ValueSource(strings = {"{}", "[]"})
-    void unaPubblicazioneVecchiaSenzaNome_stanellElencoConNomeVuoto(String contenuto) throws Exception {
-        verificaLaVoceDellaPubblicazioneVecchia(contenuto, "");
-    }
+    // Ripubblicare aggiorna anche le colonne dell'elenco, non solo lo snapshot
+    @Test
+    void ripubblicareAggiornaLaVoceDellElenco() throws Exception {
+        TappaDTO tappa = tappaDto(UUID.randomUUID(), "Tappa di Roma", "Roma", "2026-06-14", SQUADRE, true);
+        lega(mario, "Circuito 2026", tappa);
+        pubblica(tappa.id(), mario).andExpect(status().isOk());
 
-    /**
-     * Un archivio con una pubblicazione normale e una vecchia con questo contenuto: l'elenco le ha entrambe, e la voce della
-     * vecchia ha il nome atteso, luogo e data vuoti e 0 squadre
-     */
-    private void verificaLaVoceDellaPubblicazioneVecchia(String contenuto, String nomeAtteso) throws Exception {
-        UUID buona = tappaConclusa(mario, "Circuito 2026");
-        pubblica(buona, mario).andExpect(status().isOk());
-        UUID vecchia = tappaConclusa(luigi, "Altro circuito");
-        ArchivioTappa riga = pubblicazioneConContenuto(vecchia, luigi, contenuto);
+        legaService.aggiornaTappa(mario, tappa.id(), TappaDiProva.da(tappa).nome("Finale di Milano").luogo("Milano")
+                .data("2026-07-05").squadre(TRE_SQUADRE).versione(0L).build());
+        pubblica(tappa.id(), mario).andExpect(status().isOk());
 
-        JsonNode elenco = elenco();
-
-        assertThat(elenco.size()).isEqualTo(2);
-        assertThat(elenco).contains(mapper.readTree("""
-                {"tappaId": "%s", "nome": "%s", "luogo": "", "data": "", "nSquadre": 0,
-                 "lega": "Nome vecchio", "autore": "Luigi", "ts": %d}"""
-                .formatted(vecchia, nomeAtteso, millis(riga.getPubblicatoIl()))));
+        assertThat(elenco()).singleElement().satisfies(voce -> {
+            assertThat(voce.get("nome").asString()).isEqualTo("Finale di Milano");
+            assertThat(voce.get("luogo").asString()).isEqualTo("Milano");
+            assertThat(voce.get("data").asString()).isEqualTo("2026-07-05");
+            assertThat(voce.get("nSquadre").asInt()).isEqualTo(3);
+        });
     }
 
     /* ── Pulizia: la pubblicazione segue la sua tappa (V2) ── */

@@ -33,6 +33,23 @@ public class ArchivioTappa {
     @JoinColumn(name = "autore_id", nullable = false)
     private Utente autore;
 
+    /**
+     * Ciò che l'elenco pubblico mostra della tappa (migrazione V6): copie di nome, luogo, data e numero delle squadre iscritte,
+     * scritte alla pubblicazione, così l'elenco non decomprime il JSONB del contenuto a ogni richiesta. Le pubblicazioni
+     * fatte prima della V6 le ha riempite la migrazione dal contenuto
+     */
+    @Column(nullable = false)
+    private String nome = "";
+
+    @Column(nullable = false)
+    private String luogo = "";
+
+    @Column(nullable = false)
+    private String data = "";
+
+    @Column(name = "numero_squadre", nullable = false)
+    private int numeroSquadre;
+
     /** La tappa nella forma delle API (LegaService.toDto, lo stesso formato del frontend) in JSONB */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "jsonb")

@@ -35,8 +35,8 @@ public class ArchivioService {
     }
 
     /**
-     * L'elenco sintetico, dalla pubblicazione più recente: una sola query estrae i dati dal JSONB, senza leggere né
-     * interpretare il contenuto delle tappe (che si legge con {@link #una}).
+     * L'elenco sintetico, dalla pubblicazione più recente: una sola query sulle colonne scritte alla pubblicazione, senza
+     * leggere il contenuto delle tappe (che si legge con {@link #una}).
      */
     @Transactional(readOnly = true)
     public List<VoceArchivioDTO> tutte() {
@@ -79,7 +79,13 @@ public class ArchivioService {
         a.setTappaId(tappaId);
         a.setAutore(lega.getOwner());
         a.setLegaNome(lega.getNome());
-        a.setContenuto(mapper.writeValueAsString(legaService.toDto(tappa)));
+        TappaDTO snapshot = legaService.toDto(tappa);
+        a.setContenuto(mapper.writeValueAsString(snapshot));
+        // Le colonne dell'elenco pubblico: copie di ciò che sta nello snapshot, così l'elenco non lo decomprime
+        a.setNome(snapshot.nome());
+        a.setLuogo(snapshot.luogo());
+        a.setData(snapshot.data());
+        a.setNumeroSquadre(snapshot.squadre().size());
         a.setPubblicatoIl(Tempo.adesso());
         return toDto(repo.save(a));
     }
