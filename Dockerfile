@@ -19,8 +19,11 @@ WORKDIR /app
 RUN groupadd --system hoop && useradd --system --gid hoop hoop
 COPY --from=build /app/target/hoop-3x3-backend-*.jar app.jar
 USER hoop
-# La JVM usa al massimo il 75% della RAM del container (il piano free di Render ne ha 512 MB)
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75"
+# Heap al massimo al 60% della RAM del container (il piano free di Render ne ha 512 MB, quindi circa 300 MB): il resto serve a
+# metaspace, thread, buffer e codice compilato, che non stanno nell'heap. Con il 75% (384 MB) il processo intero superava i
+# 512 MB e Render lo uccideva (OOM-kill) senza una riga nei log. ExitOnOutOfMemoryError: un OutOfMemoryError non ferma la
+# JVM da solo, che resterebbe viva e ferma senza rispondere; così esce subito e Render la riavvia
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError"
 # Porta di default; su Render vale quella della variabile PORT (server.port=${PORT:3001})
 EXPOSE 3001
 ENTRYPOINT ["java", "-jar", "app.jar"]
