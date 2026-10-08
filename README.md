@@ -140,7 +140,7 @@ La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/cont
 | `DELETE` | `/api/anagrafe/squadre/{id}` | Autore della scheda o ADMIN | 204 |
 | `GET` | `/api/archivio` | Pubblico | 200 l'elenco sintetico (`VoceArchivioDTO`) |
 | `GET` | `/api/archivio/{tappaId}` | Pubblico | 200 la copia pubblica per intero (`CopiaPubblicaDTO`); 404 se non è in archivio |
-| `PUT` | `/api/archivio/{tappaId}` | Proprietario della lega della tappa o ADMIN | 200 la copia pubblica; senza corpo; 409 se la tappa non è conclusa |
+| `PUT` | `/api/archivio/{tappaId}` | Proprietario della lega della tappa o ADMIN (e, se la pubblicazione esiste già, il suo autore o ADMIN) | 200 la copia pubblica; senza corpo; 409 se la tappa non è conclusa |
 | `DELETE` | `/api/archivio/{tappaId}` | Autore della pubblicazione (per quelle nuove, il proprietario della lega) o ADMIN | 204 |
 | `GET` | `/api/coach/status` | Autenticato | 200 `{available}` |
 | `POST` | `/api/coach/chat` | Autenticato | 200 la risposta di Groq; 429 oltre i limiti di frequenza |
@@ -185,6 +185,7 @@ Le tappe concluse si pubblicano nell'archivio del circuito. Leggerlo è pubblico
 - `PUT /api/archivio/{tappaId}` — pubblica la tappa, o la ripubblica aggiornando la copia. **Non ha corpo**: la copia pubblica (lo snapshot) la costruisce il server dalla tappa che ha salvato, nella forma delle API delle tappe, quindi nessuno può pubblicare risultati inventati; un corpo eventuale si ignora (non si legge né si valida). Risponde 200 con `{tappa, lega, autore, autoreId, ts}`. La copia ha i dati che il server ha in quel momento: il client salva la tappa e poi la pubblica. Il vecchio `PUT /api/archivio`, con la tappa nel corpo, non esiste più: un client non aggiornato riceve 405 e non pubblica niente.
   - **404** se la tappa non esiste, **403** se non è di una lega dell'utente (un ADMIN può pubblicare qualsiasi tappa), **409** se la tappa non è conclusa («concludila prima di pubblicarla in archivio»). I controlli vanno in quest'ordine: chi non è il proprietario non scopre se la tappa è conclusa.
   - L'autore è sempre il proprietario della lega, anche quando pubblica un ADMIN o quando si ripubblica: così lui e gli ADMIN possono sempre ritirare la pubblicazione.
+  - **403** anche se la pubblicazione esiste già e il suo autore non è chi pubblica (un ADMIN passa). Gli id delle tappe sono pubblici e li sceglie il client: senza questo controllo chiunque potrebbe creare una tappa con l'id di una pubblicazione orfana (vedi sotto) e, pubblicandola, sostituire contenuto e autore della pubblicazione di un altro. Vale anche per una pubblicazione del vecchio endpoint fatta da chi non era il proprietario della lega: il proprietario non la sovrascrive, un ADMIN sì (e l'autore torna il proprietario).
   - Se una tappa pubblicata viene riaperta (non più conclusa), la copia pubblica resta quella dell'ultima pubblicazione: ripubblicare dà 409 finché la tappa non torna conclusa, mentre ritirare si può sempre.
 - `DELETE /api/archivio/{tappaId}` — 204, ritira la pubblicazione (l'autore o un ADMIN).
 

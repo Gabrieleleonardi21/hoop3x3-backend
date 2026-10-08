@@ -20,6 +20,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc; // Spring Boot 4: package del modulo webmvc-test
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.JsonNode;
@@ -65,6 +66,7 @@ class ArchivioIT {
     @Autowired TappaRepository tappe;
     @Autowired ArchivioTappaRepository archivio;
     @Autowired LegaService legaService;
+    @Autowired JdbcTemplate jdbc;
 
     private Utente mario; // proprietario delle leghe di prova
     private Utente luigi; // un altro utente
@@ -147,15 +149,45 @@ class ArchivioIT {
     }
 
     // Una pubblicazione fatta con il vecchio endpoint ha come autore chi l'ha mandata, che può non essere il proprietario
-    // della lega: alla ripubblicazione l'autore torna a essere il proprietario
+    // della lega. Una riga già presente la sovrascrive solo il suo autore o un ADMIN: il proprietario della lega, che non ne è
+    // l'autore, riceve 403 (è la stessa regola che ferma chi si crea una tappa con l'id di una pubblicazione orfana, vedi
+    // sotto). Un ADMIN la ripubblica, e l'autore torna a essere il proprietario
     @Test
-    void laRipubblicazioneRiportaAlProprietarioLAutoreDiUnaPubblicazioneVecchia() throws Exception {
+    void unaPubblicazioneVecchiaDiUnAltroAutore_ilProprietarioRiceve403_unAdminLaRipubblicaRiportandolaAlProprietario() throws Exception {
         UUID tappaId = tappaConclusa(mario, "Circuito 2026");
         pubblicazioneVecchia(tappaId, luigi);
 
-        pubblica(tappaId, mario).andExpect(status().isOk())
+        pubblica(tappaId, mario).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(containsString("questa pubblicazione")));
+        assertThat(letta(tappaId).get("autoreId").asString()).isEqualTo(luigi.getId().toString());
+
+        pubblica(tappaId, admin).andExpect(status().isOk())
                 .andExpect(jsonPath("$.autoreId").value(mario.getId().toString()))
                 .andExpect(jsonPath("$.lega").value("Circuito 2026"));
+    }
+
+    /* ── Pubblicazioni orfane: la tappa eliminata prima della V2, la pubblicazione rimasta ── */
+
+    // Gli id delle tappe sono pubblici e li sceglie il client, e la chiave dell'archivio è l'id della tappa. Prima chiunque
+    // poteva creare una tappa con l'id di una pubblicazione orfana (visibile nell'elenco pubblico) e, pubblicandola, sostituire
+    // il contenuto e l'autore della pubblicazione di un altro con i suoi. Ora la tappa si crea (l'id è libero in `tappe`), ma
+    // la pubblicazione risponde 403 e la riga resta com'era
+    @Test
+    void unaTappaCreataConLIdDiUnaPubblicazioneOrfana_nonPuoSovrascriverla() throws Exception {
+        UUID orfana = UUID.randomUUID();
+        ArchivioTappa diMario = pubblicazioneOrfana(orfana, mario);
+        // Luigi si crea la tappa con quell'id: in `tappe` l'id è libero, quindi la creazione passa
+        legaService.aggiungiTappa(luigi, lega(luigi, "Lega di Luigi"), tappaDto(orfana, "Tappa di Luigi", true));
+
+        pubblica(orfana, luigi).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(containsString("questa pubblicazione")));
+
+        ArchivioTappa dopo = archivio.findById(orfana).orElseThrow();
+        assertThat(dopo.getAutore().getId()).isEqualTo(mario.getId());
+        assertThat(dopo.getLegaNome()).isEqualTo("Nome vecchio");
+        assertThat(mapper.readTree(dopo.getContenuto())).isEqualTo(mapper.readTree(diMario.getContenuto()));
+        assertThat(dopo.getPubblicatoIl()).isEqualTo(diMario.getPubblicatoIl());
+        assertThat(letta(orfana).at("/tappa/nome").asString()).isEqualTo("Tappa vecchia");
     }
 
     @Test
@@ -434,6 +466,21 @@ class ArchivioIT {
      */
     private ArchivioTappa pubblicazioneVecchia(UUID tappaId, Utente autore) {
         return pubblicazioneConContenuto(tappaId, autore, mapper.writeValueAsString(tappaDto(tappaId, "Tappa vecchia", true)));
+    }
+
+    /**
+     * Una pubblicazione orfana, come quelle rimaste nei database già in uso: la sua tappa non esiste. La chiave esterna della
+     * V2 (NOT VALID) lascia stare le righe già presenti ma controlla quelle nuove, quindi si toglie per il tempo di scrivere la
+     * riga e si rimette com'era (NOT VALID), senza che PostgreSQL controlli le righe esistenti
+     */
+    private ArchivioTappa pubblicazioneOrfana(UUID tappaId, Utente autore) {
+        jdbc.execute("alter table archivio_tappe drop constraint archivio_tappe_tappa_id_fkey");
+        try {
+            return pubblicazioneVecchia(tappaId, autore);
+        } finally {
+            jdbc.execute("alter table archivio_tappe add constraint archivio_tappe_tappa_id_fkey "
+                    + "foreign key (tappa_id) references tappe(id) on delete cascade not valid");
+        }
     }
 
     /** Una pubblicazione di ieri, con il contenuto JSON scelto dal chiamante (anche uno che il server non costruirebbe mai) */

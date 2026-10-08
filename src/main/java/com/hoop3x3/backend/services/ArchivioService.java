@@ -57,6 +57,10 @@ public class ArchivioService {
      * può pubblicare risultati inventati. Pubblica il proprietario della lega o un ADMIN, e solo una tappa conclusa.
      * L'autore è sempre il proprietario della lega, anche quando pubblica un ADMIN o si ripubblica: così lui e gli
      * ADMIN possono sempre ritirarla con {@link #rimuovi}.
+     * <p>
+     * Una pubblicazione già presente la sovrascrive solo il suo autore (o un ADMIN). Gli id delle tappe sono pubblici e li
+     * sceglie il client: senza questo controllo chiunque potrebbe creare una tappa con l'id di una pubblicazione orfana
+     * (la tappa eliminata prima della V2, la pubblicazione rimasta) e, pubblicandola, sostituirne contenuto e autore.
      */
     @Transactional
     public CopiaPubblicaDTO pubblica(Utente utente, UUID tappaId) {
@@ -64,12 +68,14 @@ public class ArchivioService {
         // sue tappe, scritta una volta sola. Vengono prima del 409: chi non è il proprietario non deve poter scoprire se la
         // tappa è conclusa
         Tappa tappa = legaService.trovaTappa(utente, tappaId);
+        ArchivioTappa a = repo.findById(tappaId).orElseGet(ArchivioTappa::new);
+        // La riga c'è già: 403 se il suo autore non è chi pubblica (un ADMIN passa). Prima del 409, come l'altro 403
+        if (a.getAutore() != null) guard.checkOwner(utente, a.getAutore().getId(), "questa pubblicazione");
         if (!tappa.isConclusa()) {
             throw new ConflictException("La tappa non è conclusa: concludila prima di pubblicarla in archivio");
         }
         Lega lega = tappa.getLega();
         guard.tracciaModifica(utente, lega.getOwner().getId(), "pubblicazione", tappaId);
-        ArchivioTappa a = repo.findById(tappaId).orElseGet(ArchivioTappa::new);
         a.setTappaId(tappaId);
         a.setAutore(lega.getOwner());
         a.setLegaNome(lega.getNome());
