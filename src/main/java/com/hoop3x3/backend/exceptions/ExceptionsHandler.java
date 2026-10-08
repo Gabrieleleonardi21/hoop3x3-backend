@@ -23,6 +23,7 @@ import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import java.sql.SQLException;
 import java.util.stream.Collectors;
 
 import static com.hoop3x3.backend.services.LogSupport.perLog;
@@ -143,12 +144,21 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
                 .body(errore(ex.getMessage()));
     }
 
-    // Vincolo del database violato (doppione, valore troppo lungo…): il dettaglio SQL resta nei log
+    // Il database ha rifiutato la scrittura: il dettaglio SQL resta nei log. Spring traduce in DataIntegrityViolationException
+    // due classi di SQLState diverse. La 23 è un vincolo violato (doppione, chiave esterna, NOT NULL): un conflitto con i dati
+    // già salvati, 409. La 22 sono dati che il database non accetta (un carattere NUL in un nome, un valore troppo lungo):
+    // un errore della richiesta, 400. Con un 409 il client penserebbe a un salvataggio di un altro dispositivo e
+    // scarterebbe la modifica
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorsDTO> handleDataIntegrity(DataIntegrityViolationException ex) {
+        String stato = sqlState(ex);
         // Il messaggio del database può contenere il valore che ha violato il vincolo (l'email di un doppione), cioè qualcosa
         // che ha scritto un utente
-        log.warn("Vincolo del database violato: {}", perLog(ex.getMostSpecificCause().getMessage()));
+        log.warn("Scrittura rifiutata dal database (SQLState {}): {}", stato, perLog(ex.getMostSpecificCause().getMessage()));
+        if (stato != null && stato.startsWith("22")) {
+            return risposta(HttpStatus.BAD_REQUEST,
+                    "Dati non validi: un campo contiene un valore che il database non accetta (per esempio un carattere di controllo)");
+        }
         return risposta(HttpStatus.CONFLICT, "Operazione in conflitto con i dati già salvati");
     }
 
@@ -191,6 +201,17 @@ public class ExceptionsHandler extends ResponseEntityExceptionHandler {
         if (!(request instanceof ServletWebRequest web)) return "una richiesta sconosciuta";
         HttpServletRequest richiesta = web.getRequest();
         return perLog(richiesta.getMethod() + " " + richiesta.getRequestURI());
+    }
+
+    /**
+     * Lo SQLState dell'errore del database: lo porta la SQLException del driver, in fondo alla catena delle cause
+     * (DataIntegrityViolationException di Spring → eccezione di Hibernate → PSQLException). Null se nella catena non c'è
+     */
+    private static String sqlState(Throwable ex) {
+        for (Throwable causa = ex; causa != null; causa = causa.getCause()) {
+            if (causa instanceof SQLException sql && sql.getSQLState() != null) return sql.getSQLState();
+        }
+        return null;
     }
 
     /** I primi byte della risposta sono già partiti verso il client: non si può più scriverle sopra un corpo d'errore */

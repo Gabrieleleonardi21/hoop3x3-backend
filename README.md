@@ -292,7 +292,7 @@ Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 
 **Errori** — ogni errore dell'applicazione ha lo stesso corpo JSON, `{message, timestamp}`, qualunque `Accept` mandi il client: `message` è in italiano e senza dettagli interni (SQL e stack restano nei log), `timestamp` è la data e l'ora del server in UTC, scritte senza fuso. Gli stati:
 
-- **400** — richiesta non valida: JSON malformato, campo oltre un limite o non valido, identificatore non valido nel percorso, versione mancante nel salvataggio di una tappa, richiesta al Coach AI rifiutata. Il messaggio dice che cosa non va, di solito con il nome del campo.
+- **400** — richiesta non valida: JSON malformato, campo oltre un limite o non valido, valore che il database non accetta (SQLState di classe 22, per esempio un carattere NUL in un nome), identificatore non valido nel percorso, versione mancante nel salvataggio di una tappa, richiesta al Coach AI rifiutata. Il messaggio dice che cosa non va, di solito con il nome del campo.
 - **401** — token mancante, scaduto o non valido; email o password sbagliate; refresh token assente, sconosciuto o scaduto.
 - **403** — ruolo insufficiente, oppure risorsa di un altro utente.
 - **404** — risorsa o percorso inesistente.
