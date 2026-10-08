@@ -89,6 +89,11 @@ public class DemoSeeder implements CommandLineRunner {
             log.warn("Seed demo saltato: admin {} non trovato", adminEmail);
             return;
         }
+        // ADMIN_EMAIL di un utente registrato dall'app: DataSeeder non lo promuove, e i dati di prova non vanno intestati a lui
+        if (!admin.isAdmin()) {
+            log.warn("Seed demo saltato: {} è di un utente con ruolo USER, non dell'admin", adminEmail);
+            return;
+        }
 
         if (seedEseguiti.existsById(SEGNO)) {
             log.info("Seed demo saltato: già eseguito");

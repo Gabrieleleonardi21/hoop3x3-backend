@@ -7,6 +7,8 @@ import ch.qos.logback.core.read.ListAppender;
 import com.hoop3x3.backend.dto.ErrorsDTO;
 import com.hoop3x3.backend.entities.Lega;
 import com.hoop3x3.backend.entities.Tappa;
+import org.hibernate.exception.ConstraintViolationException;
+import org.hibernate.exception.DataException;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,7 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
@@ -145,6 +148,39 @@ class ExceptionsHandlerTest {
             assertThat(riga.getLevel()).isEqualTo(Level.WARN);
             assertThat(riga.getFormattedMessage()).doesNotContainPattern("[\\p{Cc}\\p{Zl}\\p{Zp}]")
                     .contains("Key (email)=(ma\\u2028rio@x.it\\r\\nINFO riga inventata) already exists.");
+        });
+    }
+
+    // Spring traduce in DataIntegrityViolationException anche gli errori di SQLState di classe 22 (dati che il database non accetta:
+    // un carattere NUL in un nome, un valore troppo lungo). Sono un errore della richiesta e non un conflitto: con un 409 il
+    // client crederebbe a un salvataggio di un altro dispositivo e scarterebbe la modifica. La catena è quella vera, provata
+    // con PostgreSQL in ErroriDelDatabaseIT: eccezione di Spring → DataException di Hibernate → SQLException del driver
+    @Test
+    void datiCheIlDatabaseNonAccetta_risponde400ELoSqlStateFinisceNelLog() {
+        ResponseEntity<ErrorsDTO> esito = gestore.handleDataIntegrity(new DataIntegrityViolationException("could not execute statement",
+                new DataException("could not execute statement", new SQLException("invalid byte sequence for encoding \"UTF8\": 0x00", "22021"))));
+
+        assertThat(esito.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(esito.getBody().message()).startsWith("Dati non validi");
+        assertThat(logCatturato.list).singleElement().satisfies(riga -> {
+            assertThat(riga.getLevel()).isEqualTo(Level.WARN);
+            assertThat(riga.getFormattedMessage()).contains("SQLState 22021");
+        });
+    }
+
+    // Un vincolo vero (classe 23, qui un doppione) resta un 409, come un errore senza SQLState nella catena
+    @Test
+    void vincoloVeroOSenzaSqlState_resta409() {
+        List<DataIntegrityViolationException> errori = List.of(
+                new DataIntegrityViolationException("could not execute statement", new ConstraintViolationException(
+                        "could not execute statement", new SQLException("duplicate key value", "23505"), "utenti_email_key")),
+                new DataIntegrityViolationException("x"));
+
+        assertThat(errori).allSatisfy(errore -> {
+            ResponseEntity<ErrorsDTO> esito = gestore.handleDataIntegrity(errore);
+
+            assertThat(esito.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(esito.getBody().message()).isEqualTo("Operazione in conflitto con i dati già salvati");
         });
     }
 

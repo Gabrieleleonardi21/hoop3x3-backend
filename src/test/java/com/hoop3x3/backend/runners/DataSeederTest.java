@@ -12,10 +12,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
+
+import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,7 +29,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Admin iniziale: lo si crea solo con una password di almeno 8 caratteri e diversa da quella dell'esempio.
+ * Admin iniziale: lo si crea solo con una password di almeno 8 caratteri, al massimo 72 byte (BCrypt) e diversa da quella
+ * dell'esempio, e mai promuovendo un utente già registrato con la stessa email.
  * Senza contesto Spring: repository e cifratura sono simulati e le proprietà (SeedProperties) si passano al costruttore.
  */
 class DataSeederTest {
@@ -138,13 +143,56 @@ class DataSeederTest {
     @ParameterizedTest
     @ValueSource(strings = {PASSWORD_VALIDA, "admin123", ""})
     void adminGiaPresente_nonNeCreaUnAltroEDiceIlMotivoConUnaRigaInfo(String password) {
-        when(utenteRepository.existsByEmail(EMAIL)).thenReturn(true);
+        when(utenteRepository.findByEmail(EMAIL)).thenReturn(Optional.of(new Utente(EMAIL, "hash", "Admin", Ruolo.ADMIN)));
         conCredenziali(EMAIL, password);
 
         seeder.run();
 
         verify(utenteRepository, never()).save(any());
-        assertSingolaRiga(Level.INFO, "esiste già un utente con l'email di ADMIN_EMAIL");
+        assertSingolaRiga(Level.INFO, "esiste già un admin con l'email di ADMIN_EMAIL");
+    }
+
+    // L'email di ADMIN_EMAIL è di un account registrato dall'app: l'admin non nasce e quell'utente non diventa ADMIN (chi si è
+    // registrato non è detto sia chi gestisce il server). Non è la configurazione normale, quindi un avviso e non una riga INFO
+    @Test
+    void emailGiaDiUnUtenteNormale_nonLoPromuoveEAvvisaNelLog() {
+        Utente registrato = new Utente(EMAIL, "hash", "Mario", Ruolo.USER);
+        when(utenteRepository.findByEmail(EMAIL)).thenReturn(Optional.of(registrato));
+        conCredenziali(EMAIL, PASSWORD_VALIDA);
+
+        seeder.run();
+
+        verify(utenteRepository, never()).save(any());
+        assertThat(registrato.getRuolo()).isEqualTo(Ruolo.USER);
+        assertSingolaRiga(Level.WARN, "già di un utente registrato con ruolo USER, che non viene promosso");
+    }
+
+    // BCrypt legge al massimo 72 byte e oltre lancia un'eccezione, che nel seeder fermerebbe l'avvio del server: l'admin non
+    // nasce, il server parte e un avviso dice perché. Contano i byte, non i caratteri: 40 lettere accentate sono 80 byte
+    @ParameterizedTest
+    @MethodSource("passwordOltreI72Byte")
+    void passwordOltreI72ByteDiBcrypt_nonCreaLAdminEAvvisaNelLog(String password) {
+        conCredenziali(EMAIL, password);
+
+        seeder.run();
+
+        verify(passwordEncoder, never()).encode(any());
+        assertSingolaRiga(Level.WARN, "ADMIN_PASSWORD supera i 72 byte");
+        verify(utenteRepository, never()).save(any());
+    }
+
+    static Stream<String> passwordOltreI72Byte() {
+        return Stream.of("x".repeat(73), "è".repeat(40));
+    }
+
+    // Il confine esatto: 72 byte vanno bene (36 lettere accentate)
+    @Test
+    void passwordDi72Byte_creaLAdmin() {
+        conCredenziali(EMAIL, "è".repeat(36));
+
+        seeder.run();
+
+        assertThat(utenteSalvato().getRuolo()).isEqualTo(Ruolo.ADMIN);
     }
 
     /** Il seeder come lo crea Spring con ADMIN_EMAIL e ADMIN_PASSWORD */

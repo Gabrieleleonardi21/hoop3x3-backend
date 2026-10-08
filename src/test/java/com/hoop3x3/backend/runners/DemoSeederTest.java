@@ -112,6 +112,19 @@ class DemoSeederTest {
         assertSingolaRiga(Level.WARN, "admin Admin@Hoop3x3.it non trovato");
     }
 
+    // ADMIN_EMAIL già di un utente normale: DataSeeder avvisa e non lo promuove, e i dati di prova non devono finire intestati a lui
+    @Test
+    void seedAccesoConEmailDiUnUtenteNormale_nonFaNienteEAvvisaNelLog() throws Exception {
+        configura(true, "admin@hoop3x3.it");
+        Utente normale = new Utente("admin@hoop3x3.it", "hash", "Mario", Ruolo.USER);
+        when(utenti.findByEmail("admin@hoop3x3.it")).thenReturn(Optional.of(normale));
+
+        seeder.run();
+
+        assertNessunaScrittura();
+        assertSingolaRiga(Level.WARN, "è di un utente con ruolo USER");
+    }
+
     /* ── Il segno del seed eseguito ── */
 
     // Dopo l'eliminazione della lega demo niente nei dati dice più che il seed è stato fatto: lo dice il segno (SeedEseguito)

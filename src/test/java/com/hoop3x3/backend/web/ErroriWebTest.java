@@ -119,12 +119,12 @@ class ErroriWebTest {
 
     @Test
     void vincoloDelDatabaseViolato_risponde409SenzaDettagliSql() throws Exception {
-        when(legaService.indice(any())).thenThrow(new DataIntegrityViolationException("could not execute statement [value too long for type character varying(120)]"));
+        when(legaService.indice(any())).thenThrow(new DataIntegrityViolationException("could not execute statement [duplicate key value violates unique constraint \"utenti_email_key\"]"));
 
         mvc.perform(get("/api/leghe").header("Authorization", bearer))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Operazione in conflitto con i dati già salvati"))
-                .andExpect(content().string(not(containsString("varying"))));
+                .andExpect(content().string(not(containsString("utenti_email_key"))));
     }
 
     // Due dispositivi salvano la stessa tappa: il servizio, o Hibernate al flush, rifiuta la seconda con un errore di versione. Non è

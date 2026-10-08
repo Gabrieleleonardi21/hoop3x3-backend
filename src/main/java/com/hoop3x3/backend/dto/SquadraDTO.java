@@ -5,6 +5,7 @@ import com.hoop3x3.backend.entities.AnagrafeSquadra;
 import com.hoop3x3.backend.support.Tempo;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -37,8 +38,12 @@ public record SquadraDTO(
                 RISERVATO, null, Tempo.inMillisecondi(s.getModificatoIl()));
     }
 
-    /** Gli id dei giocatori del roster, nell'ordine salvato: uguale nelle due forme, che non possono divergere */
+    /**
+     * Gli id dei giocatori del roster, nell'ordine salvato: uguale nelle due forme, che non possono divergere. I null sono i buchi
+     * dell'@OrderColumn (una riga del ponte cancellata dalla cascata del database, per esempio eliminando un utente in SQL):
+     * si saltano, altrimenti l'elenco delle squadre cadrebbe con un 500 per tutti
+     */
     private static List<UUID> idDelRoster(AnagrafeSquadra s) {
-        return s.getRoster().stream().map(AnagrafeGiocatore::getId).toList();
+        return s.getRoster().stream().filter(Objects::nonNull).map(AnagrafeGiocatore::getId).toList();
     }
 }

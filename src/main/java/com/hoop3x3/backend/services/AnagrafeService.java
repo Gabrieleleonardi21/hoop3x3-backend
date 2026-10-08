@@ -75,9 +75,10 @@ public class AnagrafeService {
         guard.tracciaEliminazione(utente, g.getAutore().getId(), "giocatore", id);
         // Toglie il giocatore dai roster che lo contengono (la FK del ponte è ON DELETE CASCADE,
         // ma Hibernate va tenuto allineato per non lasciare buchi nell'@OrderColumn). Si caricano solo quelle squadre,
-        // non tutte, e sono già gestite: la modifica del roster la salva la transazione
+        // non tutte, e sono già gestite: la modifica del roster la salva la transazione. Un null è un buco già presente
+        // (lasciato da una cancellazione in SQL, vedi SquadraDTO): si toglie anche lui e il roster si ricompatta
         for (AnagrafeSquadra s : squadre.findByRosterContains(g)) {
-            s.getRoster().removeIf(x -> x.getId().equals(id));
+            s.getRoster().removeIf(x -> x == null || x.getId().equals(id));
         }
         giocatori.delete(g);
     }
