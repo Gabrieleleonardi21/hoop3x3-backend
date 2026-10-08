@@ -91,6 +91,11 @@ public class LegaService {
         // leggerebbero la stessa posizione massima. Così la seconda aspetta il commit della prima e il suo massimo vede
         // la tappa nuova
         Lega lega = trovaLegaConLock(utente, legaId);
+        // Il tetto è lo stesso dell'import (Lega.MAX_TAPPE); il conteggio è sicuro perché la riga della lega è bloccata. È un 400
+        // e non un 409: il frontend legge il 409 di una tappa come «modificata da un altro dispositivo» e ricaricherebbe la lega
+        if (tappaRepository.countByLegaId(legaId) >= Lega.MAX_TAPPE) {
+            throw new BadRequestException("Limite di " + Lega.MAX_TAPPE + " tappe per lega raggiunto");
+        }
         if (tappaRepository.existsById(dto.id())) throw new ConflictException("Esiste già una tappa con id " + dto.id());
         // In coda: una posizione dopo la massima, non il numero delle tappe (dopo un'eliminazione sarebbe già di un'altra)
         Tappa t = fromDto(dto, lega, tappaRepository.prossimaPosizione(legaId));

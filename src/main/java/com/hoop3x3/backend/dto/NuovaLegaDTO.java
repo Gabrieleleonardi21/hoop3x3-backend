@@ -1,5 +1,6 @@
 package com.hoop3x3.backend.dto;
 
+import com.hoop3x3.backend.entities.Lega;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
@@ -12,12 +13,13 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * `tappe` è opzionale: valorizzato solo dall'import di una lega da file JSON. Al massimo 100 tappe, nessun elemento
- * nullo (causerebbe un NullPointerException nel service) e nessun id ripetuto.
+ * `tappe` è opzionale: valorizzato solo dall'import di una lega da file JSON. Al massimo Lega.MAX_TAPPE tappe (lo stesso
+ * tetto dell'aggiunta di una tappa alla volta), nessun elemento nullo (causerebbe un NullPointerException nel service) e
+ * nessun id ripetuto.
  */
 public record NuovaLegaDTO(
         @NotBlank @Size(max = 120) String nome,
-        @Size(max = 100) List<@NotNull @Valid TappaDTO> tappe
+        @Size(max = Lega.MAX_TAPPE) List<@NotNull @Valid TappaDTO> tappe
 ) {
 
     /**

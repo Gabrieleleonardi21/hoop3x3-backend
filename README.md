@@ -127,7 +127,7 @@ La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/cont
 | `GET` | `/api/leghe/{id}` | Proprietario o ADMIN | 200 la lega con le sue tappe |
 | `PATCH` | `/api/leghe/{id}` | Proprietario o ADMIN | 200 la lega rinominata |
 | `DELETE` | `/api/leghe/{id}` | Proprietario o ADMIN | 204; elimina anche le tappe |
-| `POST` | `/api/leghe/{id}/tappe` | Proprietario o ADMIN | 201 la tappa |
+| `POST` | `/api/leghe/{id}/tappe` | Proprietario o ADMIN | 201 la tappa; 400 oltre le 100 tappe per lega |
 | `PUT` | `/api/tappe/{id}` | Proprietario o ADMIN (della lega della tappa) | 200 la tappa; 400 senza `versione`, 409 se non è più quella del database |
 | `DELETE` | `/api/tappe/{id}` | Proprietario o ADMIN (della lega della tappa) | 204 |
 | `GET` | `/api/anagrafe/giocatori` | Pubblico | 200; forma pubblica senza token, completa con un token valido |
@@ -290,7 +290,7 @@ Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 
 - **Richiesta** — al massimo 2 MB, anche senza `Content-Length`: oltre, 413. Dove l'API legge un corpo lo vuole in JSON: un altro tipo, per esempio un form, risponde 415.
 - **Blocchi JSON di una tappa** (`squadre`, `gironi`, `partite`, `bracket`, `video`) — al massimo 1 MB ciascuno, misurato in byte UTF-8. Vale quando la tappa si salva in una lega (creazione, import, aggiunta, modifica); la pubblicazione in archivio non riceve nulla dal client e copia i blocchi già salvati, quindi ha gli stessi tetti.
-- **Import di una lega** — al massimo 100 tappe, con id tutti diversi.
+- **Tappe per lega** — al massimo 100 (`Lega.MAX_TAPPE`), sia nell'import di una lega (con id tutti diversi) sia una tappa alla volta: la centunesima `POST /api/leghe/{id}/tappe` risponde **400** «Limite di 100 tappe per lega raggiunto» (non 409, che il frontend legge come una tappa modificata da un altro dispositivo).
 - **Leghe e tappe** — nome della lega fino a 120 caratteri; nome della tappa fino a 120, luogo fino a 160, data nel formato `aaaa-mm-gg` oppure vuota.
 - **Anagrafe** — roster di una squadra fino a 12 giocatori; note di giocatori e squadre fino a 2000 caratteri.
 - **Account** — email fino a 255 caratteri; alla registrazione la password ha da 8 caratteri a 72 byte in UTF-8 (una lettera accentata ne occupa 2, un emoji 4).
@@ -298,7 +298,7 @@ Una richiesta che sfora un limite risponde con un errore e non salva nulla.
 
 **Errori** — ogni errore dell'applicazione ha lo stesso corpo JSON, `{message, timestamp}`, qualunque `Accept` mandi il client: `message` è in italiano, anche con un browser in un'altra lingua (la lingua dei messaggi di validazione è fissa, `spring.web.locale=it`, e non segue `Accept-Language`), e senza dettagli interni (SQL e stack restano nei log), `timestamp` è la data e l'ora del server in UTC, scritte senza fuso. Gli stati:
 
-- **400** — richiesta non valida: JSON malformato, campo oltre un limite o non valido, valore che il database non accetta (SQLState di classe 22, per esempio un carattere NUL in un nome), identificatore non valido nel percorso, versione mancante nel salvataggio di una tappa, richiesta al Coach AI rifiutata. Il messaggio dice che cosa non va, di solito con il nome del campo.
+- **400** — richiesta non valida: JSON malformato, campo oltre un limite o non valido, valore che il database non accetta (SQLState di classe 22, per esempio un carattere NUL in un nome), identificatore non valido nel percorso, versione mancante nel salvataggio di una tappa, tappa oltre il tetto di 100 per lega, richiesta al Coach AI rifiutata. Il messaggio dice che cosa non va, di solito con il nome del campo.
 - **401** — token mancante, scaduto o non valido; email o password sbagliate; refresh token assente, sconosciuto o scaduto.
 - **403** — ruolo insufficiente, oppure risorsa di un altro utente.
 - **404** — risorsa o percorso inesistente.

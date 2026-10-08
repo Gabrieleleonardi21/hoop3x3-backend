@@ -24,6 +24,13 @@ import java.util.UUID;
 @Setter
 public class Lega extends ConDate {
 
+    /**
+     * Quante tappe può avere una lega, al massimo: vale per l'import (NuovaLegaDTO) e per l'aggiunta di una tappa alla volta
+     * (LegaService.aggiungiTappa). Senza un tetto un utente potrebbe accumulare tappe senza fine, e GET /api/leghe/{id} le
+     * carica tutte, con i cinque blocchi JSONB di ciascuna
+     */
+    public static final int MAX_TAPPE = 100;
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Setter(AccessLevel.NONE)
