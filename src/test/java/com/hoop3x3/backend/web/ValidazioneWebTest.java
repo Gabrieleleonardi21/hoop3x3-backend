@@ -235,6 +235,22 @@ class ValidazioneWebTest {
         accettata(PUT, "/api/tappe/" + UUID.randomUUID(), t);
     }
 
+    /* ── La lingua dei messaggi è fissa: italiano, qualunque Accept-Language mandi il browser ── */
+
+    // I messaggi senza un testo proprio (@NotBlank) li traduce Hibernate Validator nella lingua della richiesta: con un browser
+    // in inglese arrivava «must not be blank», mentre il README promette messaggi in italiano. Il locale è fisso (spring.mvc.locale)
+    @ParameterizedTest
+    @ValueSource(strings = {"en", "en-US,en;q=0.9", "de"})
+    void messaggioDiValidazione_conAcceptLanguageStraniero_restaInItaliano(String lingua) throws Exception {
+        Map<String, Object> lega = nuovaLega();
+        lega.put("nome", "");
+
+        mvc.perform(post("/api/leghe").with(user(mario)).header(HttpHeaders.ACCEPT_LANGUAGE, lingua)
+                        .contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(lega)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", allOf(containsString("nome: non deve essere"), not(containsString("must not")))));
+    }
+
     /* ── Campi obbligatori: ogni endpoint che legge un corpo li pretende ── */
 
     /** Gli endpoint con un corpo, il corpo e i campi che non possono mancare (i nomi nel messaggio del 400) */
