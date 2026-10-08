@@ -50,7 +50,7 @@ class LimiteRichiesteIT {
     @LocalServerPort int porta;
     @Autowired UtenteRepository utenti;
     @Autowired RefreshTokenRepository tokens;
-    @Autowired JWTtools jwt;
+    @Autowired JwtTools jwt;
     @Autowired OrologioDiProva orologio;
     @MockitoBean CoachAiService coach;
 

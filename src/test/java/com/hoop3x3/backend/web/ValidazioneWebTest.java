@@ -1,23 +1,33 @@
 package com.hoop3x3.backend.web;
 
+import com.hoop3x3.backend.CampiDiTesto;
 import com.hoop3x3.backend.controllers.AnagrafeController;
 import com.hoop3x3.backend.controllers.ArchivioController;
 import com.hoop3x3.backend.controllers.AuthController;
+import com.hoop3x3.backend.controllers.CoachController;
 import com.hoop3x3.backend.controllers.LegaController;
 import com.hoop3x3.backend.controllers.TappaController;
+import com.hoop3x3.backend.dto.GiocatoreRequestDTO;
+import com.hoop3x3.backend.dto.LoginRequestDTO;
+import com.hoop3x3.backend.dto.NuovaLegaDTO;
+import com.hoop3x3.backend.dto.PatchLegaDTO;
+import com.hoop3x3.backend.dto.RegisterRequestDTO;
+import com.hoop3x3.backend.dto.SquadraRequestDTO;
+import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ExceptionsHandler;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.AuthCookies;
 import com.hoop3x3.backend.security.CorsConfig;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.security.JsonAuthEntryPoint;
 import com.hoop3x3.backend.security.JwtFilter;
 import com.hoop3x3.backend.security.LimiteDimensioneFilter;
 import com.hoop3x3.backend.security.SecurityConfig;
 import com.hoop3x3.backend.services.AnagrafeService;
 import com.hoop3x3.backend.services.ArchivioService;
+import com.hoop3x3.backend.services.CoachAiService;
 import com.hoop3x3.backend.services.LegaService;
 import com.hoop3x3.backend.services.RefreshTokenService;
 import com.hoop3x3.backend.services.UtenteService;
@@ -25,6 +35,8 @@ import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -34,6 +46,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -45,15 +58,21 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.http.HttpMethod.PATCH;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.http.HttpMethod.PUT;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -70,9 +89,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * chiamato: sono l'unica strada verso il database, quindi una richiesta rifiutata qui non lo raggiunge.
  */
 @WebMvcTest(controllers = {LegaController.class, TappaController.class, AnagrafeController.class,
-        ArchivioController.class, AuthController.class})
+        ArchivioController.class, AuthController.class, CoachController.class})
 @Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class,
         ExceptionsHandler.class, LimiteDimensioneFilter.class, UtenteService.class})
+// I login e le registrazioni di questa classe partono tutti dallo stesso indirizzo e sono quasi quanti ne ammette il limite di
+// produzione (10 al minuto): un caso in più rischierebbe un 429 che non c'entra (stesso valore di LogApplicativiTest)
+@TestPropertySource(properties = "limite.auth-al-minuto=100000")
 class ValidazioneWebTest {
 
     @Autowired MockMvc mvc;
@@ -80,9 +102,10 @@ class ValidazioneWebTest {
     @MockitoBean LegaService legaService;
     @MockitoBean AnagrafeService anagrafeService;
     @MockitoBean ArchivioService archivioService;
+    @MockitoBean CoachAiService coachAiService;
     @MockitoBean RefreshTokenService refreshTokenService;
     @MockitoBean AuthenticationManager authenticationManager;
-    @MockitoBean JWTtools jwtTools;
+    @MockitoBean JwtTools jwtTools;
     @MockitoBean UtenteRepository utenteRepository;
 
     private static final int TRE_MB = 3 * 1024 * 1024; // oltre il limite di 2 MB del filtro
@@ -172,7 +195,8 @@ class ValidazioneWebTest {
     private void rifiutataConMessaggio(HttpMethod metodo, String url, Object corpo, Matcher<String> messaggio) throws Exception {
         corpoStandard(invia(metodo, url, corpo).andExpect(status().isBadRequest()))
                 .andExpect(jsonPath("$.message", messaggio));
-        verifyNoInteractions(legaService, anagrafeService, archivioService, authenticationManager, refreshTokenService, utenteRepository);
+        verifyNoInteractions(legaService, anagrafeService, archivioService, coachAiService, authenticationManager, refreshTokenService,
+                utenteRepository);
     }
 
     /** Il corpo d'errore è solo {message, timestamp}, con il timestamp nel formato ISO di ExceptionsHandler (LocalDateTime) */
@@ -188,23 +212,7 @@ class ValidazioneWebTest {
         invia(metodo, url, corpo).andExpect(status().is2xxSuccessful());
     }
 
-    /* ── @Size uguali alle colonne ── */
-
-    @Test
-    void nomeDellaTappaDi121Caratteri_risponde400ConIlCampo() throws Exception {
-        Map<String, Object> t = tappa();
-        t.put("nome", "x".repeat(121));
-
-        rifiutata(POST, urlNuovaTappa(), t, "nome");
-    }
-
-    @Test
-    void luogoDellaTappaDi161Caratteri_risponde400ConIlCampo() throws Exception {
-        Map<String, Object> t = tappa();
-        t.put("luogo", "x".repeat(161));
-
-        rifiutata(POST, urlNuovaTappa(), t, "luogo");
-    }
+    /* ── La data della tappa: vuota o ISO. I tetti dei campi di testo sono più sotto, nella tabella CampiDiTesto ── */
 
     // La colonna è da 10 caratteri e contiene una data ISO o niente (è il valore dell'input date del frontend)
     @ParameterizedTest
@@ -217,11 +225,8 @@ class ValidazioneWebTest {
     }
 
     @Test
-    void tappaConValoriAlLimiteDelloSchema_siAccetta() throws Exception {
+    void dataDellaTappaVuotaOAssente_siAccetta() throws Exception {
         Map<String, Object> t = tappa();
-        t.put("nome", "x".repeat(120));
-        t.put("luogo", "x".repeat(160));
-        accettata(POST, urlNuovaTappa(), t);
 
         t.put("data", ""); // data vuota: la tappa non ha ancora una data
         accettata(PUT, "/api/tappe/" + UUID.randomUUID(), t);
@@ -230,45 +235,112 @@ class ValidazioneWebTest {
         accettata(PUT, "/api/tappe/" + UUID.randomUUID(), t);
     }
 
-    @Test
-    void notaDelGiocatoreDi2001Caratteri_risponde400ConIlCampo() throws Exception {
-        Map<String, Object> g = giocatore();
-        g.put("note", "x".repeat(2001));
+    /* ── Campi obbligatori: ogni endpoint che legge un corpo li pretende ── */
 
-        rifiutata(POST, "/api/anagrafe/giocatori", g, "note");
+    /** Gli endpoint con un corpo, il corpo e i campi che non possono mancare (i nomi nel messaggio del 400) */
+    static Stream<Arguments> endpointConCampiObbligatori() {
+        // La tappa ha anche nGironi, un int: senza, Jackson rifiuta il corpo prima della validazione (vedi il test qui sotto)
+        Map<String, Object> soloGironi = Map.of("nGironi", 1);
+        List<String> campiDellaTappa = List.of("id", "nome", "regole", "squadre", "partite");
+        return Stream.of(
+                arguments(POST, "/api/leghe", Map.of(), List.of("nome")),
+                arguments(PATCH, "/api/leghe/" + UUID.randomUUID(), Map.of(), List.of("nome")),
+                arguments(POST, urlNuovaTappa(), soloGironi, campiDellaTappa),
+                arguments(PUT, "/api/tappe/" + UUID.randomUUID(), soloGironi, campiDellaTappa),
+                arguments(POST, "/api/anagrafe/giocatori", Map.of(), List.of("nome", "cognome")),
+                arguments(PUT, "/api/anagrafe/giocatori/" + UUID.randomUUID(), Map.of(), List.of("nome", "cognome")),
+                arguments(POST, "/api/anagrafe/squadre", Map.of(), List.of("nome")),
+                arguments(PUT, "/api/anagrafe/squadre/" + UUID.randomUUID(), Map.of(), List.of("nome")),
+                arguments(POST, "/api/auth/login", Map.of(), List.of("email", "password")),
+                arguments(POST, "/api/auth/register", Map.of(), List.of("name", "email", "password")),
+                arguments(POST, "/api/coach/chat", Map.of(), List.of("messages")));
     }
 
-    @Test
-    void notaDellaSquadraDi2001Caratteri_risponde400ConIlCampo() throws Exception {
-        Map<String, Object> s = squadra();
-        s.put("note", "x".repeat(2001));
+    // Un corpo senza i campi obbligatori: il messaggio li nomina tutti. Il nome si cerca per intero: «cognome:» non deve far
+    // risultare presente «nome»
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("endpointConCampiObbligatori")
+    void corpoSenzaCampiObbligatori_risponde400NominandoliTutti(HttpMethod metodo, String url, Map<String, Object> corpo,
+                                                                List<String> campi) throws Exception {
+        List<Matcher<? super String>> nominati = campi.stream()
+                .<Matcher<? super String>>map(campo -> matchesPattern("(?s)(.*, )?" + Pattern.quote(campo) + ": .*"))
+                .toList();
 
-        rifiutata(POST, "/api/anagrafe/squadre", s, "note");
+        rifiutataConMessaggio(metodo, url, corpo, allOf(nominati));
     }
 
-    @Test
-    void emailDi256CaratteriInRegistrazione_risponde400ConIlCampo() throws Exception {
-        rifiutata(POST, "/api/auth/register", registrazione(emailDi(256)), "email");
+    // Anche nGironi è obbligatorio, ma è un int: senza il campo Jackson non riesce a costruire il DTO e il 400 ha il messaggio del
+    // corpo illeggibile, non quello di un campo
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("scrittureDellaTappa")
+    void tappaSenzaNGironi_risponde400ComeCorpoNonLeggibile(HttpMethod metodo, String url) throws Exception {
+        Map<String, Object> t = tappa();
+        t.remove("nGironi");
+
+        rifiutataConMessaggio(metodo, url, t, is("Corpo della richiesta non valido"));
     }
 
-    @Test
-    void emailDi256CaratteriNelLogin_risponde400ConIlCampo() throws Exception {
-        rifiutata(POST, "/api/auth/login", accesso(emailDi(256)), "email");
+    static Stream<Arguments> scrittureDellaTappa() {
+        return Stream.of(arguments(POST, urlNuovaTappa()), arguments(PUT, "/api/tappe/" + UUID.randomUUID()));
     }
 
+    /* ── Tetti dei campi di testo: la tabella è CampiDiTesto, e LimitiColonneIT la confronta con le colonne del database ── */
+
+    /** Come si scrive ciò che porta un DTO: metodo, indirizzo e un corpo valido, nuovo a ogni richiesta */
+    private record Scrittura(HttpMethod metodo, String url, Supplier<Map<String, Object>> corpo) {}
+
+    private static final Map<Class<?>, Scrittura> SCRITTURE_PER_DTO = Map.of(
+            NuovaLegaDTO.class, new Scrittura(POST, "/api/leghe", ValidazioneWebTest::nuovaLega),
+            // La rinomina porta lo stesso corpo di una lega nuova: il solo nome
+            PatchLegaDTO.class, new Scrittura(PATCH, "/api/leghe/" + UUID.randomUUID(), ValidazioneWebTest::nuovaLega),
+            TappaDTO.class, new Scrittura(POST, urlNuovaTappa(), ValidazioneWebTest::tappa),
+            GiocatoreRequestDTO.class, new Scrittura(POST, "/api/anagrafe/giocatori", ValidazioneWebTest::giocatore),
+            SquadraRequestDTO.class, new Scrittura(POST, "/api/anagrafe/squadre", ValidazioneWebTest::squadra),
+            RegisterRequestDTO.class, new Scrittura(POST, "/api/auth/register", () -> registrazione("mario@x.it")),
+            LoginRequestDTO.class, new Scrittura(POST, "/api/auth/login", () -> accesso("mario@x.it")));
+
+    /** Ogni campo della tabella con l'endpoint che lo riceve, un corpo valido e il suo tetto (letto dal DTO) */
+    static Stream<Arguments> campiConUnTetto() {
+        return CampiDiTesto.TUTTI.stream().map(campo -> {
+            Scrittura scrittura = SCRITTURE_PER_DTO.get(campo.dto());
+            if (scrittura == null) throw new IllegalStateException("Manca l'endpoint che riceve " + campo);
+            return arguments(campo.toString(), scrittura.metodo(), scrittura.url(), scrittura.corpo(), campo.componente(), campo.tetto());
+        });
+    }
+
+    @ParameterizedTest(name = "{0}: al massimo {5} caratteri")
+    @MethodSource("campiConUnTetto")
+    void testoAlTettoDelDto_siAccetta(String etichetta, HttpMethod metodo, String url, Supplier<Map<String, Object>> corpo,
+                                      String campo, int tetto) throws Exception {
+        Map<String, Object> richiesta = corpo.get();
+        richiesta.put(campo, testoDi(campo, tetto));
+
+        accettata(metodo, url, richiesta);
+    }
+
+    @ParameterizedTest(name = "{0}: oltre {5} caratteri")
+    @MethodSource("campiConUnTetto")
+    void testoOltreIlTettoDelDto_risponde400ConIlCampo(String etichetta, HttpMethod metodo, String url,
+                                                       Supplier<Map<String, Object>> corpo, String campo, int tetto) throws Exception {
+        Map<String, Object> richiesta = corpo.get();
+        richiesta.put(campo, testoDi(campo, tetto + 1));
+
+        rifiutata(metodo, url, richiesta, campo);
+    }
+
+    // Il nome della registrazione ha anche un minimo: un carattere solo non basta
     @Test
-    void noteEEmailAlLimiteDelloSchema_siAccettano() throws Exception {
-        Map<String, Object> g = giocatore();
-        g.put("note", "x".repeat(2000));
-        accettata(POST, "/api/anagrafe/giocatori", g);
+    void nomeDellaRegistrazioneDiUnCarattere_risponde400ConIlCampo() throws Exception {
+        Map<String, Object> r = registrazione("mario@x.it");
+        r.put("name", "x");
 
-        Map<String, Object> s = squadra();
-        s.put("note", "x".repeat(2000));
-        accettata(POST, "/api/anagrafe/squadre", s);
+        rifiutata(POST, "/api/auth/register", r, "name");
+    }
 
-        // Con 255 caratteri l'email è ancora valida: il 400 dei 256 dipende solo dalla lunghezza
-        accettata(POST, "/api/auth/login", accesso(emailDi(255)));
-        accettata(POST, "/api/auth/register", registrazione(emailDi(255)));
+    /** Un testo lungo `lunghezza` caratteri: un'email deve restare un'email valida, altrimenti il 400 non sarebbe per la lunghezza */
+    private static String testoDi(String campo, int lunghezza) {
+        if (campo.equals("email")) return emailDi(lunghezza);
+        return "x".repeat(lunghezza);
     }
 
     /* ── Pubblicazione in archivio: il server non legge nessun corpo ── */

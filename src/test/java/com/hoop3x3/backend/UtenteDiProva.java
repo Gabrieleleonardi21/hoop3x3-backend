@@ -13,7 +13,12 @@ public final class UtenteDiProva {
 
     /** Un utente comune con quell'email e un id casuale */
     public static Utente conId(String email) {
-        Utente utente = new Utente(email, "hash", "Nome", Ruolo.USER);
+        return conId(email, Ruolo.USER);
+    }
+
+    /** Un utente con quell'email, quel ruolo e un id casuale */
+    public static Utente conId(String email, Ruolo ruolo) {
+        Utente utente = new Utente(email, "hash", "Nome", ruolo);
         ReflectionTestUtils.setField(utente, "id", UUID.randomUUID());
         return utente;
     }

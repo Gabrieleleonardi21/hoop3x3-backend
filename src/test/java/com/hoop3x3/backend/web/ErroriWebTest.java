@@ -14,7 +14,7 @@ import com.hoop3x3.backend.exceptions.ExceptionsHandler;
 import com.hoop3x3.backend.exceptions.NotFoundException;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.CorsConfig;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.security.JsonAuthEntryPoint;
 import com.hoop3x3.backend.security.JwtFilter;
 import com.hoop3x3.backend.security.SecurityConfig;
@@ -57,13 +57,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Errori e autenticazione a livello web: ogni risposta di errore ha il corpo {message, timestamp}. */
 @WebMvcTest(controllers = {LegaController.class, TappaController.class, AnagrafeController.class, UtenteController.class})
-@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JWTtools.class, JsonAuthEntryPoint.class, ExceptionsHandler.class})
+@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JwtTools.class, JsonAuthEntryPoint.class, ExceptionsHandler.class})
 @TestPropertySource(properties = {"jwt.secret=0123456789abcdef0123456789abcdef", "cors.origins=http://localhost:5173"})
 @ExtendWith(OutputCaptureExtension.class) // serve a controllare che gli errori 500 lascino la riga ERROR nei log
 class ErroriWebTest {
 
     @Autowired MockMvc mvc;
-    @Autowired JWTtools jwt;
+    @Autowired JwtTools jwt;
     @Autowired ObjectMapper mapper;
     @MockitoBean LegaService legaService;
     @MockitoBean AnagrafeService anagrafeService;

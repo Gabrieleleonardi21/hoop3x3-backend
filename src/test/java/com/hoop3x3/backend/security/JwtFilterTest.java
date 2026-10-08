@@ -25,13 +25,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 /**
- * Il filtro da solo, senza Spring: JWTtools, repository e resolver degli errori sono simulati.
+ * Il filtro da solo, senza Spring: JwtTools, repository e resolver degli errori sono simulati.
  * ErroriWebTest controlla le risposte complete, ma con il gestore generico di ExceptionsHandler i suoi casi
  * sull'errore a valle sono verdi anche con un filtro che inghiotte l'eccezione: qui si controlla la causa.
  */
 class JwtFilterTest {
 
-    private final JWTtools jwtTools = mock(JWTtools.class);
+    private final JwtTools jwtTools = mock(JwtTools.class);
     private final UtenteRepository utenteRepository = mock(UtenteRepository.class);
     private final HandlerExceptionResolver resolver = mock(HandlerExceptionResolver.class);
     private final JwtFilter filtro = new JwtFilter(jwtTools, utenteRepository, resolver);
@@ -57,7 +57,7 @@ class JwtFilterTest {
         verifyNoInteractions(resolver);
     }
 
-    // Token con la firma valida ma il subject mancante o non UUID: 401 con lo stesso messaggio di JWTtools per ogni token
+    // Token con la firma valida ma il subject mancante o non UUID: 401 con lo stesso messaggio di JwtTools per ogni token
     // non valido, e la richiesta non prosegue
     @ParameterizedTest
     @NullSource
@@ -71,7 +71,7 @@ class JwtFilterTest {
 
         ArgumentCaptor<Exception> errore = ArgumentCaptor.forClass(Exception.class);
         verify(resolver).resolveException(eq(richiesta), any(), isNull(), errore.capture());
-        assertThat(errore.getValue()).isInstanceOf(UnauthorizedException.class).hasMessage(JWTtools.TOKEN_NON_VALIDO);
+        assertThat(errore.getValue()).isInstanceOf(UnauthorizedException.class).hasMessage(JwtTools.TOKEN_NON_VALIDO);
         verifyNoInteractions(catena);
     }
 
@@ -104,7 +104,7 @@ class JwtFilterTest {
         verifyNoInteractions(jwtTools, resolver);
     }
 
-    /** JWTtools simulato: la firma è valida e le claims hanno il subject indicato */
+    /** JwtTools simulato: la firma è valida e le claims hanno il subject indicato */
     private void tokenFirmatoConSubject(String subject) {
         Claims claims = mock(Claims.class);
         when(claims.getSubject()).thenReturn(subject);

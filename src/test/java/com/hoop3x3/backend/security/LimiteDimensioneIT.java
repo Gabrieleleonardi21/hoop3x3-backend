@@ -42,7 +42,7 @@ class LimiteDimensioneIT {
 
     @LocalServerPort int porta;
     @Autowired UtenteRepository utenti;
-    @Autowired JWTtools jwt;
+    @Autowired JwtTools jwt;
 
     // Senza token vince il 401: il corpo, che non arriva, non si aspetta. Il percorso non conta (il filtro di Spring
     // girava prima dell'instradamento), quindi è uno qualsiasi

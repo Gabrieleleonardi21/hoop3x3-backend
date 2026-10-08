@@ -6,7 +6,7 @@ import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.UnauthorizedException;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.AuthCookies;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.security.JsonAuthEntryPoint;
 import com.hoop3x3.backend.security.JwtFilter;
 import com.hoop3x3.backend.security.SecurityConfig;
@@ -38,13 +38,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({SecurityConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class})
 class AuthControllerTest {
 
-    // Il 401 che il filtro dà a un JWT scaduto: lo stesso testo di JWTtools, che qui è simulato
+    // Il 401 che il filtro dà a un JWT scaduto: lo stesso testo di JwtTools, che qui è simulato
     private static final String TOKEN_SCADUTO = "Sessione scaduta o token non valido: accedi di nuovo";
 
     @Autowired MockMvc mockMvc;
     @MockitoBean AuthenticationManager authenticationManager;
     @MockitoBean UtenteService utenteService;
-    @MockitoBean JWTtools jwtTools;
+    @MockitoBean JwtTools jwtTools;
     @MockitoBean RefreshTokenService refreshTokenService;
     @MockitoBean UtenteRepository utenteRepository;
 
@@ -149,7 +149,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.message").value(TOKEN_SCADUTO));
     }
 
-    /** Il JWTtools simulato respinge il JWT «scaduto» con la stessa eccezione di quello vero */
+    /** Il JwtTools simulato respinge il JWT «scaduto» con la stessa eccezione di quello vero */
     private void jwtScaduto() {
         when(jwtTools.verifyToken("scaduto")).thenThrow(new UnauthorizedException(TOKEN_SCADUTO));
     }

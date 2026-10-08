@@ -4,6 +4,7 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.UnauthorizedException;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -19,7 +20,7 @@ import java.util.Date;
  */
 @Component
 @EnableConfigurationProperties(JwtProperties.class)
-public class JWTtools {
+public class JwtTools {
 
     /** Messaggio del 401 per ogni token non valido (alterato, scaduto, malformato, vuoto): lo riusa anche JwtFilter */
     static final String TOKEN_NON_VALIDO = "Sessione scaduta o token non valido: accedi di nuovo";
@@ -27,11 +28,15 @@ public class JWTtools {
     private final SecretKey chiave;
     /** Durata del token in minuti: scaduto, il client lo rinnova con il refresh token */
     private final long durataMinuti;
+    // Immutabile e thread-safe: si costruisce una volta sola. Il JSON dei token lo legge Jackson 3 con il mapper privato di
+    // JwtJson, non jjwt-jackson (che porterebbe Jackson 2)
+    private final JwtParser parser;
 
-    public JWTtools(JwtProperties props) {
+    public JwtTools(JwtProperties props) {
         // La chiave si costruisce una volta sola, dai byte UTF-8 del secret
         this.chiave = Keys.hmacShaKeyFor(props.secret().getBytes(StandardCharsets.UTF_8));
         this.durataMinuti = props.durataMinuti();
+        this.parser = Jwts.parser().verifyWith(chiave).json(JwtJson.DESERIALIZZATORE).build();
     }
 
     public String generateToken(Utente utente) {
@@ -41,6 +46,7 @@ public class JWTtools {
                 .issuedAt(new Date(adesso))
                 .expiration(new Date(adesso + 1000L * 60 * durataMinuti))
                 .signWith(chiave)
+                .json(JwtJson.SERIALIZZATORE)
                 .compact();
     }
 
@@ -50,7 +56,7 @@ public class JWTtools {
         // IllegalArgumentException e non una JwtException: senza questo controllo la richiesta risponderebbe 500
         if (accessToken == null || accessToken.isBlank()) throw new UnauthorizedException(TOKEN_NON_VALIDO);
         try {
-            return Jwts.parser().verifyWith(chiave).build().parseSignedClaims(accessToken).getPayload();
+            return parser.parseSignedClaims(accessToken).getPayload();
         } catch (JwtException _) {
             throw new UnauthorizedException(TOKEN_NON_VALIDO);
         }

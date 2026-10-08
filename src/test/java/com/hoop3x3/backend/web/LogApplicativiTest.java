@@ -21,7 +21,7 @@ import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.AuthCookies;
 import com.hoop3x3.backend.security.CorsConfig;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.security.JsonAuthEntryPoint;
 import com.hoop3x3.backend.security.JwtFilter;
 import com.hoop3x3.backend.security.SecurityConfig;
@@ -122,7 +122,7 @@ class LogApplicativiTest {
     @Autowired ObjectMapper mapper;
     @MockitoBean AuthenticationManager authenticationManager;
     @MockitoBean RefreshTokenService refreshTokenService;
-    @MockitoBean JWTtools jwtTools;
+    @MockitoBean JwtTools jwtTools;
     @MockitoBean UtenteRepository utenteRepository;
     @MockitoBean AnagrafeGiocatoreRepository giocatori;
     @MockitoBean AnagrafeSquadraRepository squadre;

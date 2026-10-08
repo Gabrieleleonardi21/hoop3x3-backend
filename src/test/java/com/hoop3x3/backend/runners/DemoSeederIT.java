@@ -1,8 +1,8 @@
 package com.hoop3x3.backend.runners;
 
 import com.hoop3x3.backend.TestDiIntegrazione;
-import com.hoop3x3.backend.dto.PubTappaDTO;
-import com.hoop3x3.backend.dto.PubTappaMetaDTO;
+import com.hoop3x3.backend.dto.CopiaPubblicaDTO;
+import com.hoop3x3.backend.dto.VoceArchivioDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.Lega;
 import com.hoop3x3.backend.entities.Ruolo;
@@ -63,12 +63,12 @@ class DemoSeederIT {
         seeder.run();
 
         String nomeLega = leghe.findAll().getFirst().getNome();
-        List<PubTappaMetaDTO> elenco = archivioService.tutte();
+        List<VoceArchivioDTO> elenco = archivioService.tutte();
         assertThat(elenco).hasSize(4).allSatisfy(voce -> {
             assertThat(voce.lega()).isEqualTo(nomeLega);
             assertThat(voce.autore()).isEqualTo("Admin");
             // L'elenco è sintetico: autore e tappa si guardano nella pubblicazione, come fa l'app aprendola
-            PubTappaDTO pubblicata = archivioService.una(voce.tappaId());
+            CopiaPubblicaDTO pubblicata = archivioService.una(voce.tappaId());
             assertThat(pubblicata.autoreId()).isEqualTo(admin.getId());
             assertThat(pubblicata.lega()).isEqualTo(nomeLega);
             // Come nell'archivio dell'app: la tappa salvata nel database, nella forma delle API
@@ -147,7 +147,7 @@ class DemoSeederIT {
                 .map(g -> g.getNome() + " " + g.getCognome()).collect(Collectors.toSet());
         assertThat(nomiInAnagrafe).as("32 giocatori, tutti con un nome diverso").hasSize(32);
         int letti = 0;
-        for (PubTappaMetaDTO voce : archivioService.tutte()) {
+        for (VoceArchivioDTO voce : archivioService.tutte()) {
             for (JsonNode squadra : archivioService.una(voce.tappaId()).tappa().squadre()) {
                 for (JsonNode giocatore : squadra.path("giocatori")) {
                     assertThat(nomiInAnagrafe).contains(giocatore.path("nome").asString());

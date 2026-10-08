@@ -37,10 +37,10 @@ class JwtPropertiesTest {
             .withUserConfiguration(Config.class)
             .withBean(LocalValidatorFactoryBean.class);
 
-    // Il vero JWTtools porta con sé @EnableConfigurationProperties(JwtProperties.class): senza nessun'altra configurazione
+    // Il vero JwtTools porta con sé @EnableConfigurationProperties(JwtProperties.class): senza nessun'altra configurazione
     // un secret non valido gli impedisce di partire, come al server intero
     private final ApplicationContextRunner runnerConJwtTools = new ApplicationContextRunner()
-            .withUserConfiguration(JWTtools.class)
+            .withUserConfiguration(JwtTools.class)
             .withBean(LocalValidatorFactoryBean.class);
 
     // Un contesto che non parte scrive un WARN con tutta l'eccezione: qui è il risultato voluto, quindi si alza la
@@ -143,7 +143,7 @@ class JwtPropertiesTest {
     void jwtTools_conSecretValido_parte() {
         runnerConJwtTools.withPropertyValues("jwt.secret=" + SECRET_VALIDO).run(ctx -> {
             assertThat(ctx).hasNotFailed();
-            assertThat(ctx).hasSingleBean(JWTtools.class);
+            assertThat(ctx).hasSingleBean(JwtTools.class);
         });
     }
 

@@ -32,11 +32,11 @@ public class JwtFilter extends OncePerRequestFilter {
     private static final Set<String> ENDPOINT_SENZA_BEARER =
             Set.of("/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout");
 
-    private final JWTtools jwtTools;
+    private final JwtTools jwtTools;
     private final UtenteRepository utenteRepository;
     private final HandlerExceptionResolver exceptionResolver;
 
-    public JwtFilter(JWTtools jwtTools, UtenteRepository utenteRepository,
+    public JwtFilter(JwtTools jwtTools, UtenteRepository utenteRepository,
                      @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) {
         this.jwtTools = jwtTools;
         this.utenteRepository = utenteRepository;
@@ -82,7 +82,7 @@ public class JwtFilter extends OncePerRequestFilter {
         try {
             utenteId = UUID.fromString(claims.getSubject());
         } catch (IllegalArgumentException | NullPointerException _) {
-            throw new UnauthorizedException(JWTtools.TOKEN_NON_VALIDO);
+            throw new UnauthorizedException(JwtTools.TOKEN_NON_VALIDO);
         }
         return utenteRepository.findById(utenteId)
                 .orElseThrow(() -> new UnauthorizedException("L'utente associato al token non esiste più"));

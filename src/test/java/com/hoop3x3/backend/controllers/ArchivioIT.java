@@ -10,7 +10,7 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.ArchivioTappaRepository;
 import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.services.LegaService;
 import com.hoop3x3.backend.support.Tempo;
 import org.junit.jupiter.api.BeforeEach;
@@ -60,7 +60,7 @@ class ArchivioIT {
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
-    @Autowired JWTtools jwt;
+    @Autowired JwtTools jwt;
     @Autowired UtenteRepository utenti;
     @Autowired TappaRepository tappe;
     @Autowired ArchivioTappaRepository archivio;
@@ -187,6 +187,14 @@ class ArchivioIT {
                 .andExpect(jsonPath("$.timestamp").exists());
 
         assertThat(archivio.count()).isZero();
+    }
+
+    // La lettura è pubblica: senza token, una tappa che non è in archivio è un 404 e non un 401
+    @Test
+    void laLetturaDiUnaPubblicazioneCheNonEsiste_risponde404() throws Exception {
+        mvc.perform(get("/api/archivio/" + UUID.randomUUID())).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value(startsWith("Tappa non presente in archivio")))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test

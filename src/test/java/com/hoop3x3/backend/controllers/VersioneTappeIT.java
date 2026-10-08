@@ -8,7 +8,7 @@ import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.UtenteRepository;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.services.AccessGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -59,7 +59,7 @@ class VersioneTappeIT {
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
-    @Autowired JWTtools jwt;
+    @Autowired JwtTools jwt;
     @Autowired UtenteRepository utenti;
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager transazioni;

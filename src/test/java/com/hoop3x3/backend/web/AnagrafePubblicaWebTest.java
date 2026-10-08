@@ -11,14 +11,13 @@ import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
 import com.hoop3x3.backend.repositories.AnagrafeSquadraRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.CorsConfig;
-import com.hoop3x3.backend.security.JWTtools;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.security.JsonAuthEntryPoint;
 import com.hoop3x3.backend.security.JwtFilter;
+import com.hoop3x3.backend.security.JwtProperties;
 import com.hoop3x3.backend.security.SecurityConfig;
 import com.hoop3x3.backend.services.AccessGuard;
 import com.hoop3x3.backend.services.AnagrafeService;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,9 +29,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,7 +52,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * scaduto o non valido la risposta resta il 401 che il JwtFilter dà già su tutte le rotte (non diventa la forma pubblica).
  */
 @WebMvcTest(controllers = AnagrafeController.class)
-@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JWTtools.class, JsonAuthEntryPoint.class,
+@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JwtTools.class, JsonAuthEntryPoint.class,
         ExceptionsHandler.class, AnagrafeService.class})
 @TestPropertySource(properties = {"jwt.secret=" + AnagrafePubblicaWebTest.SEGRETO, "cors.origins=http://localhost:5173"})
 class AnagrafePubblicaWebTest {
@@ -66,7 +63,7 @@ class AnagrafePubblicaWebTest {
     private static final String TOKEN_NON_VALIDO = "Sessione scaduta o token non valido: accedi di nuovo";
 
     @Autowired MockMvc mvc;
-    @Autowired JWTtools jwt;
+    @Autowired JwtTools jwt;
     @MockitoBean AnagrafeGiocatoreRepository giocatori;
     @MockitoBean AnagrafeSquadraRepository squadre;
     @MockitoBean AccessGuard guard;
@@ -293,19 +290,17 @@ class AnagrafePubblicaWebTest {
         verifyNoInteractions(giocatori, squadre);
     }
 
-    /** Il Bearer di un utente che ha un account, emesso dal JWTtools vero */
+    /** Il Bearer di un utente che ha un account, emesso dal JwtTools vero */
     private String bearerDi(Utente utente) {
         return "Bearer " + jwt.generateToken(utente);
     }
 
-    /** Un JWT dell'utente firmato con `segreto`, che scade fra `minuti` (negativi: già scaduto) */
+    /**
+     * Un JWT dell'utente firmato con `segreto`, che scade fra `minuti` (negativi: già scaduto). Lo emette un JwtTools costruito
+     * a mano con quel segreto e quella durata: il filtro lo verifica con il segreto del test, quindi uno firmato con un altro
+     * segreto non torna, e uno con la durata negativa è già scaduto
+     */
     private static String tokenFirmato(String segreto, Utente utente, int minuti) {
-        long adesso = System.currentTimeMillis();
-        return Jwts.builder()
-                .subject(utente.getId().toString())
-                .issuedAt(new Date(adesso - 3_600_000L))
-                .expiration(new Date(adesso + minuti * 60_000L))
-                .signWith(Keys.hmacShaKeyFor(segreto.getBytes(StandardCharsets.UTF_8)))
-                .compact();
+        return new JwtTools(new JwtProperties(segreto, minuti)).generateToken(utente);
     }
 }
