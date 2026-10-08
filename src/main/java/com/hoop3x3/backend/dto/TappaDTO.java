@@ -1,5 +1,6 @@
 package com.hoop3x3.backend.dto;
 
+import com.hoop3x3.backend.validation.IndirizzoWeb;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -32,7 +33,8 @@ public record TappaDTO(
         @NotNull JsonNode squadre,
         JsonNode gironi,
         @NotNull JsonNode partite,
-        JsonNode video,
+        // Ogni video ha un url che il frontend mette in un href: vuoto, http(s) o un percorso del sito (validation/IndirizzoWeb)
+        @IndirizzoWeb JsonNode video,
         Boolean conclusa,
         JsonNode bracket,
         Long versione

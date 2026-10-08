@@ -353,10 +353,78 @@ class ValidazioneWebTest {
         rifiutata(POST, "/api/auth/register", r, "name");
     }
 
-    /** Un testo lungo `lunghezza` caratteri: un'email deve restare un'email valida, altrimenti il 400 non sarebbe per la lunghezza */
+    /**
+     * Un testo lungo `lunghezza` caratteri: un'email deve restare un'email valida e un indirizzo web un indirizzo valido,
+     * altrimenti il 400 non sarebbe per la lunghezza
+     */
     private static String testoDi(String campo, int lunghezza) {
         if (campo.equals("email")) return emailDi(lunghezza);
+        if (INDIRIZZI_WEB.contains(campo)) return "https://" + "x".repeat(lunghezza - "https://".length());
         return "x".repeat(lunghezza);
+    }
+
+    /* ── Indirizzi web: vuoti, http(s) o un percorso del sito, altrimenti 400 (validation/IndirizzoWeb) ── */
+
+    /** I campi della squadra che sono indirizzi web */
+    private static final List<String> INDIRIZZI_WEB = List.of("logo", "website", "instagram");
+
+    static Stream<Arguments> indirizziNonValidi() {
+        return INDIRIZZI_WEB.stream().flatMap(campo -> Stream.of("javascript:alert(1)", "ftp://roma3x3.it", "www.roma3x3.it",
+                "//evil.example/x").map(indirizzo -> arguments(campo, indirizzo)));
+    }
+
+    // Il frontend mette questi campi in src e href: uno schema diverso da http(s) risponde 400 con il nome del campo e un
+    // messaggio in italiano, e non arriva al servizio
+    @ParameterizedTest(name = "{0} = {1}")
+    @MethodSource("indirizziNonValidi")
+    void indirizzoWebDellaSquadraNonValido_risponde400ConIlCampo(String campo, String indirizzo) throws Exception {
+        Map<String, Object> s = squadra();
+        s.put(campo, indirizzo);
+
+        rifiutataConMessaggio(POST, "/api/anagrafe/squadre", s,
+                allOf(containsString(campo + ": "), containsString("http:// o https://")));
+    }
+
+    // Vuoti, assenti, http(s) e i loghi integrati del frontend (/logos/nome.svg) passano
+    @ParameterizedTest
+    @ValueSource(strings = {"", "  ", "https://roma3x3.it", "http://roma3x3.it/logo.png", "/logos/roma.svg"})
+    void indirizzoWebDellaSquadraValido_siAccetta(String indirizzo) throws Exception {
+        Map<String, Object> s = squadra();
+        for (String campo : INDIRIZZI_WEB) s.put(campo, indirizzo);
+
+        accettata(POST, "/api/anagrafe/squadre", s);
+    }
+
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("scrittureDellaTappa")
+    void urlDiUnVideoNonValido_risponde400NominandoIlVideo(HttpMethod metodo, String url) throws Exception {
+        Map<String, Object> t = tappa();
+        t.put("video", List.of(Map.of("id", "v1", "titolo", "Finale", "url", "https://youtu.be/x"),
+                Map.of("id", "v2", "titolo", "Highlights", "url", "javascript:alert(1)")));
+
+        rifiutataConMessaggio(metodo, url, t, allOf(containsString("video: il video n. 2"), containsString("http:// o https://")));
+    }
+
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("scrittureDellaTappa")
+    void urlDiUnVideoTroppoLungo_risponde400(HttpMethod metodo, String url) throws Exception {
+        Map<String, Object> t = tappa();
+        t.put("video", List.of(Map.of("id", "v1", "titolo", "Finale", "url", "https://" + "x".repeat(2041))));
+
+        rifiutataConMessaggio(metodo, url, t, containsString("video: il video n. 1"));
+    }
+
+    // Video con url http(s), senza url o con url vuoto: tutti validi, e anche nessun blocco video
+    @ParameterizedTest(name = "{0} {1}")
+    @MethodSource("scrittureDellaTappa")
+    void videoConUrlValidiOSenzaUrl_siAccettano(HttpMethod metodo, String url) throws Exception {
+        Map<String, Object> t = tappa();
+        t.put("video", List.of(Map.of("id", "v1", "titolo", "Finale", "url", "https://youtu.be/x"),
+                Map.of("id", "v2", "titolo", "Senza url"), Map.of("id", "v3", "titolo", "Url vuoto", "url", "")));
+        accettata(metodo, url, t);
+
+        t.remove("video");
+        accettata(metodo, url, t);
     }
 
     /* ── Pubblicazione in archivio: il server non legge nessun corpo ── */

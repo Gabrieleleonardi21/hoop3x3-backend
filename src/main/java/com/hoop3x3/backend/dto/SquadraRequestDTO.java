@@ -1,5 +1,7 @@
 package com.hoop3x3.backend.dto;
 
+import com.hoop3x3.backend.validation.IndirizzoWeb;
+import com.hoop3x3.backend.validation.IndirizzoWebValidator;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -18,9 +20,11 @@ public record SquadraRequestDTO(
         @Size(max = 4) String anno,
         @Size(max = 10) String rank,
         @Size(max = 120) String referente,
-        @Size(max = 500) String logo,
-        @Size(max = 500) String website,
-        @Size(max = 500) String instagram,
+        // Indirizzi che il frontend mette in src e href: vuoti, http(s) o un percorso del sito (validation/IndirizzoWeb). Il
+        // @Size ripete il tetto del validatore per la tabella dei campi di testo (CampiDiTesto), che confronta i @Size con le colonne
+        @IndirizzoWeb @Size(max = IndirizzoWebValidator.LUNGHEZZA_MASSIMA) String logo,
+        @IndirizzoWeb @Size(max = IndirizzoWebValidator.LUNGHEZZA_MASSIMA) String website,
+        @IndirizzoWeb @Size(max = IndirizzoWebValidator.LUNGHEZZA_MASSIMA) String instagram,
         @Size(max = 2000) String note, // colonna TEXT: il tetto è dell'API, perché una nota non pesi megabyte
         @Size(max = 12) List<@NotNull UUID> roster,
         Long versione
