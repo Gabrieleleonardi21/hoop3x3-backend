@@ -56,7 +56,8 @@ class AnagrafeServiceTest {
         squadra.setAutore(mario);
         squadra.setModificatoIl(LocalDateTime.now());
         when(squadre.findById(idSquadra)).thenReturn(Optional.of(squadra));
-        when(squadre.save(any(AnagrafeSquadra.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
+        // L'aggiornamento salva con flush, così la risposta porta il ts del salvataggio appena fatto
+        when(squadre.saveAndFlush(any(AnagrafeSquadra.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
         return squadra;
     }
 

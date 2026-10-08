@@ -65,7 +65,9 @@ public class AnagrafeService {
         guard.checkOwner(utente, g.getAutore().getId(), "questa scheda giocatore");
         applica(dto, g);
         guard.tracciaModifica(utente, g.getAutore().getId(), "giocatore", id);
-        return GiocatoreDTO.from(giocatori.save(g));
+        // saveAndFlush: la data di modifica (@PreUpdate) la scrive Hibernate al flush, e senza flush il DTO porterebbe il ts
+        // di prima, non quello del salvataggio appena fatto
+        return GiocatoreDTO.from(giocatori.saveAndFlush(g));
     }
 
     @Transactional
@@ -110,7 +112,7 @@ public class AnagrafeService {
         guard.checkOwner(utente, s.getAutore().getId(), "questa squadra");
         applica(dto, s);
         guard.tracciaModifica(utente, s.getAutore().getId(), "squadra", id);
-        return SquadraDTO.from(squadre.save(s));
+        return SquadraDTO.from(squadre.saveAndFlush(s)); // flush: il ts della risposta è quello di adesso (vedi aggiornaGiocatore)
     }
 
     @Transactional

@@ -218,7 +218,7 @@ Giocatori e squadre dell'anagrafe sono condivisi: leggerli non chiede l'account,
 - **Token scaduto o non valido**: non equivale a nessun token. Il `JwtFilter` risponde 401 («Sessione scaduta o token non valido: accedi di nuovo») a ogni richiesta con un `Authorization: Bearer` che non si verifica, anche sulle rotte pubbliche, quindi la forma pubblica arriva solo a chi non manda nessun Bearer. Il frontend rinnova il token con il refresh token e riprova.
 - Le due forme si leggono con le stesse query: la forma pubblica non legge l'autore della scheda, ma non costa né più né meno.
 
-Il `ts` (millisecondi dell'ultima modifica) è lo stesso nelle due forme.
+Il `ts` (millisecondi dell'ultima modifica) è lo stesso nelle due forme, e la risposta di una `PUT` porta quello del salvataggio appena fatto (prima portava quello precedente).
 
 **Cache del client.** La forma dipende dal token, quindi il client deve svuotare la cache dell'anagrafe quando cambia chi la guarda, al login e al logout (il frontend lo fa: `svuota` in `useAnagrafeStore`). Se non lo fa, chi accede dopo aver aperto l'anagrafe da ospite si tiene la forma pubblica finché non ricarica la pagina, e un ADMIN che in quel caso modifica una scheda rimanda al server i campi riservati vuoti, che li sovrascrivono: il `PUT` salva ciò che riceve.
 
