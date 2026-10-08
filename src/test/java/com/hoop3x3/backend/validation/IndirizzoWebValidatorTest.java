@@ -18,11 +18,13 @@ class IndirizzoWebValidatorTest {
         assertThat(IndirizzoWebValidator.valido(indirizzo)).isTrue();
     }
 
-    // Gli schemi che eseguono codice o portano dati, un indirizzo senza schema, i percorsi «protocol-relative» (un altro
-    // host) e uno schema con dentro un carattere di controllo, che il browser normalizzerebbe in javascript:
+    // Gli schemi che eseguono codice o portano dati, un indirizzo senza schema, i percorsi «protocol-relative» (un altro host),
+    // un carattere di controllo o uno spazio dentro (il browser li toglie: «/<tab>/evil» diventa «//evil», «java<tab>script:»
+    // diventa «javascript:») e uno schema con una lettera che non è ASCII («ſ», che le maiuscole di Unicode fanno valere come «s»)
     @ParameterizedTest
     @ValueSource(strings = {"javascript:alert(1)", "data:text/html,ciao", "vbscript:x", "ftp://roma3x3.it", "roma3x3.it",
-            "www.roma3x3.it", "//evil.example/x", "/\\evil.example", "java\tscript:alert(1)", "mailto:a@b.it"})
+            "www.roma3x3.it", "//evil.example/x", "/\\evil.example", "java\tscript:alert(1)", "mailto:a@b.it",
+            "/\t/evil", "/\n/evil", "/\r/evil", "https://roma3x3.it/a b", "https://roma3x3.it/\u007f", "httpſ://x", "HTTPſ://x"})
     void altriSchemiOSenzaSchema_nonValido(String indirizzo) {
         assertThat(IndirizzoWebValidator.valido(indirizzo)).isFalse();
     }
