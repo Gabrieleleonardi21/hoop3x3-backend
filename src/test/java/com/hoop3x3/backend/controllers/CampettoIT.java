@@ -114,6 +114,26 @@ class CampettoIT {
         mvc.perform(get(CAMPETTI).param("q", "dora")).andExpect(jsonPath("$.length()").value(0));
     }
 
+    /* ── L'ospite non vede l'id dell'autore ── */
+
+    // Come per l'anagrafe: il nome dell'autore è pubblico, il suo id no. Senza token autoreId è null in entrambi i modi della
+    // GET; con un token qualsiasi (non serve essere l'autore) c'è
+    @Test
+    void laGetSenzaToken_nascondeAutoreId_conUnTokenLoMostra() throws Exception {
+        campettoService.crea(mario, campetto("Campo Vanchiglia", 45.07047, 7.71690, null));
+
+        mvc.perform(get(CAMPETTI).param("q", "vanchiglia")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].autore").value("Mario"))
+                .andExpect(jsonPath("$[0].autoreId").value(nullValue()));
+        mvc.perform(get(CAMPETTI).param("lat", LAT_TORINO).param("lng", LNG_TORINO).param("raggioKm", "20"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].autoreId").value(nullValue()));
+        mvc.perform(get(CAMPETTI).param("q", "vanchiglia").header(AUTHORIZATION, "Bearer " + jwt.generateToken(luigi)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].autore").value("Mario"))
+                .andExpect(jsonPath("$[0].autoreId").value(mario.getId().toString()));
+    }
+
     /* ── L'autore eliminato ── */
 
     // Il campetto è un dato del territorio: sopravvive a chi l'ha inserito (ON DELETE SET NULL), la lettura non dice più chi era,

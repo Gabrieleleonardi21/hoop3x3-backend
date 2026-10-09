@@ -9,8 +9,9 @@ import java.util.UUID;
 /**
  * Il campetto come lo legge il frontend: `autore` è il nome dell'autore (vuoto se non esiste più) e `autoreId` il suo id
  * (null se non esiste più), `ts` i millisecondi dell'ultima modifica, `versione` il numero di volte che il campetto è stato
- * cambiato (la decide il server, il client la rimanda con la PUT: vedi CampettoRequestDTO). Una forma sola, uguale per
- * l'ospite e per chi ha un account: non ci sono dati personali. fonte e fonteId dell'entity non escono.
+ * cambiato (la decide il server, il client la rimanda con la PUT: vedi CampettoRequestDTO). Le stesse chiavi per l'ospite e
+ * per chi ha un account; all'ospite però l'id dell'autore non si mostra (senzaAutoreId, come per l'anagrafe): il nome sì,
+ * l'identificativo di una persona no. fonte e fonteId dell'entity non escono.
  */
 public record CampettoDTO(
         UUID id, String nome, String indirizzo, String citta, double lat, double lng, String tipo, String superficie,
@@ -30,5 +31,11 @@ public record CampettoDTO(
                 c.getSuperficie(), c.getCanestri(), c.isIlluminato(), c.isCoperto(), c.isGratuito(), c.isRetine(),
                 c.isLinee(), c.isFontanella(), c.getStato(), c.getNote(), autore, autoreId, c.getVersione(),
                 Tempo.inMillisecondi(c.getModificatoIl()));
+    }
+
+    /** La forma per l'ospite: uguale, con autoreId a null */
+    public CampettoDTO senzaAutoreId() {
+        return new CampettoDTO(id, nome, indirizzo, citta, lat, lng, tipo, superficie, canestri, illuminato, coperto, gratuito,
+                retine, linee, fontanella, stato, note, autore, null, versione, ts);
     }
 }

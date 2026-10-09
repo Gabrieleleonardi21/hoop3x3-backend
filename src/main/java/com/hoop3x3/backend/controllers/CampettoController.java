@@ -15,8 +15,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Campetti geolocalizzati. La GET è pubblica (vedi SecurityConfig) e ha una forma sola, senza dati personali; le scritture
- * richiedono il login, e modifica o elimina solo l'autore o un ADMIN (CampettoService).
+ * Campetti geolocalizzati. La GET è pubblica (vedi SecurityConfig): all'ospite risponde con le stesse chiavi ma senza l'id
+ * dell'autore, come l'anagrafe; le scritture richiedono il login, e modifica o elimina solo l'autore o un ADMIN
+ * (CampettoService).
  */
 @RestController
 @RequestMapping("/api/campetti")
@@ -38,8 +39,16 @@ public class CampettoController {
      * un @Validated sui parametri perché il 400 deve dire quale parametro non va, come per i campi del corpo
      */
     @GetMapping
-    public List<CampettoDTO> cerca(@RequestParam(required = false) Double lat, @RequestParam(required = false) Double lng,
-                                   @RequestParam(required = false) Double raggioKm, @RequestParam(required = false) String q) {
+    public List<CampettoDTO> cerca(@AuthenticationPrincipal Utente utente, @RequestParam(required = false) Double lat,
+                                   @RequestParam(required = false) Double lng, @RequestParam(required = false) Double raggioKm,
+                                   @RequestParam(required = false) String q) {
+        List<CampettoDTO> trovati = trova(lat, lng, raggioKm, q);
+        // Senza utente (ospite) il nome dell'autore resta, il suo id no; con un account qualsiasi la forma completa
+        if (utente == null) return trovati.stream().map(CampettoDTO::senzaAutoreId).toList();
+        return trovati;
+    }
+
+    private List<CampettoDTO> trova(Double lat, Double lng, Double raggioKm, String q) {
         boolean conPunto = lat != null && lng != null;
         if ((lat == null) != (lng == null)) throw new BadRequestException("lat e lng vanno indicati insieme");
         // I confronti negati respingono anche NaN, che passerebbe un «lat < -90 || lat > 90»
