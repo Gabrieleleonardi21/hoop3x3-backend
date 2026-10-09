@@ -27,8 +27,8 @@ public class CampettoService {
     /** Quante righe al massimo risponde una ricerca, per raggio o per testo */
     public static final int MASSIMO_RIGHE = 200;
     private static final double RAGGIO_TERRA_KM = 6371;
-    /** Un grado di latitudine in chilometri (un grado di longitudine misura questo per il coseno della latitudine) */
-    private static final double KM_PER_GRADO = 111.32;
+    /** Un grado di latitudine in chilometri sulla stessa sfera di distanzaKm (111,19): un valore diverso darebbe un riquadro incoerente con la distanza */
+    private static final double KM_PER_GRADO = Math.PI * RAGGIO_TERRA_KM / 180;
 
     private final CampettoRepository campetti;
     private final AccessGuard guard;
@@ -48,14 +48,20 @@ public class CampettoService {
     @Transactional(readOnly = true)
     public List<CampettoDTO> cercaPerRaggio(double lat, double lng, double raggioKm) {
         double mezzaLatitudine = raggioKm / KM_PER_GRADO;
-        // La longitudine si restringe verso i poli: al polo il coseno è 0 e il riquadro diventerebbe infinito, e vicino
-        // all'antimeridiano sforerebbe i ±180. In entrambi i casi si prende tutta la longitudine e sceglie la distanza vera
-        double mezzaLongitudine = mezzaLatitudine / Math.cos(Math.toRadians(lat));
+        // In longitudine il riquadro deve contenere il punto più a est del cerchio, che sulla sfera non sta alla latitudine
+        // del centro (i meridiani convergono): il suo scarto è asin(sin(r/R) / cos lat), più largo di r / (km per grado · cos
+        // lat), che a 500 km lasciava fuori il bordo. Se l'argomento arriva a 1 il cerchio abbraccia il polo (o il coseno è 0),
+        // e vicino all'antimeridiano il riquadro sforerebbe i ±180: in entrambi i casi si prende tutta la longitudine e
+        // sceglie la distanza vera
+        double senoDelloScarto = Math.sin(raggioKm / RAGGIO_TERRA_KM) / Math.cos(Math.toRadians(lat));
         double lngMin = -180;
         double lngMax = 180;
-        if (lng - mezzaLongitudine >= -180 && lng + mezzaLongitudine <= 180) {
-            lngMin = lng - mezzaLongitudine;
-            lngMax = lng + mezzaLongitudine;
+        if (senoDelloScarto < 1) {
+            double mezzaLongitudine = Math.toDegrees(Math.asin(senoDelloScarto));
+            if (lng - mezzaLongitudine >= -180 && lng + mezzaLongitudine <= 180) {
+                lngMin = lng - mezzaLongitudine;
+                lngMax = lng + mezzaLongitudine;
+            }
         }
         List<Campetto> nelRiquadro = campetti.nelRiquadro(Math.max(-90, lat - mezzaLatitudine),
                 Math.min(90, lat + mezzaLatitudine), lngMin, lngMax);

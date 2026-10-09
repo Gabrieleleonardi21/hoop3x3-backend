@@ -44,8 +44,9 @@ class CampettoServiceTest {
     /** Il centro di Torino, da cui partono le ricerche di prova */
     private static final double LAT_TORINO = 45.07;
     private static final double LNG_TORINO = 7.68;
-    /** Un grado di latitudine in chilometri: la larghezza del riquadro si ricava da qui */
-    private static final double KM_PER_GRADO = 111.32;
+    /** La sfera di Haversine e un suo grado di latitudine in chilometri (111,19): la mezza altezza del riquadro si ricava da qui */
+    private static final double RAGGIO_TERRA_KM = 6371;
+    private static final double KM_PER_GRADO = Math.PI * RAGGIO_TERRA_KM / 180;
 
     private final CampettoRepository campetti = mock(CampettoRepository.class);
     private final AccessGuard guard = mock(AccessGuard.class);
@@ -177,16 +178,38 @@ class CampettoServiceTest {
         List<CampettoDTO> trovati = servizio.cercaPerRaggio(LAT_TORINO, LNG_TORINO, raggioKm);
 
         assertThat(trovati).extracting(CampettoDTO::nome).containsExactly("A un km", "A quattro km");
-        // Il riquadro: ±raggio in latitudine, e in longitudine ±raggio diviso il coseno della latitudine (un grado di
-        // longitudine a Torino misura 79 km, non 111)
+        // Il riquadro: ±raggio in latitudine, e in longitudine lo scarto del punto più a est del cerchio sulla sfera,
+        // asin(sin(r/R) / cos lat) (un grado di longitudine a Torino misura 79 km, non 111)
         ArgumentCaptor<Double> lati = ArgumentCaptor.forClass(Double.class);
         verify(campetti).nelRiquadro(lati.capture(), lati.capture(), lati.capture(), lati.capture());
         double mezzaLatitudine = raggioKm / KM_PER_GRADO;
-        double mezzaLongitudine = mezzaLatitudine / Math.cos(Math.toRadians(LAT_TORINO));
+        double mezzaLongitudine = scartoInLongitudine(raggioKm, LAT_TORINO);
         assertThat(lati.getAllValues().get(0)).isCloseTo(LAT_TORINO - mezzaLatitudine, within(0.0005));
         assertThat(lati.getAllValues().get(1)).isCloseTo(LAT_TORINO + mezzaLatitudine, within(0.0005));
         assertThat(lati.getAllValues().get(2)).isCloseTo(LNG_TORINO - mezzaLongitudine, within(0.0005));
         assertThat(lati.getAllValues().get(3)).isCloseTo(LNG_TORINO + mezzaLongitudine, within(0.0005));
+    }
+
+    // Il punto più a est di un cerchio grande non sta alla latitudine del centro (sulla sfera i meridiani convergono) e il suo
+    // scarto in longitudine è più largo di r / (111 km · cos lat): un riquadro calcolato così lo lasciava fuori, e con lui tutti
+    // i campetti vicini al bordo est e ovest del cerchio
+    @Test
+    void cercaPerRaggio_ilRiquadroContieneIlPuntoPiuAEstDelCerchio_aRaggio500() {
+        double raggioKm = 500;
+        double quasiIlRaggio = 499.9 / RAGGIO_TERRA_KM; // in radianti, appena dentro il cerchio
+        double latEst = Math.toDegrees(Math.asin(Math.sin(Math.toRadians(LAT_TORINO)) / Math.cos(quasiIlRaggio)));
+        double lngEst = LNG_TORINO + Math.toDegrees(Math.asin(Math.sin(quasiIlRaggio) / Math.cos(Math.toRadians(LAT_TORINO))));
+        Campetto estremoEst = campetto("Estremo est", latEst, lngEst);
+        when(campetti.nelRiquadro(anyDouble(), anyDouble(), anyDouble(), anyDouble())).thenReturn(List.of(estremoEst));
+
+        List<CampettoDTO> trovati = servizio.cercaPerRaggio(LAT_TORINO, LNG_TORINO, raggioKm);
+
+        assertThat(trovati).extracting(CampettoDTO::nome).containsExactly("Estremo est");
+        ArgumentCaptor<Double> lati = ArgumentCaptor.forClass(Double.class);
+        verify(campetti).nelRiquadro(lati.capture(), lati.capture(), lati.capture(), lati.capture());
+        assertThat(lati.getAllValues().get(1)).as("latitudine massima del riquadro").isGreaterThanOrEqualTo(latEst);
+        assertThat(lati.getAllValues().get(3)).as("longitudine massima del riquadro").isGreaterThanOrEqualTo(lngEst);
+        assertThat(lati.getAllValues().get(2)).as("longitudine minima").isLessThanOrEqualTo(2 * LNG_TORINO - lngEst);
     }
 
     // Vicino al polo o all'antimeridiano il riquadro in longitudine non ha senso (sforerebbe i ±180 o diventerebbe infinito): si
@@ -251,6 +274,11 @@ class CampettoServiceTest {
     }
 
     /* ── Dati di prova ── */
+
+    /** Lo scarto in longitudine, in gradi, del punto più a est di un cerchio di `raggioKm` centrato a quella latitudine */
+    private static double scartoInLongitudine(double raggioKm, double lat) {
+        return Math.toDegrees(Math.asin(Math.sin(raggioKm / RAGGIO_TERRA_KM) / Math.cos(Math.toRadians(lat))));
+    }
 
     /** Un campetto di mario con quell'id, già alla versione 0, che il repository trova e salva */
     private Campetto campettoDiMario() {
