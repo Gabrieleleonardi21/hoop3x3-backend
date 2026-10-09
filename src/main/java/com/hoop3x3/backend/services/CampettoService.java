@@ -135,7 +135,8 @@ public class CampettoService {
         return campetti.findById(id).orElseThrow(() -> new NotFoundException("Campetto non trovato: " + id));
     }
 
-    private static void applica(CampettoRequestDTO d, Campetto c) {
+    /** I campi del DTO sul campetto, nella forma che si salva. Pubblico perché lo usa anche ImportCampetti: una regola sola */
+    public static void applica(CampettoRequestDTO d, Campetto c) {
         c.setNome(d.nome().trim());
         c.setIndirizzo(Testo.ripulito(d.indirizzo()));
         c.setCitta(Testo.ripulito(d.citta()));

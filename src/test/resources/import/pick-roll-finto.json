@@ -1,0 +1,110 @@
+[
+  {
+    "fonteId": "pr-001",
+    "nome": "Campo Testaccio",
+    "indirizzo": "Via Galvani",
+    "citta": "Roma",
+    "lat": 41.8765,
+    "lng": 12.4775,
+    "tipo": "campetto",
+    "superficie": "Asfalto",
+    "canestri": 2,
+    "illuminato": true,
+    "coperto": false,
+    "gratuito": true,
+    "retine": true,
+    "linee": true,
+    "fontanella": false,
+    "stato": "buono",
+    "note": "Due canestri, uno storto",
+    "foto": ["https://esempio.it/foto1.jpg"],
+    "valutazione": 4.5,
+    "recensioni": [{"utente": "u-77", "testo": "ottimo"}],
+    "inseritoDa": "u-12"
+  },
+  {
+    "fonteId": "pr-002",
+    "nome": "Playground Garbatella",
+    "lat": 41.8625,
+    "lng": 12.4860,
+    "tipo": "campetto"
+  },
+  {
+    "fonteId": "pr-003",
+    "nome": "Campo Villa Ada",
+    "indirizzo": "Via Salaria",
+    "citta": "Roma",
+    "lat": 41.9321,
+    "lng": 12.5010,
+    "tipo": "campetto",
+    "superficie": "Cemento",
+    "canestri": 4,
+    "illuminato": false,
+    "gratuito": true,
+    "stato": "discreto"
+  },
+  {
+    "fonteId": "pr-004",
+    "nome": "Campo Ostiense",
+    "citta": "Roma",
+    "lat": 41.8700,
+    "lng": 12.4800,
+    "tipo": "campetto",
+    "superficie": "Sintetico",
+    "canestri": 2,
+    "stato": "da sistemare"
+  },
+  {
+    "fonteId": "pr-005",
+    "nome": "Campo Monteverde",
+    "citta": "Roma",
+    "lat": 41.8800,
+    "lng": 12.4500,
+    "tipo": "campetto",
+    "canestri": 1,
+    "coperto": true
+  },
+  {
+    "fonteId": "pr-006",
+    "nome": "Campo Parco Sempione",
+    "citta": "Milano",
+    "lat": 45.4730,
+    "lng": 9.1740,
+    "tipo": "campetto",
+    "superficie": "Altro",
+    "canestri": 2,
+    "stato": "buono"
+  },
+  {
+    "fonteId": "pr-007",
+    "nome": "Campo con la latitudine sbagliata",
+    "citta": "Roma",
+    "lat": 95.0,
+    "lng": 12.5,
+    "tipo": "campetto"
+  },
+  {
+    "fonteId": "pr-008",
+    "nome": "   ",
+    "citta": "Roma",
+    "lat": 41.9,
+    "lng": 12.5,
+    "tipo": "campetto"
+  },
+  {
+    "fonteId": "pr-009",
+    "nome": "PalaTiziano",
+    "citta": "Roma",
+    "lat": 41.9300,
+    "lng": 12.4700,
+    "tipo": "palestra",
+    "coperto": true
+  },
+  {
+    "nome": "Campo senza id",
+    "citta": "Roma",
+    "lat": 41.9,
+    "lng": 12.5,
+    "tipo": "campetto"
+  }
+]

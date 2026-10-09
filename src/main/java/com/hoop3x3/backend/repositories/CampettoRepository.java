@@ -5,6 +5,7 @@ import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,4 +27,7 @@ public interface CampettoRepository extends JpaRepository<Campetto, UUID> {
     @Query("select c from Campetto c left join fetch c.autore "
             + "where c.nome ilike :filtro escape '\\' or c.citta ilike :filtro escape '\\' order by c.citta, c.nome")
     List<Campetto> perTesto(String filtro, Limit limite);
+
+    /** I campetti già importati da una fonte con quegli id nella fonte (indice unico della V8): li usa ImportCampetti */
+    List<Campetto> findByFonteAndFonteIdIn(String fonte, Collection<String> fonteId);
 }
