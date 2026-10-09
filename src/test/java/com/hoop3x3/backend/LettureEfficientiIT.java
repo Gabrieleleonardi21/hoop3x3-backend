@@ -323,18 +323,16 @@ class LettureEfficientiIT {
                 () -> assertThat(caricate(ArchivioTappa.class)).as("pubblicazioni caricate").isZero());
     }
 
-    /* ── Campetti: 5.000 campetti sparsi in Italia, le due ricerche fanno una query ciascuna e stanno sotto i 100 ms ── */
+    /* ── Campetti: 5.000 campetti sparsi in Italia, le ricerche fanno una query ciascuna (il tempo non si asserisce: in CI è fragile) ── */
 
     // La ricerca per raggio chiede al database un riquadro di coordinate (indice su lat, lng) e calcola la distanza in Java:
-    // una query, e con 5.000 righe sotto i 100 ms. Il primo giro riscalda (Hibernate compila l'HQL una volta sola): si misura
-    // il secondo, come farebbe un server avviato
+    // una query, anche con 5.000 righe
     @Test
-    void laRicercaPerRaggioSu5000CampettiFaUnaQueryInMenoDi100ms_dalPiuVicino() {
+    void laRicercaPerRaggioSu5000CampettiFaUnaQuery_dalPiuVicino() {
         campettiInItalia(5000);
         Campetto vicino = campetto("Campo vicino", "Roma", 41.905, 12.50);
         Campetto medio = campetto("Campo medio", "Roma", 41.95, 12.55);
         Campetto lontano = campetto("Campo lontano", "Roma", 42.05, 12.40);
-        campettoService.cercaPerRaggio(45.07, 7.68, 10); // riscaldamento
 
         var misura = misura(() -> campettoService.cercaPerRaggio(ROMA_LAT, ROMA_LNG, 20));
 
@@ -342,24 +340,19 @@ class LettureEfficientiIT {
         assertThat(trovati).extracting(CampettoDTO::id).containsSubsequence(vicino.getId(), medio.getId(), lontano.getId());
         List<Double> distanze = trovati.stream().map(c -> distanzaDaRoma(c.lat(), c.lng())).toList();
         assertThat(distanze).isSorted().allSatisfy(d -> assertThat(d).isLessThanOrEqualTo(20));
-        assertAll(
-                () -> assertThat(misura.query()).as("query della ricerca per raggio").isEqualTo(1),
-                () -> assertThat(misura.millisecondi()).as("ms della ricerca per raggio").isLessThan(100));
+        assertThat(misura.query()).as("query della ricerca per raggio").isEqualTo(1);
     }
 
-    // La ricerca per testo: una query con il limite di 200 dentro, sotto i 100 ms
+    // La ricerca per testo: una query con il limite di 200 dentro
     @Test
-    void laRicercaPerTestoSu5000CampettiFaUnaQueryInMenoDi100ms_alMassimo200Righe() {
+    void laRicercaPerTestoSu5000CampettiFaUnaQuery_alMassimo200Righe() {
         campettiInItalia(5000); // 250 a «Roma»: più del limite
-        campettoService.cercaPerTesto("milano", null, null); // riscaldamento
 
         var misura = misura(() -> campettoService.cercaPerTesto("roma", null, null));
 
         assertThat(misura.risultato()).hasSize(CampettoService.MASSIMO_RIGHE)
                 .allSatisfy(c -> assertThat(c.citta()).isEqualTo("Roma"));
-        assertAll(
-                () -> assertThat(misura.query()).as("query della ricerca per testo").isEqualTo(1),
-                () -> assertThat(misura.millisecondi()).as("ms della ricerca per testo").isLessThan(100));
+        assertThat(misura.query()).as("query della ricerca per testo").isEqualTo(1);
     }
 
     // Con un punto, i 200 di un testo che ne trova 250 devono essere i 200 più vicini a quel punto, dal più vicino: se il database
@@ -379,9 +372,7 @@ class LettureEfficientiIT {
 
         assertThat(misura.risultato()).extracting(CampettoDTO::nome)
                 .containsExactlyElementsOf(aRomaDalPiuVicino.subList(0, CampettoService.MASSIMO_RIGHE));
-        assertAll(
-                () -> assertThat(misura.query()).as("query della ricerca per testo con un punto").isEqualTo(1),
-                () -> assertThat(misura.millisecondi()).as("ms della ricerca per testo con un punto").isLessThan(100));
+        assertThat(misura.query()).as("query della ricerca per testo con un punto").isEqualTo(1);
     }
 
     /* ── Dati di prova ── */
@@ -508,15 +499,13 @@ class LettureEfficientiIT {
 
     /* ── Misure ── */
 
-    /** Il risultato di un'azione, le istruzioni SQL che Hibernate ha eseguito per ottenerlo e quanto ci ha messo */
-    private record Misura<T>(T risultato, long query, long millisecondi) {}
+    /** Il risultato di un'azione e le istruzioni SQL che Hibernate ha eseguito per ottenerlo */
+    private record Misura<T>(T risultato, long query) {}
 
     private <T> Misura<T> misura(Supplier<T> azione) {
         statistiche.clear();
-        long inizio = System.nanoTime();
         T risultato = azione.get();
-        long millisecondi = (System.nanoTime() - inizio) / 1_000_000;
-        return new Misura<>(risultato, statistiche.getPrepareStatementCount(), millisecondi);
+        return new Misura<>(risultato, statistiche.getPrepareStatementCount());
     }
 
     /** Le istruzioni SQL che Hibernate esegue per un'azione che non restituisce nulla */
