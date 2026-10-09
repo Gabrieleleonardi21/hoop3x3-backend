@@ -114,6 +114,11 @@ class DemoSeederIT {
             assertThat(c.tipo()).isEqualTo("campetto");
             assertThat(c.citta()).isEqualTo("Torino");
             assertThat(c.note()).isEmpty();
+            // Il seed non passa dalla validazione del DTO: un refuso nel JSON farebbe respingere l'intero elenco allo schema
+            // zod del frontend, quindi i valori ammessi si controllano qui
+            assertThat(c.superficie()).isIn("Asfalto", "Cemento", "Sintetico", "Altro");
+            assertThat(c.stato()).isIn("buono", "discreto", "da sistemare");
+            assertThat(c.canestri()).isBetween(1, 8);
         });
         assertThat(vicini.getFirst().nome()).as("il più vicino al centro").isEqualTo("Giardini Reali — Playground");
         assertThat(vicini).extracting(CampettoDTO::nome).containsExactlyInAnyOrder("Parco Ruffini — Campo 2",
