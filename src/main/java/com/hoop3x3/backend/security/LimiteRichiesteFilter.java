@@ -62,7 +62,7 @@ public class LimiteRichiesteFilter extends OncePerRequestFilter {
     private static final RequestMatcher LOGIN = pathPattern(HttpMethod.POST, "/api/auth/login");
     private static final RequestMatcher REGISTRAZIONE = pathPattern(HttpMethod.POST, "/api/auth/register");
     private static final RequestMatcher RINNOVO = pathPattern(HttpMethod.POST, "/api/auth/refresh");
-    // Solo la chat chiama Groq: lo stato del Coach, che il frontend legge a ogni avvio, non consuma la quota
+    // Solo la chat chiama Groq: lo stato del Coach (GET /api/coach/status) legge una proprietà e non consuma la quota
     private static final RequestMatcher COACH = pathPattern(HttpMethod.POST, "/api/coach/chat");
 
     /** Come si chiama chi supera il limite, nella riga di log */

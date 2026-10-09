@@ -15,7 +15,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -137,6 +139,59 @@ class MigrazioniIT {
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
+    // Come la V4 per le tappe: le schede dell'anagrafe già salvate partono dalla versione 0, e così una riga inserita senza
+    // nominare la colonna. Si ferma alla V4 per avere una scheda «di prima»
+    @Test
+    void laV5DaVersioneZeroAlleSchedeGiaSalvateEAQuelleInseriteSenzaNominarla() {
+        String schema = nuovoSchema();
+        configurazionePer(schema).target("4").load().migrate();
+        UUID autore = nuovoUtente(schema);
+        nuovoGiocatore(schema, autore);
+        nuovaSquadra(schema, autore);
+
+        configurazionePer(schema).target("5").load().migrate();
+        nuovoGiocatore(schema, autore);
+        nuovaSquadra(schema, autore);
+
+        assertThat(valori("select versione::text from " + schema + ".anagrafe_giocatori")).containsExactly("0", "0");
+        assertThat(valori("select versione::text from " + schema + ".anagrafe_squadre")).containsExactly("0", "0");
+    }
+
+    // La V6 riempie le colonne dell'elenco (nome, luogo, data, numero di squadre) dal contenuto delle pubblicazioni già presenti,
+    // con le stesse regole che usava la query dell'elenco: le pubblicazioni del vecchio endpoint avevano la tappa scelta dal
+    // client, quindi campi mancanti o nulli diventano vuoti, squadre che non sono un array contano 0, un contenuto che non è
+    // un oggetto dà vuoti e 0, e un nome più lungo della colonna si tronca invece di far fallire la migrazione. Si ferma alla
+    // V5 per avere le pubblicazioni «di prima»
+    @Test
+    void laV6RiempieLeColonneDellElencoDalContenutoDellePubblicazioniGiaPresenti_ancheConContenutiStrani() {
+        String schema = nuovoSchema();
+        configurazionePer(schema).target("5").load().migrate();
+        UUID autore = nuovoUtente(schema);
+        Map<String, String> contenuti = new LinkedHashMap<>();
+        contenuti.put("completa", "{\"nome\": \"Tappa di Roma\", \"luogo\": \"Roma\", \"data\": \"2026-06-14\", \"squadre\": [{}, {}, {}]}");
+        contenuti.put("senza campi", "{\"nome\": \"Vecchia\"}");
+        contenuti.put("campi nulli", "{\"nome\": \"Vecchia\", \"luogo\": null, \"data\": null, \"squadre\": null}");
+        contenuti.put("squadre oggetto", "{\"nome\": \"Vecchia\", \"squadre\": {\"s1\": \"Team Rome\"}}");
+        contenuti.put("squadre testo", "{\"nome\": \"Vecchia\", \"squadre\": \"nessuna\"}");
+        contenuti.put("vuota", "{}");
+        contenuti.put("array", "[]");
+        contenuti.put("nome lungo", "{\"nome\": \"" + "x".repeat(200) + "\"}");
+        Map<String, UUID> id = new LinkedHashMap<>();
+        contenuti.forEach((caso, contenuto) -> id.put(caso, nuovaPubblicazione(schema, nuovaTappa(schema, autore), autore, contenuto)));
+
+        configurazionePer(schema).target("6").load().migrate();
+
+        assertThat(voceDellElenco(schema, id.get("completa"))).containsExactly("Tappa di Roma", "Roma", "2026-06-14", "3");
+        for (String caso : List.of("senza campi", "campi nulli", "squadre oggetto", "squadre testo")) {
+            assertThat(voceDellElenco(schema, id.get(caso))).as(caso).containsExactly("Vecchia", "", "", "0");
+        }
+        assertThat(voceDellElenco(schema, id.get("vuota"))).containsExactly("", "", "", "0");
+        assertThat(voceDellElenco(schema, id.get("array"))).containsExactly("", "", "", "0");
+        assertThat(voceDellElenco(schema, id.get("nome lungo"))).containsExactly("x".repeat(120), "", "", "0");
+        assertThat(valori("select indexname from pg_indexes where schemaname = ?", schema))
+                .contains("idx_anagrafe_squadre_roster_giocatore");
+    }
+
     // Una tabella che manca dalla TRUNCATE di svuota.sql resterebbe piena tra un test e l'altro. Lo storico di Flyway
     // invece non va mai svuotato: dice quali migrazioni il database ha già, e svuotarlo le farebbe riapplicare
     @Test
@@ -199,9 +254,31 @@ class MigrazioniIT {
         return tappa;
     }
 
+    private void nuovoGiocatore(String schema, UUID autore) {
+        jdbc.update("insert into " + schema + ".anagrafe_giocatori (id, nome, cognome, autore_id, creato_il, modificato_il) "
+                + "values (?, 'Mario', 'Rossi', ?, now(), now())", UUID.randomUUID(), autore);
+    }
+
+    private void nuovaSquadra(String schema, UUID autore) {
+        jdbc.update("insert into " + schema + ".anagrafe_squadre (id, nome, autore_id, creato_il, modificato_il) "
+                + "values (?, 'Roma 3x3', ?, now(), now())", UUID.randomUUID(), autore);
+    }
+
     private void nuovaPubblicazione(String schema, UUID tappa, UUID autore) {
+        nuovaPubblicazione(schema, tappa, autore, "{}");
+    }
+
+    /** Una pubblicazione con il contenuto JSON scelto dal chiamante: restituisce l'id della tappa */
+    private UUID nuovaPubblicazione(String schema, UUID tappa, UUID autore, String contenuto) {
         jdbc.update("insert into " + schema + ".archivio_tappe (tappa_id, lega_nome, autore_id, contenuto, pubblicato_il) "
-                + "values (?, 'Circuito', ?, '{}'::jsonb, now())", tappa, autore);
+                + "values (?, 'Circuito', ?, ?::jsonb, now())", tappa, autore, contenuto);
+        return tappa;
+    }
+
+    /** Le colonne dell'elenco (V6) di una pubblicazione: nome, luogo, data e numero di squadre, come testo */
+    private List<String> voceDellElenco(String schema, UUID tappa) {
+        return jdbc.queryForList("select nome, luogo, data, numero_squadre::text from " + schema + ".archivio_tappe where tappa_id = ?",
+                        tappa).stream().flatMap(riga -> riga.values().stream()).map(String::valueOf).toList();
     }
 
     /** Le pubblicazioni la cui tappa non esiste più: la query del README per i database già in uso, sullo schema di prova */

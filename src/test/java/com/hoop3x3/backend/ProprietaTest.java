@@ -29,7 +29,7 @@ class ProprietaTest {
                 .containsExactly("http://localhost:5173", "http://127.0.0.1:5173");
         AuthProperties auth = leggi(nessuna, "auth", AuthProperties.class);
         assertThat(auth.refreshGiorni()).isEqualTo(30);
-        assertThat(auth.cookieSecure()).isFalse();
+        assertThat(auth.cookieSecure()).as("Secure acceso di base: la produzione non dipende da una variabile").isTrue();
         SeedProperties seed = leggi(nessuna, "seed", SeedProperties.class);
         assertThat(seed.demo()).isFalse();
         assertThat(seed.admin().email()).isEmpty();
@@ -37,17 +37,18 @@ class ProprietaTest {
         GroqProperties groq = leggi(nessuna, "groq", GroqProperties.class);
         assertThat(groq.api().key()).isEmpty();
         assertThat(groq.model()).isEqualTo("openai/gpt-oss-120b");
+        assertThat(groq.reasoningEffort()).isEqualTo("low");
     }
 
     @Test
     void leChiaviSonoQuelleDiApplicationProperties() {
         Map<String, String> valori = Map.of(
                 "cors.origins", "https://a.it,https://b.it",
-                "auth.refresh-giorni", "7", "auth.cookie-secure", "true",
+                "auth.refresh-giorni", "7", "auth.cookie-secure", "false",
                 "seed.demo", "true", "seed.admin.email", "a@prova.it", "seed.admin.password", "Segreta-di-prova-1",
-                "groq.api.key", "chiave-di-prova", "groq.model", "modello-di-prova");
+                "groq.api.key", "chiave-di-prova", "groq.model", "modello-di-prova", "groq.reasoning-effort", "");
         assertThat(leggi(valori, "cors", CorsProperties.class).origins()).containsExactly("https://a.it", "https://b.it");
-        assertThat(leggi(valori, "auth", AuthProperties.class)).isEqualTo(new AuthProperties(7, true));
+        assertThat(leggi(valori, "auth", AuthProperties.class)).isEqualTo(new AuthProperties(7, false));
         SeedProperties seed = leggi(valori, "seed", SeedProperties.class);
         assertThat(seed.demo()).isTrue();
         assertThat(seed.admin().email()).isEqualTo("a@prova.it");
@@ -55,6 +56,7 @@ class ProprietaTest {
         GroqProperties groq = leggi(valori, "groq", GroqProperties.class);
         assertThat(groq.api().key()).isEqualTo("chiave-di-prova");
         assertThat(groq.model()).isEqualTo("modello-di-prova");
+        assertThat(groq.reasoningEffort()).as("vuoto: il campo non si manda a Groq").isEmpty();
     }
 
     // Il toString() automatico di un record scrive tutti i campi: password e chiave non devono finire nei log
@@ -62,7 +64,7 @@ class ProprietaTest {
     void passwordEChiaveNonCompaionoNelToString() {
         assertThat(new SeedProperties(true, new SeedProperties.Admin("a@prova.it", "Segreta-di-prova-1")).toString())
                 .doesNotContain("Segreta-di-prova-1");
-        assertThat(new GroqProperties(new GroqProperties.Api("chiave-di-prova"), "m").toString())
+        assertThat(new GroqProperties(new GroqProperties.Api("chiave-di-prova"), "m", "low").toString())
                 .doesNotContain("chiave-di-prova");
     }
 }

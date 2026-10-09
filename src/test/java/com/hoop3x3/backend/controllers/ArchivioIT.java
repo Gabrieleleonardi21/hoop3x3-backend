@@ -7,6 +7,7 @@ import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.ArchivioTappa;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
+import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.repositories.ArchivioTappaRepository;
 import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
@@ -15,11 +16,10 @@ import com.hoop3x3.backend.services.LegaService;
 import com.hoop3x3.backend.support.Tempo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc; // Spring Boot 4: package del modulo webmvc-test
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.JsonNode;
@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
@@ -65,6 +66,7 @@ class ArchivioIT {
     @Autowired TappaRepository tappe;
     @Autowired ArchivioTappaRepository archivio;
     @Autowired LegaService legaService;
+    @Autowired JdbcTemplate jdbc;
 
     private Utente mario; // proprietario delle leghe di prova
     private Utente luigi; // un altro utente
@@ -147,15 +149,64 @@ class ArchivioIT {
     }
 
     // Una pubblicazione fatta con il vecchio endpoint ha come autore chi l'ha mandata, che può non essere il proprietario
-    // della lega: alla ripubblicazione l'autore torna a essere il proprietario
+    // della lega. Una riga già presente la sovrascrive solo il suo autore o un ADMIN: il proprietario della lega, che non ne è
+    // l'autore, riceve 403 (è la stessa regola che ferma chi si crea una tappa con l'id di una pubblicazione orfana, vedi
+    // sotto). Un ADMIN la ripubblica, e l'autore torna a essere il proprietario
     @Test
-    void laRipubblicazioneRiportaAlProprietarioLAutoreDiUnaPubblicazioneVecchia() throws Exception {
+    void unaPubblicazioneVecchiaDiUnAltroAutore_ilProprietarioRiceve403_unAdminLaRipubblicaRiportandolaAlProprietario() throws Exception {
         UUID tappaId = tappaConclusa(mario, "Circuito 2026");
         pubblicazioneVecchia(tappaId, luigi);
 
-        pubblica(tappaId, mario).andExpect(status().isOk())
+        pubblica(tappaId, mario).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value(containsString("questa pubblicazione")));
+        assertThat(letta(tappaId).get("autoreId").asString()).isEqualTo(luigi.getId().toString());
+
+        pubblica(tappaId, admin).andExpect(status().isOk())
                 .andExpect(jsonPath("$.autoreId").value(mario.getId().toString()))
                 .andExpect(jsonPath("$.lega").value("Circuito 2026"));
+    }
+
+    /* ── Pubblicazioni orfane: la tappa eliminata prima della V2, la pubblicazione rimasta ── */
+
+    // Gli id delle tappe sono pubblici e li sceglie il client, e la chiave dell'archivio è l'id della tappa. Prima chiunque
+    // poteva creare una tappa con l'id di una pubblicazione orfana (visibile nell'elenco pubblico) e, pubblicandola, sostituire
+    // il contenuto e l'autore della pubblicazione di un altro con i suoi; e anche senza pubblicare, eliminando poi la tappa (o la
+    // lega) la chiave esterna della V2 cancellava la pubblicazione dell'altro. Ora la tappa non si crea nemmeno: 409 sia una alla
+    // volta sia nell'import, e la riga resta com'era. L'autore della pubblicazione (e un ADMIN) può invece ricrearla
+    @Test
+    void unaTappaConLIdDiUnaPubblicazioneOrfanaDiUnAltro_nonSiCrea409ELaRigaResta() throws Exception {
+        UUID orfana = UUID.randomUUID();
+        ArchivioTappa diMario = pubblicazioneOrfana(orfana, mario);
+        UUID legaDiLuigi = lega(luigi, "Lega di Luigi");
+        String messaggio = "L'id " + orfana + " è già di una pubblicazione in archivio di un altro utente";
+
+        assertThatThrownBy(() -> legaService.aggiungiTappa(luigi, legaDiLuigi, tappaDto(orfana, "Tappa di Luigi", true)))
+                .isInstanceOf(ConflictException.class).hasMessage(messaggio);
+        assertThatThrownBy(() -> legaService.crea(luigi, new NuovaLegaDTO("Importata", List.of(tappaDto(orfana, "Importata", true)))))
+                .isInstanceOf(ConflictException.class).hasMessage(messaggio);
+
+        assertThat(tappe.existsById(orfana)).isFalse();
+        ArchivioTappa dopo = archivio.findById(orfana).orElseThrow();
+        assertThat(dopo.getAutore().getId()).isEqualTo(mario.getId());
+        assertThat(dopo.getLegaNome()).isEqualTo("Nome vecchio");
+        assertThat(mapper.readTree(dopo.getContenuto())).isEqualTo(mapper.readTree(diMario.getContenuto()));
+        assertThat(dopo.getPubblicatoIl()).isEqualTo(diMario.getPubblicatoIl());
+        assertThat(letta(orfana).at("/tappa/nome").asString()).isEqualTo("Tappa vecchia");
+
+        // Mario, autore della pubblicazione, può ricreare la sua tappa con quell'id (per esempio reimportando la lega da file)
+        legaService.aggiungiTappa(mario, lega(mario, "Lega di Mario"), tappaDto(orfana, "Tappa di Mario", true));
+        pubblica(orfana, mario).andExpect(status().isOk()).andExpect(jsonPath("$.tappa.nome").value("Tappa di Mario"));
+    }
+
+    // Il 409 ferma anche la via indiretta: con la tappa che non esiste, la cancellazione a cascata non ha niente da cancellare
+    @Test
+    void unAdminPuoCreareLaTappaConLIdDiUnaPubblicazioneOrfanaDiUnAltro() throws Exception {
+        UUID orfana = UUID.randomUUID();
+        pubblicazioneOrfana(orfana, mario);
+
+        legaService.aggiungiTappa(admin, lega(admin, "Lega dell'admin"), tappaDto(orfana, "Tappa dell'admin", true));
+
+        assertThat(tappe.existsById(orfana)).isTrue();
     }
 
     @Test
@@ -316,44 +367,42 @@ class ArchivioIT {
                 .formatted(milano.id(), millis(adesso), roma.id(), millis(ieri))));
     }
 
-    // Le pubblicazioni fatte con il vecchio endpoint sono tappe scelte dal client: possono mancare luogo e data, e le squadre
-    // possono non essere un array. Una voce così non deve rompere l'elenco (500) né nascondere le altre: ha luogo e data vuoti
-    // e 0 squadre
-    @ParameterizedTest
-    @ValueSource(strings = {
-            "{\"nome\": \"Vecchia\"}",
-            "{\"nome\": \"Vecchia\", \"luogo\": null, \"data\": null, \"squadre\": null}",
-            "{\"nome\": \"Vecchia\", \"squadre\": {\"s1\": \"Team Rome\"}}",
-            "{\"nome\": \"Vecchia\", \"squadre\": \"nessuna\"}"})
-    void unaPubblicazioneVecchiaConCampiMancantiONonValidi_stanellElencoConVuotiEZeroSquadre(String contenuto) throws Exception {
-        verificaLaVoceDellaPubblicazioneVecchia(contenuto, "Vecchia");
+    // L'elenco legge le colonne scritte alla pubblicazione (V6), non il contenuto JSONB: cambiato il contenuto in SQL, la voce
+    // resta quella della pubblicazione, e non c'è più niente da decomprimere a ogni richiesta. Le pubblicazioni di prima della
+    // V6, anche con contenuti strani, le ha riempite la migrazione: lo prova MigrazioniIT
+    @Test
+    void elencoLeggeLeColonneDellaPubblicazione_nonIlContenuto() throws Exception {
+        TappaDTO roma = tappaDto(UUID.randomUUID(), "Tappa di Roma", "Roma", "2026-06-14", SQUADRE, true);
+        lega(mario, "Circuito 2026", roma);
+        pubblica(roma.id(), mario).andExpect(status().isOk());
+
+        jdbc.update("update archivio_tappe set contenuto = '{}'::jsonb where tappa_id = ?", roma.id());
+
+        assertThat(elenco()).singleElement().satisfies(voce -> {
+            assertThat(voce.get("nome").asString()).isEqualTo("Tappa di Roma");
+            assertThat(voce.get("luogo").asString()).isEqualTo("Roma");
+            assertThat(voce.get("data").asString()).isEqualTo("2026-06-14");
+            assertThat(voce.get("nSquadre").asInt()).isEqualTo(2);
+        });
     }
 
-    // Anche il nome può mancare: in un contenuto vuoto, o che non è nemmeno un oggetto. Il test sopra fissa il nome «Vecchia»,
-    // quindi la difesa del nome è provata qui: la voce ha il nome vuoto e il resto come sopra, e l'elenco non dà errore
-    @ParameterizedTest
-    @ValueSource(strings = {"{}", "[]"})
-    void unaPubblicazioneVecchiaSenzaNome_stanellElencoConNomeVuoto(String contenuto) throws Exception {
-        verificaLaVoceDellaPubblicazioneVecchia(contenuto, "");
-    }
+    // Ripubblicare aggiorna anche le colonne dell'elenco, non solo lo snapshot
+    @Test
+    void ripubblicareAggiornaLaVoceDellElenco() throws Exception {
+        TappaDTO tappa = tappaDto(UUID.randomUUID(), "Tappa di Roma", "Roma", "2026-06-14", SQUADRE, true);
+        lega(mario, "Circuito 2026", tappa);
+        pubblica(tappa.id(), mario).andExpect(status().isOk());
 
-    /**
-     * Un archivio con una pubblicazione normale e una vecchia con questo contenuto: l'elenco le ha entrambe, e la voce della
-     * vecchia ha il nome atteso, luogo e data vuoti e 0 squadre
-     */
-    private void verificaLaVoceDellaPubblicazioneVecchia(String contenuto, String nomeAtteso) throws Exception {
-        UUID buona = tappaConclusa(mario, "Circuito 2026");
-        pubblica(buona, mario).andExpect(status().isOk());
-        UUID vecchia = tappaConclusa(luigi, "Altro circuito");
-        ArchivioTappa riga = pubblicazioneConContenuto(vecchia, luigi, contenuto);
+        legaService.aggiornaTappa(mario, tappa.id(), TappaDiProva.da(tappa).nome("Finale di Milano").luogo("Milano")
+                .data("2026-07-05").squadre(TRE_SQUADRE).versione(0L).build());
+        pubblica(tappa.id(), mario).andExpect(status().isOk());
 
-        JsonNode elenco = elenco();
-
-        assertThat(elenco.size()).isEqualTo(2);
-        assertThat(elenco).contains(mapper.readTree("""
-                {"tappaId": "%s", "nome": "%s", "luogo": "", "data": "", "nSquadre": 0,
-                 "lega": "Nome vecchio", "autore": "Luigi", "ts": %d}"""
-                .formatted(vecchia, nomeAtteso, millis(riga.getPubblicatoIl()))));
+        assertThat(elenco()).singleElement().satisfies(voce -> {
+            assertThat(voce.get("nome").asString()).isEqualTo("Finale di Milano");
+            assertThat(voce.get("luogo").asString()).isEqualTo("Milano");
+            assertThat(voce.get("data").asString()).isEqualTo("2026-07-05");
+            assertThat(voce.get("nSquadre").asInt()).isEqualTo(3);
+        });
     }
 
     /* ── Pulizia: la pubblicazione segue la sua tappa (V2) ── */
@@ -434,6 +483,21 @@ class ArchivioIT {
      */
     private ArchivioTappa pubblicazioneVecchia(UUID tappaId, Utente autore) {
         return pubblicazioneConContenuto(tappaId, autore, mapper.writeValueAsString(tappaDto(tappaId, "Tappa vecchia", true)));
+    }
+
+    /**
+     * Una pubblicazione orfana, come quelle rimaste nei database già in uso: la sua tappa non esiste. La chiave esterna della
+     * V2 (NOT VALID) lascia stare le righe già presenti ma controlla quelle nuove, quindi si toglie per il tempo di scrivere la
+     * riga e si rimette com'era (NOT VALID), senza che PostgreSQL controlli le righe esistenti
+     */
+    private ArchivioTappa pubblicazioneOrfana(UUID tappaId, Utente autore) {
+        jdbc.execute("alter table archivio_tappe drop constraint archivio_tappe_tappa_id_fkey");
+        try {
+            return pubblicazioneVecchia(tappaId, autore);
+        } finally {
+            jdbc.execute("alter table archivio_tappe add constraint archivio_tappe_tappa_id_fkey "
+                    + "foreign key (tappa_id) references tappe(id) on delete cascade not valid");
+        }
     }
 
     /** Una pubblicazione di ieri, con il contenuto JSON scelto dal chiamante (anche uno che il server non costruirebbe mai) */

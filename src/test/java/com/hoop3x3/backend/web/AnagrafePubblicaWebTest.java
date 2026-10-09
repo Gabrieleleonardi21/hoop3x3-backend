@@ -141,8 +141,10 @@ class AnagrafePubblicaWebTest {
                 .andExpect(jsonPath("$[0].note").value(""))
                 .andExpect(jsonPath("$[0].autore").value(""))
                 .andExpect(jsonPath("$[0].autoreId").value(nullValue()))
-                // Stessa forma di oggi: le 17 chiavi ci sono tutte, anche quelle vuote
-                .andExpect(jsonPath("$[0].length()").value(17))
+                // La versione non è un dato personale: c'è anche nella forma pubblica, come nella completa
+                .andExpect(jsonPath("$[0].versione").value(0))
+                // Stessa forma di oggi: le 18 chiavi ci sono tutte, anche quelle vuote
+                .andExpect(jsonPath("$[0].length()").value(18))
                 .andExpect(jsonPath("$[0]", hasKey("autoreId")));
     }
 
@@ -167,7 +169,7 @@ class AnagrafePubblicaWebTest {
                 .andExpect(jsonPath("$[0].autore").value("Nome"))
                 .andExpect(jsonPath("$[0].autoreId").value(autore.getId().toString()))
                 .andExpect(jsonPath("$[0].ts").isNumber())
-                .andExpect(jsonPath("$[0].length()").value(17));
+                .andExpect(jsonPath("$[0].length()").value(18));
     }
 
     /* ── Squadre ── */
@@ -192,7 +194,8 @@ class AnagrafePubblicaWebTest {
                 .andExpect(jsonPath("$[0].referente").value(""))
                 .andExpect(jsonPath("$[0].autore").value(""))
                 .andExpect(jsonPath("$[0].autoreId").value(nullValue()))
-                .andExpect(jsonPath("$[0].length()").value(14))
+                .andExpect(jsonPath("$[0].versione").value(0))
+                .andExpect(jsonPath("$[0].length()").value(15))
                 .andExpect(jsonPath("$[0]", hasKey("autoreId")));
     }
 
@@ -207,7 +210,7 @@ class AnagrafePubblicaWebTest {
                 .andExpect(jsonPath("$[0].note").value("Circuito Elite"))
                 .andExpect(jsonPath("$[0].autore").value("Nome"))
                 .andExpect(jsonPath("$[0].autoreId").value(autore.getId().toString()))
-                .andExpect(jsonPath("$[0].length()").value(14));
+                .andExpect(jsonPath("$[0].length()").value(15));
     }
 
     /* ── Token scaduto o non valido: il 401 del JwtFilter, non la forma pubblica ── */

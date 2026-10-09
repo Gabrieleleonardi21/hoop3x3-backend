@@ -19,7 +19,10 @@ public class CoachController {
         this.coachAiService = coachAiService;
     }
 
-    /** Il frontend lo usa per mostrare il Coach solo se il server ha una chiave configurata */
+    /**
+     * Dice se il server ha una chiave Groq configurata. Il frontend oggi non lo chiama: mostra sempre il Coach e scopre
+     * che è spento dal 503 della chat. Serve a chi controlla la configurazione di un ambiente (curl, monitoraggio)
+     */
     @GetMapping("/status")
     public Map<String, Boolean> status() {
         return Map.of("available", coachAiService.isConfigurato());

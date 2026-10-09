@@ -7,6 +7,7 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.BadRequestException;
 import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.NotFoundException;
+import com.hoop3x3.backend.repositories.ArchivioTappaRepository;
 import com.hoop3x3.backend.repositories.LegaRepository;
 import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.support.Tempo;
@@ -26,12 +27,15 @@ public class LegaService {
 
     private final LegaRepository legaRepository;
     private final TappaRepository tappaRepository;
+    private final ArchivioTappaRepository archivioRepository;
     private final AccessGuard guard;
     private final JsonSupport json;
 
-    public LegaService(LegaRepository legaRepository, TappaRepository tappaRepository, AccessGuard guard, JsonSupport json) {
+    public LegaService(LegaRepository legaRepository, TappaRepository tappaRepository, ArchivioTappaRepository archivioRepository,
+                       AccessGuard guard, JsonSupport json) {
         this.legaRepository = legaRepository;
         this.tappaRepository = tappaRepository;
+        this.archivioRepository = archivioRepository;
         this.guard = guard;
         this.json = json;
     }
@@ -53,7 +57,7 @@ public class LegaService {
         if (dto.tappe() != null) {
             int pos = 0;
             for (TappaDTO t : dto.tappe()) {
-                if (tappaRepository.existsById(t.id())) throw new ConflictException("Esiste già una tappa con id " + t.id());
+                controllaIdLibero(utente, t.id());
                 lega.getTappe().add(fromDto(t, lega, pos++));
             }
         }
@@ -91,7 +95,14 @@ public class LegaService {
         // leggerebbero la stessa posizione massima. Così la seconda aspetta il commit della prima e il suo massimo vede
         // la tappa nuova
         Lega lega = trovaLegaConLock(utente, legaId);
-        if (tappaRepository.existsById(dto.id())) throw new ConflictException("Esiste già una tappa con id " + dto.id());
+        // Prima l'id, poi il tetto: se la centesima POST è stata salvata ma la risposta si è persa, il nuovo invio del frontend
+        // deve ricevere il 409 «Esiste già», che sa riconciliare, e non il 400 del tetto
+        controllaIdLibero(utente, dto.id());
+        // Il tetto è lo stesso dell'import (Lega.MAX_TAPPE); il conteggio è sicuro perché la riga della lega è bloccata. È un 400
+        // e non un 409: il frontend legge il 409 di una tappa come «modificata da un altro dispositivo» e ricaricherebbe la lega
+        if (tappaRepository.countByLegaId(legaId) >= Lega.MAX_TAPPE) {
+            throw new BadRequestException("Limite di " + Lega.MAX_TAPPE + " tappe per lega raggiunto");
+        }
         // In coda: una posizione dopo la massima, non il numero delle tappe (dopo un'eliminazione sarebbe già di un'altra)
         Tappa t = fromDto(dto, lega, tappaRepository.prossimaPosizione(legaId));
         guard.tracciaModifica(utente, lega.getOwner().getId(), "lega", legaId); // una tappa nuova modifica la lega
@@ -145,6 +156,21 @@ public class LegaService {
     }
 
     /* ── Helper ── */
+
+    /**
+     * L'id di una tappa nuova lo sceglie il client ed è la chiave di tutte le tappe e delle pubblicazioni in archivio: 409 se
+     * una tappa con quell'id esiste già, e 409 anche se esiste una pubblicazione con quell'id di un altro utente (un ADMIN
+     * passa). Il secondo caso è una pubblicazione orfana (tappa eliminata prima della V2): chi si creasse una tappa con il suo
+     * id non potrebbe sovrascriverla (ArchivioService.pubblica), ma eliminando la tappa o la lega la chiave esterna della V2
+     * cancellerebbe la pubblicazione di un altro. Prima del tetto delle tappe: vedi aggiungiTappa
+     */
+    private void controllaIdLibero(Utente utente, UUID id) {
+        if (tappaRepository.existsById(id)) throw new ConflictException("Esiste già una tappa con id " + id);
+        archivioRepository.findById(id).ifPresent(pubblicazione -> {
+            if (utente.isAdmin() || pubblicazione.getAutore().getId().equals(utente.getId())) return;
+            throw new ConflictException("L'id " + id + " è già di una pubblicazione in archivio di un altro utente");
+        });
+    }
 
     private Lega trovaLega(Utente utente, UUID id) {
         return controllaLega(utente, id, legaRepository.findById(id));

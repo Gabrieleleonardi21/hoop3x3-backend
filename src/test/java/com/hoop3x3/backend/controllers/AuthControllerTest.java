@@ -50,8 +50,10 @@ class AuthControllerTest {
 
     private final Utente utente = new Utente("mario@test.it", "hash", "Mario", Ruolo.USER);
 
+    // Secure è acceso senza nessuna variabile (auth.cookie-secure vale true di base): un server pubblicato con HTTPS non manda
+    // il cookie in chiaro anche se chi lo configura dimentica AUTH_COOKIE_SECURE. In sviluppo su http si spegne a mano
     @Test
-    void loginRispondeConIlJwtEImpostaIlCookieDiRefresh() throws Exception {
+    void loginRispondeConIlJwtEImpostaIlCookieDiRefresh_SecureDiBase() throws Exception {
         when(authenticationManager.authenticate(any()))
                 .thenReturn(new UsernamePasswordAuthenticationToken(utente, null, utente.getAuthorities()));
         when(jwtTools.generateToken(utente)).thenReturn("jwt-di-prova");
@@ -65,6 +67,7 @@ class AuthControllerTest {
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, allOf(
                         containsString("hoop3x3_refresh=token-di-refresh"),
                         containsString("HttpOnly"),
+                        containsString("Secure"),
                         containsString("SameSite=Lax"),
                         containsString("Path=/api/auth"),
                         containsString("Max-Age=2592000"))));
@@ -103,9 +106,11 @@ class AuthControllerTest {
     void logoutRevocaIlTokenECancellaIlCookie() throws Exception {
         mockMvc.perform(post("/api/auth/logout").cookie(new Cookie("hoop3x3_refresh", "vecchio")))
                 .andExpect(status().isNoContent())
+                // Stessi attributi del cookie emesso (Secure compreso), altrimenti il browser non lo riconosce come lo stesso cookie
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, allOf(
                         containsString("hoop3x3_refresh="),
                         containsString("Max-Age=0"),
+                        containsString("Secure"),
                         containsString("Path=/api/auth"))));
         verify(refreshTokenService).revoca("vecchio");
     }

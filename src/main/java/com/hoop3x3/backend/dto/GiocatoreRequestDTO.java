@@ -3,7 +3,11 @@ package com.hoop3x3.backend.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/** Campi compilabili di un giocatore dell'anagrafe (id, autore e timestamp li mette il server) */
+/**
+ * Campi compilabili di un giocatore dell'anagrafe (id, autore e timestamp li mette il server). `versione` è quella che il
+ * client ha letto (GiocatoreDTO.versione), facoltativa: se c'è e non è più quella del database la PUT risponde 409
+ * (AnagrafeService.controllaVersione); se manca non si controlla niente, come per i client di prima. La POST la ignora.
+ */
 public record GiocatoreRequestDTO(
         @NotBlank @Size(max = 80) String nome,
         @NotBlank @Size(max = 80) String cognome,
@@ -17,5 +21,6 @@ public record GiocatoreRequestDTO(
         @Size(max = 5) String numero,
         @Size(max = 120) String squadra,
         @Size(max = 40) String esperienza,
-        @Size(max = 2000) String note // colonna TEXT: il tetto è dell'API, perché una nota non pesi megabyte
+        @Size(max = 2000) String note, // colonna TEXT: il tetto è dell'API, perché una nota non pesi megabyte
+        Long versione
 ) {}

@@ -1,6 +1,7 @@
 package com.hoop3x3.backend.repositories;
 
 import com.hoop3x3.backend.entities.Lega;
+import com.hoop3x3.backend.entities.Utente;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -44,4 +45,7 @@ public interface LegaRepository extends JpaRepository<Lega, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select l from Lega l where l.id = :id")
     Optional<Lega> trovaConLock(@Param("id") UUID id);
+
+    /** Se l'utente ha una lega con quel nome: DemoSeeder riconosce così la lega demo di un database seminato prima del segno */
+    boolean existsByOwnerAndNome(Utente owner, String nome);
 }

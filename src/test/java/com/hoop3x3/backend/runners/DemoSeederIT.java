@@ -1,10 +1,12 @@
 package com.hoop3x3.backend.runners;
 
+import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.TestDiIntegrazione;
 import com.hoop3x3.backend.dto.CopiaPubblicaDTO;
 import com.hoop3x3.backend.dto.VoceArchivioDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.Lega;
+import com.hoop3x3.backend.entities.Tappa;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
@@ -15,22 +17,23 @@ import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.LegaService;
-import com.hoop3x3.backend.support.Tempo;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 
 /**
  * Il seed demo con il database vero: le 4 tappe del circuito Estathé finiscono in archivio con la forma che il frontend
@@ -54,7 +57,7 @@ class DemoSeederIT {
     @Autowired ArchivioService archivioService;
     @Autowired LegaService legaService;
     @Autowired ObjectMapper mapper;
-    @Autowired AutowireCapableBeanFactory fabbrica;
+    @Autowired PlatformTransactionManager transazioni;
 
     @Test
     void leTappeDelSeedSonoInArchivioUgualiAQuelleSalvateEIntestateAllAdmin() throws Exception {
@@ -159,33 +162,54 @@ class DemoSeederIT {
         assertThat(squadre.findAll()).allSatisfy(s -> assertThat(s.getReferente()).contains(" "));
     }
 
-    // Il seed è una transazione sola (run è @Transactional): se si ferma a metà il database resta com'era, e il prossimo avvio
-    // riprova da capo senza giocatori e squadre doppi. Qui si ferma sulla seconda tappa demo, il cui id c'è già (una tappa di
-    // un'altra lega): giocatori e squadre, scritti prima, non devono restare
+    // Il seed è una transazione sola: se si ferma a metà il database resta com'era e il prossimo avvio riprova da capo, senza
+    // giocatori e squadre doppi. E non ferma l'avvio: run() non lancia, nei log c'è un avviso. Qui si ferma sulla pubblicazione
+    // in archivio, l'ultimo passo: giocatori, squadre e lega, scritti prima, non devono restare
     @Test
-    void seIlSeedSiFermaAMeta_ilDatabaseRestaComEra() {
+    void seIlSeedSiFermaAMeta_ilDatabaseRestaComEraEIlServerParte() {
         Utente admin = accendiIlSeed();
-        Lega altra = leghe.save(new Lega("Altra lega", admin));
-        UUID secondaTappaDemo = UUID.nameUUIDFromBytes("hoop3x3-seed-t02".getBytes(StandardCharsets.UTF_8));
-        jdbc.update("insert into tappe (id, lega_id, posizione, nome, creato_il, modificato_il) values (?, ?, 0, 'Occupata', ?, ?)",
-                secondaTappaDemo, altra.getId(), Tempo.adesso(), Tempo.adesso());
+        leghe.save(new Lega("Altra lega", admin));
+        ArchivioService archivioRotto = mock(ArchivioService.class);
+        doThrow(new IllegalStateException("archivio non disponibile")).when(archivioRotto).pubblica(any(), any());
+        seeder = seederAcceso(admin, archivioRotto);
 
-        assertThatThrownBy(() -> seeder.run()).as("il seed si ferma sulla tappa che c'è già").isNotNull();
+        try (LogCatturato log = new LogCatturato(DemoSeeder.class)) {
+            assertThatCode(() -> seeder.run()).as("il seed fallito non ferma l'avvio").doesNotThrowAnyException();
+            assertThat(log.righe()).singleElement().asString().startsWith("Seed demo non riuscito");
+        }
 
         assertThat(giocatori.count()).as("nessun giocatore demo").isZero();
         assertThat(squadre.count()).as("nessuna squadra demo").isZero();
+        assertThat(tappe.count()).as("nessuna tappa demo").isZero();
         assertThat(leghe.count()).as("solo la lega che c'era").isEqualTo(1);
         assertThat(segni()).as("nessun segno: il prossimo avvio riprova").isEmpty();
+    }
+
+    // Gli id delle tappe demo sono casuali: una tappa di un altro utente non può avere l'id di una tappa demo e bloccare il seed
+    @Test
+    void gliIdDelleTappeDemoSonoCasuali_dueSeedDannoIdDiversi() throws Exception {
+        accendiIlSeed();
+        seeder.run();
+        List<UUID> primaVolta = tappe.findAll().stream().map(Tappa::getId).toList();
+        jdbc.update("delete from seed_eseguiti");
+        leghe.deleteAll();
+
+        seeder.run();
+
+        assertThat(tappe.findAll()).hasSize(4).extracting(Tappa::getId).doesNotContainAnyElementsOf(primaVolta);
     }
 
     /** Come all'avvio con SEED_DEMO=true e ADMIN_EMAIL: un admin nel database e il seeder acceso su di lui */
     private Utente accendiIlSeed() {
         Utente admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
-        DemoSeeder acceso = new DemoSeeder(utenti, giocatori, squadre, leghe, tappe, seedEseguiti, archivioService, mapper,
-                new SeedProperties(true, new SeedProperties.Admin(admin.getEmail(), "")));
-        // Passa dai post-processori di Spring come il bean vero: run() resta @Transactional (sull'oggetto creato con new, no)
-        seeder = (DemoSeeder) fabbrica.initializeBean(acceso, "demoSeederAcceso");
+        seeder = seederAcceso(admin, archivioService);
         return admin;
+    }
+
+    /** Un seeder acceso sull'admin, con l'archivio indicato (quello vero, o uno che fallisce): la transazione è quella vera */
+    private DemoSeeder seederAcceso(Utente admin, ArchivioService archivio) {
+        return new DemoSeeder(utenti, giocatori, squadre, leghe, seedEseguiti, archivio, mapper, transazioni,
+                new SeedProperties(true, new SeedProperties.Admin(admin.getEmail(), "")));
     }
 
     /** I nomi dei seed che hanno lasciato il segno nel database */

@@ -8,6 +8,16 @@ on:
     branches: [main]
   pull_request:
 
+# Il token del workflow può solo leggere il repository: i job non pubblicano niente (né pacchetti né immagini), e un'azione
+# compromessa non potrebbe scrivere su rami, release o issue
+permissions:
+  contents: read
+
+# Un push nuovo sullo stesso ramo (o sulla stessa pull request) annulla la CI ancora in corso: si prova solo l'ultimo commit
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
     runs-on: ubuntu-latest

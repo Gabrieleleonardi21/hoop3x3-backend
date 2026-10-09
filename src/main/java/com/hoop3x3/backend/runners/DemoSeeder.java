@@ -9,13 +9,13 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -27,9 +27,14 @@ import java.util.UUID;
  * altri giocatori; restano solo ruolo, squadra e numero. Il file sta nel jar anche con SEED_DEMO=false e non deve contenere dati
  * di persone reali, lo controlla DatiDiProvaTest). Attivo solo con SEED_DEMO=true e con l'admin configurato
  * (i dati vengono intestati a lui). Si esegue una sola volta: alla fine scrive il segno «demo» in seed_eseguiti e al
- * riavvio lo riconosce da lì (perché serve: vedi SeedEseguito). Gli id corti del file ("p01", "s01", "t01") diventano
- * UUID: quelli delle tappe sono deterministici, e per i database seminati prima del segno la prima tappa demo dice che il
- * seed è già stato fatto. L'archivio lo riempie ArchivioService.pubblica, lo stesso metodo che usa l'app.
+ * riavvio lo riconosce da lì (perché serve: vedi SeedEseguito). Gli id corti del file ("p01", "s01", "t01") non contano:
+ * gli id delle tappe sono casuali, come quelli che genera l'app (erano derivati dal file, quindi prevedibili: un utente
+ * poteva creare una tappa con quell'id e il seed non partiva più). Per i database seminati prima del segno il seed è
+ * riconosciuto dalla lega demo: una lega dell'admin con il nome del file. L'archivio lo riempie ArchivioService.pubblica, lo
+ * stesso metodo che usa l'app.
+ * <p>
+ * Il seed non ferma mai l'avvio: gira in una transazione sua e, se qualcosa va storto, il database resta com'era e nei log
+ * c'è un avviso con la causa. L'app parte senza i dati di prova.
  */
 @Slf4j
 @Component
@@ -48,33 +53,34 @@ public class DemoSeeder implements CommandLineRunner {
     private final AnagrafeGiocatoreRepository giocatori;
     private final AnagrafeSquadraRepository squadre;
     private final LegaRepository leghe;
-    private final TappaRepository tappe;
     private final SeedEseguitoRepository seedEseguiti;
     private final ArchivioService archivioService;
     private final ObjectMapper mapper;
+    private final TransactionTemplate transazione;
 
     // SEED_DEMO e ADMIN_EMAIL (seed.*)
     private final boolean abilitato;
     private final String adminEmail;
 
     public DemoSeeder(UtenteRepository utenti, AnagrafeGiocatoreRepository giocatori, AnagrafeSquadraRepository squadre,
-                      LegaRepository leghe, TappaRepository tappe, SeedEseguitoRepository seedEseguiti,
-                      ArchivioService archivioService, ObjectMapper mapper, SeedProperties proprieta) {
+                      LegaRepository leghe, SeedEseguitoRepository seedEseguiti, ArchivioService archivioService,
+                      ObjectMapper mapper, PlatformTransactionManager transazioni, SeedProperties proprieta) {
         this.abilitato = proprieta.demo();
         this.adminEmail = proprieta.admin().email();
         this.utenti = utenti;
         this.giocatori = giocatori;
         this.squadre = squadre;
         this.leghe = leghe;
-        this.tappe = tappe;
         this.seedEseguiti = seedEseguiti;
         this.archivioService = archivioService;
         this.mapper = mapper;
+        // La transazione la apre il seeder e non @Transactional sul metodo: così run() può prendere l'errore dopo il rollback e
+        // trasformarlo in un avviso, invece di farlo arrivare a Spring Boot, che fermerebbe l'avvio
+        this.transazione = new TransactionTemplate(transazioni);
     }
 
     @Override
-    @Transactional
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
         // Ogni salto dice perché nei log: INFO se è la configurazione normale, avviso se chi ha acceso il seed non otterrà i dati
         if (!abilitato) {
             log.info("Seed demo saltato: SEED_DEMO non è true");
@@ -84,6 +90,16 @@ public class DemoSeeder implements CommandLineRunner {
             log.warn("Seed demo saltato: SEED_DEMO è true ma ADMIN_EMAIL è vuota, e i dati di prova si intestano all'admin");
             return;
         }
+        try {
+            transazione.executeWithoutResult(_ -> semina());
+        } catch (Exception e) {
+            // Un seed a metà non deve lasciare l'app senza avvio: la transazione ha già annullato tutto, il prossimo avvio riprova
+            log.warn("Seed demo non riuscito, il database resta com'era e il server parte senza i dati di prova", e);
+        }
+    }
+
+    /** Il seed vero e proprio, dentro la transazione: tutto o niente, segno compreso */
+    private void semina() {
         Utente admin = utenti.findByEmail(UtenteService.normalizza(adminEmail)).orElse(null);
         if (admin == null) {
             log.warn("Seed demo saltato: admin {} non trovato", adminEmail);
@@ -100,15 +116,12 @@ public class DemoSeeder implements CommandLineRunner {
             return;
         }
 
-        JsonNode dati;
-        try (InputStream in = getClass().getResourceAsStream(FILE)) {
-            dati = mapper.readTree(in);
-        }
-        // Un database seminato prima del segno non ce l'ha, ma ha ancora la prima tappa demo: il seed è già stato eseguito.
-        // Il segno si scrive adesso, per i prossimi avvii
-        if (tappe.existsById(uuidPer(dati.path("tappe").path(0).path("id").asString()))) {
+        JsonNode dati = leggiIlFile();
+        // Un database seminato prima del segno non ce l'ha, ma ha ancora la lega demo (dell'admin, con il nome del file): il seed è
+        // già stato eseguito. Il segno si scrive adesso, per i prossimi avvii
+        if (leghe.existsByOwnerAndNome(admin, testo(dati, "lega"))) {
             seedEseguiti.save(new SeedEseguito(SEGNO));
-            log.info("Seed demo saltato: già eseguito prima del segno (la prima tappa demo c'è), segno scritto");
+            log.info("Seed demo saltato: già eseguito prima del segno (la lega demo c'è), segno scritto");
             return;
         }
 
@@ -121,6 +134,14 @@ public class DemoSeeder implements CommandLineRunner {
 
         log.info("Seed demo completato: {} giocatori, {} squadre, {} tappe → lega \"{}\"",
                 giocatoriPerId.size(), squadrePerId.size(), lega.getTappe().size(), lega.getNome());
+    }
+
+    private JsonNode leggiIlFile() {
+        try (InputStream in = getClass().getResourceAsStream(FILE)) {
+            return mapper.readTree(in);
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException("File dei dati di prova non leggibile: " + FILE, e);
+        }
     }
 
     private Map<String, AnagrafeGiocatore> creaGiocatori(Utente admin, JsonNode lista) {
@@ -175,7 +196,7 @@ public class DemoSeeder implements CommandLineRunner {
         int posizione = 0;
         for (JsonNode n : dati.path("tappe")) {
             Tappa t = new Tappa();
-            t.setId(uuidPer(testo(n, "id")));
+            t.setId(UUID.randomUUID()); // casuale, come gli id che genera l'app: l'id corto del file non conta
             t.setLega(lega);
             t.setPosizione(posizione++);
             t.setNome(testo(n, "nome"));
@@ -235,10 +256,5 @@ public class DemoSeeder implements CommandLineRunner {
 
     private static String testo(JsonNode n, String campo) {
         return n.path(campo).asString("");
-    }
-
-    /** UUID stabile derivato dall'id corto del file (stesso input → stesso UUID a ogni avvio) */
-    private static UUID uuidPer(String idCorto) {
-        return UUID.nameUUIDFromBytes(("hoop3x3-seed-" + idCorto).getBytes(StandardCharsets.UTF_8));
     }
 }

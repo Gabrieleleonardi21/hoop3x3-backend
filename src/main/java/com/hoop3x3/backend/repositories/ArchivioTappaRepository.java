@@ -23,27 +23,16 @@ public interface ArchivioTappaRepository extends JpaRepository<ArchivioTappa, UU
     }
 
     /**
-     * L'elenco dell'archivio, dalla pubblicazione più recente, in una sola query. I dati della tappa si estraggono dal JSONB
-     * dentro il database: il contenuto (squadre, partite, statistiche...) non viaggia e non si interpreta, e le
-     * pubblicazioni non si caricano come entity. SQL nativo perché gli operatori JSONB di PostgreSQL (-> e ->>) e
-     * jsonb_array_length non fanno parte di JPQL.
-     * Le pubblicazioni fatte con il vecchio endpoint hanno la tappa scelta dal client e possono avere forme strane: coalesce
-     * e CASE fanno di nome, luogo e data mancanti dei vuoti, e di «squadre» che non è un array 0 squadre, invece di un
-     * errore che romperebbe l'elenco intero.
+     * L'elenco dell'archivio, dalla pubblicazione più recente, in una sola query sulle colonne della tabella (nome, luogo,
+     * data e numero di squadre le scrive la pubblicazione, migrazione V6): il contenuto JSONB, cioè la tappa intera, non si
+     * legge né si decomprime, e le pubblicazioni non si caricano come entity.
      */
-    @Query(nativeQuery = true, value = """
-            select a.tappa_id,
-                   coalesce(a.contenuto ->> 'nome', '') as nome,
-                   coalesce(a.contenuto ->> 'luogo', '') as luogo,
-                   coalesce(a.contenuto ->> 'data', '') as data,
-                   case when jsonb_typeof(a.contenuto -> 'squadre') = 'array'
-                        then jsonb_array_length(a.contenuto -> 'squadre') else 0 end as numero_squadre,
-                   a.lega_nome as lega,
-                   u.nome as autore,
-                   a.pubblicato_il
-            from archivio_tappe a
-            join utenti u on u.id = a.autore_id
-            order by a.pubblicato_il desc
+    @Query("""
+            select a.tappaId as tappaId, a.nome as nome, a.luogo as luogo, a.data as data,
+                   a.numeroSquadre as numeroSquadre, a.legaNome as lega, a.autore.nome as autore,
+                   a.pubblicatoIl as pubblicatoIl
+            from ArchivioTappa a
+            order by a.pubblicatoIl desc
             """)
     List<VoceElenco> elenco();
 }
