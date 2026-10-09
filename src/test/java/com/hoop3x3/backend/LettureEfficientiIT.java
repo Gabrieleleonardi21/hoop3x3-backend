@@ -1,5 +1,6 @@
 package com.hoop3x3.backend;
 
+import com.hoop3x3.backend.dto.CampettoDTO;
 import com.hoop3x3.backend.dto.GiocatoreDTO;
 import com.hoop3x3.backend.dto.LegaMetaDTO;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
@@ -9,14 +10,17 @@ import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.AnagrafeGiocatore;
 import com.hoop3x3.backend.entities.AnagrafeSquadra;
 import com.hoop3x3.backend.entities.ArchivioTappa;
+import com.hoop3x3.backend.entities.Campetto;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Tappa;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
 import com.hoop3x3.backend.repositories.AnagrafeSquadraRepository;
+import com.hoop3x3.backend.repositories.CampettoRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.services.AnagrafeService;
 import com.hoop3x3.backend.services.ArchivioService;
+import com.hoop3x3.backend.services.CampettoService;
 import com.hoop3x3.backend.services.LegaService;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
@@ -27,7 +31,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -50,6 +56,8 @@ class LettureEfficientiIT {
     @Autowired AnagrafeService anagrafeService;
     @Autowired LegaService legaService;
     @Autowired ArchivioService archivioService;
+    @Autowired CampettoService campettoService;
+    @Autowired CampettoRepository campetti;
     @Autowired JdbcTemplate jdbc;
 
     private Statistics statistiche;
@@ -314,7 +322,89 @@ class LettureEfficientiIT {
                 () -> assertThat(caricate(ArchivioTappa.class)).as("pubblicazioni caricate").isZero());
     }
 
+    /* ── Campetti: 5.000 campetti sparsi in Italia, le due ricerche fanno una query ciascuna e stanno sotto i 100 ms ── */
+
+    // La ricerca per raggio chiede al database un riquadro di coordinate (indice su lat, lng) e calcola la distanza in Java:
+    // una query, e con 5.000 righe sotto i 100 ms. Il primo giro riscalda (Hibernate compila l'HQL una volta sola): si misura
+    // il secondo, come farebbe un server avviato
+    @Test
+    void laRicercaPerRaggioSu5000CampettiFaUnaQueryInMenoDi100ms_dalPiuVicino() {
+        campettiInItalia(5000);
+        Campetto vicino = campetto("Campo vicino", "Roma", 41.905, 12.50);
+        Campetto medio = campetto("Campo medio", "Roma", 41.95, 12.55);
+        Campetto lontano = campetto("Campo lontano", "Roma", 42.05, 12.40);
+        campettoService.cercaPerRaggio(45.07, 7.68, 10); // riscaldamento
+
+        var misura = misura(() -> campettoService.cercaPerRaggio(ROMA_LAT, ROMA_LNG, 20));
+
+        List<CampettoDTO> trovati = misura.risultato();
+        assertThat(trovati).extracting(CampettoDTO::id).containsSubsequence(vicino.getId(), medio.getId(), lontano.getId());
+        List<Double> distanze = trovati.stream().map(c -> distanzaDaRoma(c.lat(), c.lng())).toList();
+        assertThat(distanze).isSorted().allSatisfy(d -> assertThat(d).isLessThanOrEqualTo(20));
+        assertAll(
+                () -> assertThat(misura.query()).as("query della ricerca per raggio").isEqualTo(1),
+                () -> assertThat(misura.millisecondi()).as("ms della ricerca per raggio").isLessThan(100));
+    }
+
+    // La ricerca per testo: una query con il limite di 200 dentro, sotto i 100 ms
+    @Test
+    void laRicercaPerTestoSu5000CampettiFaUnaQueryInMenoDi100ms_alMassimo200Righe() {
+        campettiInItalia(5000); // 250 a «Roma»: più del limite
+        campettoService.cercaPerTesto("milano", null, null); // riscaldamento
+
+        var misura = misura(() -> campettoService.cercaPerTesto("roma", null, null));
+
+        assertThat(misura.risultato()).hasSize(CampettoService.MASSIMO_RIGHE)
+                .allSatisfy(c -> assertThat(c.citta()).isEqualTo("Roma"));
+        assertAll(
+                () -> assertThat(misura.query()).as("query della ricerca per testo").isEqualTo(1),
+                () -> assertThat(misura.millisecondi()).as("ms della ricerca per testo").isLessThan(100));
+    }
+
     /* ── Dati di prova ── */
+
+    private static final double ROMA_LAT = 41.9028;
+    private static final double ROMA_LNG = 12.4964;
+    /** Venti città a turno: con 5.000 campetti ognuna ne ha 250, più del limite di 200 di una ricerca */
+    private static final List<String> CITTA = List.of("Roma", "Milano", "Napoli", "Torino", "Palermo", "Genova", "Bologna",
+            "Firenze", "Bari", "Catania", "Venezia", "Verona", "Messina", "Padova", "Trieste", "Brescia", "Parma", "Prato",
+            "Modena", "Reggio Calabria");
+
+    /** Un campetto di prova con quelle coordinate, senza autore */
+    private Campetto campetto(String nome, String citta, double lat, double lng) {
+        Campetto c = new Campetto();
+        c.setNome(nome);
+        c.setCitta(citta);
+        c.setLat(lat);
+        c.setLng(lng);
+        c.setSuperficie("Asfalto");
+        c.setCanestri((short) 2);
+        c.setStato("buono");
+        return campetti.save(c);
+    }
+
+    /**
+     * `quanti` campetti con coordinate casuali (seme fisso: ogni esecuzione ha gli stessi) nel riquadro dell'Italia, con le
+     * città a turno; scritti con un batch JDBC, perché 5.000 save di Hibernate durerebbero più del test. Restituisce le
+     * righe scritte, per i test che devono calcolare il risultato atteso
+     */
+    private List<Object[]> campettiInItalia(int quanti) {
+        Random caso = new Random(5000);
+        List<Object[]> righe = new ArrayList<>();
+        for (int i = 0; i < quanti; i++) {
+            double lat = 36.6 + caso.nextDouble() * 10.5;
+            double lng = 6.6 + caso.nextDouble() * 11.9;
+            righe.add(new Object[] {UUID.randomUUID(), "Campo " + i, CITTA.get(i % CITTA.size()), lat, lng});
+        }
+        jdbc.batchUpdate("insert into campetti (id, nome, indirizzo, citta, lat, lng, tipo, superficie, canestri, stato, note, "
+                + "versione, creato_il, modificato_il) values (?, ?, '', ?, ?, ?, 'campetto', 'Asfalto', 2, 'buono', '', 0, "
+                + "now(), now())", righe);
+        return righe;
+    }
+
+    private static double distanzaDaRoma(double lat, double lng) {
+        return CampettoService.distanzaKm(ROMA_LAT, ROMA_LNG, lat, lng);
+    }
 
     /** Aggiunge `quante` leghe a `proprietario`, ognuna con due tappe */
     private void aggiungiLeghe(Utente proprietario, int quante) {
@@ -395,13 +485,15 @@ class LettureEfficientiIT {
 
     /* ── Misure ── */
 
-    /** Il risultato di un'azione e le istruzioni SQL che Hibernate ha eseguito per ottenerlo */
-    private record Misura<T>(T risultato, long query) {}
+    /** Il risultato di un'azione, le istruzioni SQL che Hibernate ha eseguito per ottenerlo e quanto ci ha messo */
+    private record Misura<T>(T risultato, long query, long millisecondi) {}
 
     private <T> Misura<T> misura(Supplier<T> azione) {
         statistiche.clear();
+        long inizio = System.nanoTime();
         T risultato = azione.get();
-        return new Misura<>(risultato, statistiche.getPrepareStatementCount());
+        long millisecondi = (System.nanoTime() - inizio) / 1_000_000;
+        return new Misura<>(risultato, statistiche.getPrepareStatementCount(), millisecondi);
     }
 
     /** Le istruzioni SQL che Hibernate esegue per un'azione che non restituisce nulla */
