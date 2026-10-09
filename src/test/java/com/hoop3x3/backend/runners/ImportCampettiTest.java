@@ -229,6 +229,20 @@ class ImportCampettiTest {
         assertThat(comando.getExitCode()).isZero();
     }
 
+    // La colonna fonte_id è VARCHAR(120): un id più lungo si scarta con il motivo, invece di far fallire tutto il blocco all'INSERT
+    @Test
+    void fonteIdOltre120Caratteri_scartataConIlMotivo() throws Exception {
+        Path file = file("[{\"fonteId\": \"" + "x".repeat(121) + "\", \"nome\": \"Id lungo\", \"lat\": 41.9, \"lng\": 12.5, "
+                + "\"tipo\": \"campetto\"}, {\"fonteId\": \"" + "x".repeat(120) + "\", \"nome\": \"Id al limite\", \"lat\": 41.9, "
+                + "\"lng\": 12.5, \"tipo\": \"campetto\"}]");
+
+        comando.run(argomenti(file));
+
+        verify(campetti, times(1)).save(any());
+        assertThat(log.righe().getLast()).endsWith("inseriti 1, aggiornati 0, scartati 1 (fonteId oltre 120 caratteri: 1)");
+        assertThat(comando.getExitCode()).isZero();
+    }
+
     // Un import ripetuto: le righe già nel database (chiave fonte + fonteId) non si inseriscono di nuovo; si aggiornano solo
     // quelle cambiate nell'export, le altre non si toccano
     @Test

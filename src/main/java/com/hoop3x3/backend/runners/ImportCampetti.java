@@ -61,6 +61,8 @@ public class ImportCampetti implements ApplicationRunner, ExitCodeGenerator {
     static final String FONTE = "pick-roll";
     /** Righe per transazione */
     static final int BLOCCO = 500;
+    /** La colonna fonte_id è VARCHAR(120): un id più lungo si scarta prima, invece di far fallire tutto il blocco all'INSERT */
+    private static final int FONTE_ID_MAX = 120;
     private static final String TIPO_AMMESSO = "campetto";
 
     /** Una riga dell'export, con i soli campi del campo: foto, valutazioni, recensioni, eventi e utenti si ignorano */
@@ -203,7 +205,9 @@ public class ImportCampetti implements ApplicationRunner, ExitCodeGenerator {
 
     /** Perché la riga non entra, o null se entra: fonteId, tipo, poi la validazione degli endpoint */
     private String motivoDiScarto(Riga riga) {
-        if (Testo.ripulito(riga.fonteId()).isEmpty()) return "fonteId mancante";
+        String fonteId = Testo.ripulito(riga.fonteId());
+        if (fonteId.isEmpty()) return "fonteId mancante";
+        if (fonteId.length() > FONTE_ID_MAX) return "fonteId oltre " + FONTE_ID_MAX + " caratteri";
         String tipo = Testo.ripulito(riga.tipo());
         if (tipo.isEmpty()) return "tipo mancante";
         if (!TIPO_AMMESSO.equals(tipo)) return "tipo " + tipo;
