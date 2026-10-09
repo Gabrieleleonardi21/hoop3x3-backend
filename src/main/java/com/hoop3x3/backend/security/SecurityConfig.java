@@ -77,8 +77,8 @@ public class SecurityConfig {
                         // refresh e logout si autenticano con il cookie httpOnly, non con il Bearer
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",
                                 "/api/auth/refresh", "/api/auth/logout").permitAll()
-                        // anagrafe e archivio sono pubblici in lettura: l'ospite (senza account) li consulta
-                        .requestMatchers(HttpMethod.GET, "/api/anagrafe/**", "/api/archivio/**").permitAll()
+                        // anagrafe, archivio e campetti sono pubblici in lettura: l'ospite (senza account) li consulta
+                        .requestMatchers(HttpMethod.GET, "/api/anagrafe/**", "/api/archivio/**", "/api/campetti").permitAll()
                         // controlli di salute: /actuator/health (con il database, lo aspetta il frontend all'avvio) e
                         // /actuator/health/liveness (solo il processo, per Render). Rispondono {"status":"UP"} o
                         // {"status":"DOWN"}, senza dettagli
