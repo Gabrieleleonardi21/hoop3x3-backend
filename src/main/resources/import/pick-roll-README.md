@@ -3,7 +3,7 @@
 I campetti con `fonte = 'pick-roll'` nella tabella `campetti` vengono dall'app Pick-Roll, con il permesso del suo proprietario.
 
 - **Fonte**: l'app Pick-Roll (campi da basket geolocalizzati), letta con l'account di chi ha fatto l'estrazione.
-- **Permesso**: verbale, dato a voce dal proprietario di Pick-Roll il **9 ottobre 2026**, a chi gestisce HOOP 3X3, per riusare i dati dei campi (non degli utenti) dentro HOOP 3X3. Non copre la pubblicazione del file: **il file dei dati non entra nel repository** e sta sulla macchina di chi importa (su Render si copia una volta e si cancella dopo l'import, vedi il README principale).
+- **Permesso**: verbale, dato a voce dal proprietario di Pick-Roll il **9 ottobre 2026**, a chi gestisce HOOP 3X3, per riusare i dati dei campi (non degli utenti) dentro HOOP 3X3. Non copre la pubblicazione del file: **il file dei dati non entra nel repository** e sta sulla macchina di chi importa, che lancia il comando da lì anche contro il database di Render (vedi il README principale, «Campetti»).
 - **Attribuzione** (da mostrare dove compaiono i campetti importati): **«Campetti: dati di Pick-Roll»**.
 - **Chi li possiede nell'app**: i campetti importati sono intestati all'admin (`autore_id` = l'admin di `ADMIN_EMAIL`), quindi li modifica solo un ADMIN: così non divergono dalla fonte, e un import ripetuto li riallinea.
 
@@ -49,7 +49,7 @@ Un array JSON di oggetti, uno per campo. Lo produce lo strumento di estrazione, 
 | `stato` (`buono`, `discreto`, `da sistemare`) | `stato` | `discreto` |
 | `note` | `note` (fino a 2000) | `""` |
 
-Ogni riga passa dalla stessa validazione di `POST /api/campetti` (`CampettoRequestDTO`): una riga che non la supera viene scartata, con il motivo nel log, e le altre entrano. Qualsiasi altro campo del file viene ignorato.
+Ogni riga passa dalla stessa validazione di `POST /api/campetti` (`CampettoRequestDTO`): una riga che non la supera viene scartata, con il motivo nel log (per il tipo il motivo è fisso, «tipo diverso da campetto»: nel log del server non finisce nessun valore del file oltre al `fonteId`), e le altre entrano. Qualsiasi altro campo del file viene ignorato.
 
 ## Che cosa si scarta di Pick-Roll
 
