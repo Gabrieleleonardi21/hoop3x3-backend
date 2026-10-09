@@ -134,9 +134,9 @@ public class AnagrafeService {
      * nel frattempo da un altro dispositivo (o da un ADMIN) e riceve 409, senza sovrascriverla. L'eccezione è quella che
      * lancerebbe Hibernate al flush se la scheda cambiasse mentre si salva: le due strade hanno un solo gestore
      * (ExceptionsHandler), con il messaggio generico «I dati sono stati modificati...». Va dopo checkOwner, come gli altri
-     * controlli sul corpo: prima si decide chi può scrivere, poi che cosa
+     * controlli sul corpo: prima si decide chi può scrivere, poi che cosa. La usa anche CampettoService: stessa regola
      */
-    private static void controllaVersione(Long letta, long attuale, Class<?> entity, UUID id) {
+    static void controllaVersione(Long letta, long attuale, Class<?> entity, UUID id) {
         if (letta == null) return;
         if (letta != attuale) throw new ObjectOptimisticLockingFailureException(entity, id);
     }

@@ -6,6 +6,7 @@ import com.hoop3x3.backend.MondoDiProva;
 import com.hoop3x3.backend.MondoDiProva.Mondo;
 import com.hoop3x3.backend.TappaDiProva;
 import com.hoop3x3.backend.TestDiIntegrazione;
+import com.hoop3x3.backend.dto.CampettoRequestDTO;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.UtenteRepository;
@@ -13,6 +14,7 @@ import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.services.AccessGuard;
 import com.hoop3x3.backend.services.AnagrafeService;
 import com.hoop3x3.backend.services.ArchivioService;
+import com.hoop3x3.backend.services.CampettoService;
 import com.hoop3x3.backend.services.LegaService;
 import jakarta.validation.Valid;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,8 +78,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AccessoEndpointIT {
 
     /**
-     * Un endpoint con il corpo che accetta. Il percorso può avere i segnaposto {giocatore}, {squadra}, {lega} e {tappa}: il test
-     * li sostituisce con gli id veri della fixture o, per il 404, con id che non esistono.
+     * Un endpoint con il corpo che accetta. Il percorso può avere i segnaposto {giocatore}, {squadra}, {lega}, {tappa} e
+     * {campetto}: il test li sostituisce con gli id veri della fixture o, per il 404, con id che non esistono.
      */
     record Endpoint(HttpMethod metodo, String percorso, Object corpo) {
         @Override
@@ -101,7 +103,15 @@ class AccessoEndpointIT {
                 new Endpoint(PUT, "/api/tappe/{tappa}", TappaDiProva.tappa().versione(0L).build()),
                 new Endpoint(DELETE, "/api/tappe/{tappa}", null),
                 new Endpoint(PUT, "/api/archivio/{tappa}", null),
-                new Endpoint(DELETE, "/api/archivio/{tappa}", null));
+                new Endpoint(DELETE, "/api/archivio/{tappa}", null),
+                new Endpoint(PUT, "/api/campetti/{campetto}", campetto()),
+                new Endpoint(DELETE, "/api/campetti/{campetto}", null));
+    }
+
+    /** Un campetto valido, con i soli campi obbligatori */
+    private static Map<String, Object> campetto() {
+        return Map.of("nome", "Parco Dora", "lat", 45.08972, "lng", 7.66669, "superficie", "Sintetico", "canestri", 4,
+                "stato", "buono");
     }
 
     /** Gli altri endpoint che chiedono un account: non riguardano una risorsa già esistente */
@@ -113,6 +123,7 @@ class AccessoEndpointIT {
                 new Endpoint(POST, "/api/leghe", Map.of("nome", "Circuito 2027")),
                 new Endpoint(POST, "/api/anagrafe/giocatori", Map.of("nome", "Luca", "cognome", "Neri")),
                 new Endpoint(POST, "/api/anagrafe/squadre", Map.of("nome", "Lupi")),
+                new Endpoint(POST, "/api/campetti", campetto()),
                 new Endpoint(GET, "/api/coach/status", null),
                 new Endpoint(POST, "/api/coach/chat", Map.of("messages", List.of())));
     }
@@ -154,7 +165,11 @@ class AccessoEndpointIT {
                 new Pubblico(new Endpoint(GET, "/api/anagrafe/giocatori", null), 200),
                 new Pubblico(new Endpoint(GET, "/api/anagrafe/squadre", null), 200),
                 new Pubblico(new Endpoint(GET, "/api/archivio", null), 200),
-                new Pubblico(new Endpoint(GET, "/api/archivio/{tappa}", null), 200));
+                new Pubblico(new Endpoint(GET, "/api/archivio/{tappa}", null), 200),
+                // Senza parametri la ricerca risponde 400 con il suo messaggio: la sicurezza ha lasciato passare (il 200 con i
+                // parametri lo prova CampettoIT)
+                new Pubblico(new Endpoint(GET, "/api/campetti", null), 400,
+                        "Indica lat, lng e raggioKm (ricerca per raggio) oppure q (ricerca per testo)"));
     }
 
     @Autowired MockMvc mvc;
@@ -166,12 +181,14 @@ class AccessoEndpointIT {
     @Autowired AnagrafeService anagrafeService;
     @Autowired LegaService legaService;
     @Autowired ArchivioService archivioService;
+    @Autowired CampettoService campettoService;
     @Autowired JdbcTemplate jdbc;
 
     private Utente mario; // proprietario di tutto ciò che c'è nel database
     private Utente luigi; // un altro utente
     private Utente admin;
     private Mondo cose; // le cose di Mario
+    private UUID campetto; // il campetto di Mario
 
     @BeforeEach
     void creaLaFixture() {
@@ -179,6 +196,7 @@ class AccessoEndpointIT {
         luigi = utenti.save(new Utente("luigi@test.it", "hash", "Luigi", Ruolo.USER));
         admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
         cose = new MondoDiProva(anagrafeService, legaService, archivioService).crea(mario);
+        campetto = campettoService.crea(mario, mapper.convertValue(campetto(), CampettoRequestDTO.class)).id();
     }
 
     /* ── L'elenco è completo: ogni endpoint dell'applicazione ha le sue regole provate qui sotto ── */
@@ -308,7 +326,8 @@ class AccessoEndpointIT {
     void unaRisorsaCheNonEsiste_risponde404(Endpoint endpoint) throws Exception {
         List<String> prima = fotografia();
         // Gli id dei segnaposto non esistono: l'utente è il proprietario di tutto il resto, quindi manca solo la risorsa
-        String percorso = conId(endpoint.percorso(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        String percorso = conId(endpoint.percorso(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                UUID.randomUUID());
 
         mvc.perform(richiesta(endpoint.metodo(), percorso, endpoint.corpo(), mario)).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").isString())
@@ -361,17 +380,18 @@ class AccessoEndpointIT {
 
     /** La richiesta dell'endpoint sulle risorse della fixture, di `chi` (null: senza token) */
     private ResultActions invia(Endpoint endpoint, Utente chi) throws Exception {
-        String percorso = conId(endpoint.percorso(), cose.giocatore(), cose.squadra(), cose.lega(), cose.tappe().getFirst());
+        String percorso = conId(endpoint.percorso(), cose.giocatore(), cose.squadra(), cose.lega(), cose.tappe().getFirst(), campetto);
         return mvc.perform(richiesta(endpoint.metodo(), percorso, endpoint.corpo(), chi));
     }
 
     /** Il percorso con gli id al posto dei segnaposto */
-    private static String conId(String percorso, UUID giocatore, UUID squadra, UUID lega, UUID tappa) {
+    private static String conId(String percorso, UUID giocatore, UUID squadra, UUID lega, UUID tappa, UUID campetto) {
         return percorso
                 .replace("{giocatore}", giocatore.toString())
                 .replace("{squadra}", squadra.toString())
                 .replace("{lega}", lega.toString())
-                .replace("{tappa}", tappa.toString());
+                .replace("{tappa}", tappa.toString())
+                .replace("{campetto}", campetto.toString());
     }
 
     /** «/api/leghe/{id}» e «/api/leghe/{lega}» sono lo stesso percorso: si confrontano senza i nomi dei segnaposto */
@@ -393,7 +413,8 @@ class AccessoEndpointIT {
 
     /**
      * Tutto ciò che una richiesta rifiutata potrebbe aver cambiato, una riga per elemento: nome, versione e data di modifica di
-     * ogni lega, tappa, giocatore e squadra, le righe dei roster e le pubblicazioni. Dopo un rifiuto la fotografia è la stessa.
+     * ogni lega, tappa, giocatore, squadra e campetto, le righe dei roster e le pubblicazioni. Dopo un rifiuto la fotografia è
+     * la stessa.
      */
     private List<String> fotografia() {
         return jdbc.queryForList("""
@@ -403,6 +424,7 @@ class AccessoEndpointIT {
                 union all select 'squadra ' || id || ' ' || nome || ' ' || modificato_il from anagrafe_squadre
                 union all select 'roster ' || squadra_id || ' ' || giocatore_id || ' ' || posizione from anagrafe_squadre_roster
                 union all select 'archivio ' || tappa_id || ' ' || pubblicato_il from archivio_tappe
+                union all select 'campetto ' || id || ' ' || nome || ' ' || versione || ' ' || modificato_il from campetti
                 order by 1
                 """, String.class);
     }

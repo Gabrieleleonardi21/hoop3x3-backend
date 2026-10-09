@@ -1,5 +1,6 @@
 package com.hoop3x3.backend;
 
+import com.hoop3x3.backend.dto.CampettoRequestDTO;
 import com.hoop3x3.backend.dto.GiocatoreRequestDTO;
 import com.hoop3x3.backend.dto.LoginRequestDTO;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
@@ -75,6 +76,11 @@ public final class CampiDiTesto {
             campo(SquadraRequestDTO.class, "website", "anagrafe_squadre.website"),
             campo(SquadraRequestDTO.class, "instagram", "anagrafe_squadre.instagram"),
             campo(SquadraRequestDTO.class, "note", "anagrafe_squadre.note"),
+            // Superficie e stato non sono qui: hanno un @Pattern con i valori ammessi, non un @Size
+            campo(CampettoRequestDTO.class, "nome", "campetti.nome"),
+            campo(CampettoRequestDTO.class, "indirizzo", "campetti.indirizzo"),
+            campo(CampettoRequestDTO.class, "citta", "campetti.citta"),
+            campo(CampettoRequestDTO.class, "note", "campetti.note"),
             campo(RegisterRequestDTO.class, "name", "utenti.nome"),
             campo(RegisterRequestDTO.class, "email", "utenti.email"),
             // La password non si salva: in tabella c'è solo l'hash BCrypt, e il tetto è il limite di BCrypt (72)
