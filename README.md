@@ -255,6 +255,22 @@ I campetti da basket che il frontend mostra su una mappa (tabella `campetti`, mi
 
 **Dati di prova.** Con `SEED_DEMO=true` entrano sei campetti di Torino (`resources/seed/campetti-torino.json`), intestati all'admin, con il segno `campetti` in `seed_eseguiti` (vedi «Dati di prova»). Le coordinate sono i centroidi delle aree verdi letti da OpenStreetMap via Nominatim il 9 ottobre 2026 (licenza ODbL, **© OpenStreetMap contributors**): indicano il parco, non il campo, e insieme alle caratteristiche vanno verificate sul posto prima di usarle come dati veri. La fonte è scritta anche in testa al file.
 
+**Import da Pick-Roll.** I campetti con `fonte = 'pick-roll'` vengono dall'app Pick-Roll, con il permesso verbale del suo proprietario (9 ottobre 2026) per i soli dati dei campi: fonte, permesso, attribuzione e la tabella di mappatura stanno in `src/main/resources/import/pick-roll-README.md`. Dove compaiono va mostrata l'attribuzione **«Campetti: dati di Pick-Roll»**. Il file dei dati lo produce uno strumento di estrazione che sta fuori da git e **non entra nel repository**: è un array JSON di oggetti con `fonteId` (l'id del campo in Pick-Roll), `nome`, `lat`, `lng`, `tipo` (`campetto`, `palestra` o `arena`) e, facoltativi, `indirizzo`, `citta`, `superficie`, `canestri`, i sei booleani, `stato` e `note`, con gli stessi valori ammessi di `POST /api/campetti` (il formato per esteso è nel file sopra). Si carica con il comando, non con un endpoint:
+
+```bash
+DB_NAME=hoop3x3 DB_USERNAME=postgres DB_PASSWORD=... JWT_SECRET=... ADMIN_EMAIL=admin@esempio.it \
+  java -jar target/hoop-3x3-backend-1.0.0.jar --importa-campetti=/percorso/campetti.json
+```
+
+Servono le stesse variabili del server (il comando avvia l'applicazione, quindi anche `JWT_SECRET`, e l'admin di `ADMIN_EMAIL` deve esistere: i campetti importati si intestano a lui e da allora li modifica solo un ADMIN, così restano allineati alla fonte). Il processo apre il server su una porta libera qualsiasi (non quella di `PORT`: su Render il server vero la sta già usando), fa l'import e termina: codice d'uscita 0 se è andato bene, 1 se si è fermato, con il motivo nel log. Nel log, alla fine, `Import campetti completato: inseriti N, aggiornati N, scartati N (motivo: N, ...)`. Le regole:
+
+- ogni riga passa dalla validazione di `POST /api/campetti` (stesso `CampettoRequestDTO`): una riga che non la supera (coordinate fuori intervallo, nome mancante...), senza `fonteId` o con un `tipo` diverso da `campetto` (palestre e arene restano fuori) viene **scartata** con un avviso nel log che dice la riga e il motivo; le altre entrano. I campi che mancano prendono un valore predefinito (`superficie` `Altro`, `canestri` 2, `stato` `discreto`, booleani `false`, testi vuoti); i campi sconosciuti si ignorano;
+- un **errore di schema** (file assente, JSON malformato, non un array, un campo con il tipo sbagliato come `"lat": "nord"`) ferma l'import **prima di scrivere qualsiasi riga**, con un messaggio chiaro: il file non ha il formato concordato;
+- le righe si scrivono a blocchi di 500, una transazione per blocco;
+- l'import è **ripetibile**: la chiave `(fonte, fonte_id)` ha un indice unico (V8), quindi una riga già importata non si inserisce di nuovo e si aggiorna solo se nell'export è cambiata (la sua `versione` sale, come per una `PUT`). Un campetto importato e poi eliminato dall'app rinasce al prossimo import.
+
+**Su Render**: dalla shell del servizio si copia il file una volta (per esempio con `scp` verso il container, o incollandolo), si lancia il comando dalla cartella del jar con le variabili già presenti nell'ambiente (`DB_*`, `JWT_SECRET`, `ADMIN_EMAIL` ci sono già), si legge il riepilogo nel log e **si cancella il file**: il permesso copre l'uso dei dati nell'app, non la loro pubblicazione.
+
 ## Sessioni e refresh token
 
 Il JWT di accesso dura poco e il client lo rinnova con un refresh token tenuto in un cookie httpOnly: chi torna dopo giorni non deve rifare il login, e il logout revoca il refresh token.
@@ -398,6 +414,7 @@ L'applicazione scrive nei log (console) ciò che serve a capire un problema in p
 - **Limite di frequenza superato** (WARN) — `Limite di richieste superato: Troppi tentativi di accesso (massimo 10 al minuto), indirizzo 203.0.113.9`, oppure `... Troppe richieste al Coach AI (massimo 20 al minuto), utente <id>`. Una riga sola per indirizzo (o utente) e per finestra, non una per richiesta: chi insiste non riempie i log. Il 429 stesso non lascia altre righe.
 - **Errori 500** (ERROR) — `Errore non gestito su GET /api/leghe`, con lo stack sotto: metodo e percorso della richiesta (senza la query, che può contenere dati personali). Gli errori di Groq li scrive una volta sola il Coach AI (vedi la sezione omonima).
 - **Seeder** — ogni volta che non creano i dati lo dicono, con il motivo: INFO se è la configurazione normale (`Admin non creato: ADMIN_EMAIL non è impostata`, `... esiste già un admin con l'email di ADMIN_EMAIL`, `Seed demo saltato: SEED_DEMO non è true`, `Seed demo saltato: già eseguito`, `Seed campetti saltato: già eseguito`), WARN se la configurazione non permette ciò che chi l'ha scritta si aspetta (password debole, mancante o oltre i 72 byte, `ADMIN_PASSWORD` impostata con `ADMIN_EMAIL` vuota, `ADMIN_EMAIL` già di un utente con ruolo USER, `SEED_DEMO` acceso senza `ADMIN_EMAIL`, senza l'admin nel database o con `ADMIN_EMAIL` di un utente con ruolo USER, a cui i dati di prova non vengono intestati), e WARN con lo stack se il seed demo fallisce a metà (`Seed demo non riuscito`: il database resta com'era e il server parte lo stesso).
+- **Import dei campetti** (`--importa-campetti`) — un WARN per ogni riga scartata (`Import campetti: riga 7 (pr-007) scartata: lat: ...`), alla fine una riga INFO con i conteggi (`Import campetti completato: inseriti 6, aggiornati 0, scartati 4 (...)`) oppure un ERROR con il motivo se si è fermato (`Import campetti fallito: file non trovato: ...`), e il processo esce con 1. Nel log c'è il `fonteId` della riga, mai altri dati del file.
 
 ## Struttura
 
@@ -408,13 +425,14 @@ Dockerfile, .dockerignore       # immagine per Render (vedi «Deploy su Render»
 .github/dependabot.yml          # aggiornamenti settimanali di dipendenze Maven, azioni di GitHub e immagini Docker
 src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 = archivio legato alle tappe, V3 = segno dei seed eseguiti, V4 = versione delle tappe, V5 = versione delle schede dell'anagrafe, V6 = colonne dell'elenco dell'archivio e indice del roster, V7 = indirizzi web delle squadre a 2048 caratteri, V8 = campetti), applicate all'avvio
 src/main/resources/seed/        # estathe25.json e campetti-torino.json: i dati di prova (vedi «Dati di prova»)
+src/main/resources/import/      # pick-roll-README.md: fonte, permesso, attribuzione e formato del file dei campetti importati (vedi «Campetti»); il file dei dati non c'è
 src/main/java/com/hoop3x3/backend/
 ├── controllers/  # REST (auth, utenti, leghe, tappe, anagrafe, archivio, campetti, coach)
 ├── dto/          # record con validazione Bean Validation; per l'archivio CopiaPubblicaDTO (la tappa pubblicata per intero) e VoceArchivioDTO (la voce dell'elenco)
 ├── entities/     # JPA: Utente, RefreshToken, Lega, Tappa (+Regole), AnagrafeGiocatore/Squadra, ArchivioTappa, Campetto, SeedEseguito
 ├── exceptions/   # eccezioni tipizzate + ExceptionsHandler (corpo uniforme {message, timestamp})
 ├── repositories/ # Spring Data JPA
-├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/, una volta sola per seed), SeedProperties
+├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/, una volta sola per seed), ImportCampetti (il comando --importa-campetti), SeedProperties
 ├── security/     # SecurityConfig, JwtFilter, JwtTools (emette e verifica il JWT) con JwtJson (il suo JSON, con Jackson 3 e un mapper privato) e JwtProperties (secret e durata del JWT, validati all'avvio), AuthCookies con AuthProperties, CorsConfig con CorsProperties, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB), LimiteRichiesteFilter (429 oltre i limiti di frequenza) con LimiteRichieste (il contatore) e LimiteRichiesteProperties
 ├── services/     # logica: proprietà (AccessGuard), JSON delle tappe (JsonSupport), campetti (CampettoService: ricerca per raggio e per testo), proxy Groq (CoachAiService, GroqProperties), refresh token (RefreshTokenService), log sicuri (LogSupport)
 ├── support/      # Tempo (le date sempre in UTC), Testo
