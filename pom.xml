@@ -17,7 +17,7 @@
     <properties>
         <java.version>25</java.version>
         <!-- Le due parti di JJWT (api e impl) vanno sempre alla stessa versione -->
-        <jjwt.version>0.12.6</jjwt.version>
+        <jjwt.version>0.13.0</jjwt.version>
     </properties>
 
     <dependencies>
