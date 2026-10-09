@@ -232,11 +232,13 @@ class ImportCampettiTest {
         assertThat(avvisi).hasSize(4);
         assertThat(avvisi.get(0)).contains("riga 7", "pr-007", "lat");
         assertThat(avvisi.get(1)).contains("riga 8", "pr-008", "nome");
-        assertThat(avvisi.get(2)).contains("riga 9", "pr-009", "tipo palestra");
+        // Il motivo del tipo è fisso: il valore scritto nel file non va nel log (nel log c'è solo il fonteId)
+        assertThat(avvisi.get(2)).contains("riga 9", "pr-009", "tipo diverso da campetto").doesNotContain("palestra");
         assertThat(avvisi.get(3)).contains("riga 10", "fonteId mancante");
         assertThat(log.righe().getLast())
                 .startsWith("Import campetti completato: inseriti 6, aggiornati 0, scartati 4 (")
-                .contains("tipo palestra: 1", "fonteId mancante: 1");
+                .contains("tipo diverso da campetto: 1", "fonteId mancante: 1")
+                .doesNotContain("palestra");
         assertThat(comando.getExitCode()).isZero();
     }
 

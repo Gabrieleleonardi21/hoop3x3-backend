@@ -212,7 +212,8 @@ public class ImportCampetti implements ApplicationRunner, ExitCodeGenerator {
         if (fonteId.length() > FONTE_ID_MAX) return "fonteId oltre " + FONTE_ID_MAX + " caratteri";
         String tipo = Testo.ripulito(riga.tipo());
         if (tipo.isEmpty()) return "tipo mancante";
-        if (!TIPO_AMMESSO.equals(tipo)) return "tipo " + tipo;
+        // Motivo fisso, senza il valore del file: nel log non finisce nessun dato del file oltre al fonteId
+        if (!TIPO_AMMESSO.equals(tipo)) return "tipo diverso da " + TIPO_AMMESSO;
         var violazioni = validator.validate(dto(riga));
         if (violazioni.isEmpty()) return null;
         return violazioni.stream()
