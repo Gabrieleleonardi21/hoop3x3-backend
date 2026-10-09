@@ -7,6 +7,7 @@ import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.CampettoRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.services.CampettoService;
+import com.hoop3x3.backend.services.LogSupport;
 import com.hoop3x3.backend.services.UtenteService;
 import com.hoop3x3.backend.support.Testo;
 import jakarta.validation.ConstraintViolation;
@@ -230,9 +231,12 @@ public class ImportCampetti implements ApplicationRunner, ExitCodeGenerator {
                 testoOppure(r.stato(), "discreto"), Testo.ripulito(r.note()), null);
     }
 
+    /** Il fonteId per la riga di log: viene dal file, quindi passa da perLog (un a capo non spezza la riga) ed è tagliato */
     private static String etichetta(Riga riga) {
-        if (Testo.ripulito(riga.fonteId()).isEmpty()) return "senza fonteId";
-        return riga.fonteId();
+        String fonteId = Testo.ripulito(riga.fonteId());
+        if (fonteId.isEmpty()) return "senza fonteId";
+        if (fonteId.length() > FONTE_ID_MAX) fonteId = fonteId.substring(0, FONTE_ID_MAX);
+        return LogSupport.perLog(fonteId);
     }
 
     /* ── Scrittura ── */

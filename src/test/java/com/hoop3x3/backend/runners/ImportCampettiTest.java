@@ -138,6 +138,21 @@ class ImportCampettiTest {
         assertErrore("riga 2");
     }
 
+    // Il fonteId finisce nella riga di log dello scarto: viene dal file, quindi un a capo dentro si scrive per esteso (\n) e non
+    // apre una seconda riga, come per gli altri valori scelti da fuori (LogSupport.perLog); e oltre i 120 caratteri si taglia
+    @Test
+    void fonteIdConUnACapo_nonSpezzaLaRigaDiLog() throws Exception {
+        Path file = file("[{\"fonteId\": \"pr-\\n001\", \"nome\": \" \", \"lat\": 41.9, \"lng\": 12.5, \"tipo\": \"campetto\"},"
+                + "{\"fonteId\": \"" + "y".repeat(130) + "\", \"nome\": \"Id lungo\", \"lat\": 41.9, \"lng\": 12.5, \"tipo\": \"campetto\"}]");
+
+        comando.run(argomenti(file));
+
+        List<String> avvisi = log.righe().stream().filter(r -> r.contains("scartata")).toList();
+        assertThat(avvisi).hasSize(2);
+        assertThat(avvisi.get(0)).doesNotContain("\n").contains("(pr-\\n001)", "nome");
+        assertThat(avvisi.get(1)).contains("(" + "y".repeat(120) + ")").doesNotContain("y".repeat(121));
+    }
+
     // Un elemento null dell'array non è una riga: errore di schema, con il numero della riga, prima di scrivere
     @Test
     void elementoNullNellArray_siFermaPrimaDiScrivereEDiceLaRiga() throws Exception {
