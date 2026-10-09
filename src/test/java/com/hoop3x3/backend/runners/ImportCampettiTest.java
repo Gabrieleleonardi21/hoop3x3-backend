@@ -138,6 +138,17 @@ class ImportCampettiTest {
         assertErrore("riga 2");
     }
 
+    // Un elemento null dell'array non è una riga: errore di schema, con il numero della riga, prima di scrivere
+    @Test
+    void elementoNullNellArray_siFermaPrimaDiScrivereEDiceLaRiga() throws Exception {
+        Path file = file("[{\"fonteId\": \"a\", \"nome\": \"Valido\", \"lat\": 41.9, \"lng\": 12.5, \"tipo\": \"campetto\"}, null]");
+
+        comando.run(argomenti(file));
+
+        verify(campetti, never()).save(any());
+        assertErrore("riga 2 vuota");
+    }
+
     /* ── L'admin ── */
 
     @Test

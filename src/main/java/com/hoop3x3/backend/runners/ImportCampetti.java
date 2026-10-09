@@ -194,10 +194,12 @@ public class ImportCampetti implements ApplicationRunner, ExitCodeGenerator {
         return radice;
     }
 
-    /** Una riga nella forma concordata: un campo con il tipo sbagliato è un errore di schema e ferma l'import */
+    /** Una riga nella forma concordata: un elemento null o un campo con il tipo sbagliato è un errore di schema e ferma l'import */
     private Riga converti(JsonNode nodo, int indice) {
         try {
-            return mapper.treeToValue(nodo, Riga.class);
+            Riga riga = mapper.treeToValue(nodo, Riga.class);
+            if (riga == null) throw new ImportFallito("riga " + indice + " vuota"); // un null nell'array: treeToValue dà null
+            return riga;
         } catch (JacksonException e) {
             throw new ImportFallito("riga " + indice + " non ha il formato concordato: " + e.getOriginalMessage());
         }
