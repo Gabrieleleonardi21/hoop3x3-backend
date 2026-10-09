@@ -11,8 +11,9 @@
 --  fonte e fonte_id servono ai campetti importati da una fonte esterna (NULL per quelli creati dall'app): l'indice unico
 --  su (fonte, fonte_id), solo dove fonte non è NULL, fa sì che un import ripetuto non crei doppioni.
 --
---  Indici: (lat, lng) per la ricerca per raggio (un riquadro di coordinate in SQL, poi la distanza vera in Java) e
---  lower(citta) per la ricerca per testo senza distinzione di maiuscole.
+--  Indici: (lat, lng) è quello che conta, per la ricerca per raggio (un riquadro di coordinate in SQL, poi la distanza
+--  vera in Java). lower(citta) è richiesto dal contratto della fase 5 e servirà a una ricerca per uguaglianza o per
+--  prefisso sulla città: la ricerca per testo di oggi è un ILIKE '%testo%' su nome e città, che un btree non può usare.
 -- ============================================================================
 
 CREATE TABLE campetti (
