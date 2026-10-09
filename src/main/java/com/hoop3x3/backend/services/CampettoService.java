@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Stream;
 
 /**
  * I campetti geolocalizzati: lettura pubblica (per raggio o per testo), scrittura di autore o ADMIN. La proprietà e la
@@ -75,16 +74,21 @@ public class CampettoService {
 
     /**
      * I campetti con `q` nel nome o nella città (sottostringa, senza distinzione di maiuscole), al massimo
-     * {@link #MASSIMO_RIGHE}, ordinati per città e nome dal database; se c'è un punto (lat e lng), per distanza da lì
+     * {@link #MASSIMO_RIGHE}, ordinati per città e nome dal database; se c'è un punto (lat e lng), i più vicini a quel punto,
+     * dal più vicino: li sceglie il database ordinando per la distanza sulla sfera prima del limite (così i più vicini non
+     * mancano mai, CampettoRepository.perTestoVicinoA) e qui l'ordine in chilometri si rifà con Haversine
      */
     @Transactional(readOnly = true)
     public List<CampettoDTO> cercaPerTesto(String q, Double lat, Double lng) {
         // I caratteri speciali del like scritti dall'utente sono caratteri, non jolly: si proteggono con la «\» che il
         // repository dichiara come escape
         String filtro = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
-        Stream<Campetto> trovati = campetti.perTesto(filtro, Limit.of(MASSIMO_RIGHE)).stream();
-        if (lat != null && lng != null) trovati = trovati.sorted(perDistanzaDa(lat, lng));
-        return trovati.map(CampettoDTO::from).toList();
+        Limit limite = Limit.of(MASSIMO_RIGHE);
+        if (lat == null || lng == null) return campetti.perTesto(filtro, limite).stream().map(CampettoDTO::from).toList();
+        return campetti.perTestoVicinoA(filtro, lat, lng, Math.cos(Math.toRadians(lat)), limite).stream()
+                .sorted(perDistanzaDa(lat, lng))
+                .map(CampettoDTO::from)
+                .toList();
     }
 
     /* ── Scritture ── */

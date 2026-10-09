@@ -114,6 +114,32 @@ class CampettoIT {
         mvc.perform(get(CAMPETTI).param("q", "dora")).andExpect(jsonPath("$.length()").value(0));
     }
 
+    /* ── I caratteri speciali del like, sul database vero ── */
+
+    // Un «%», un «_» o una «\» scritti dall'utente sono caratteri, non jolly: con «100%» non si trova «100x», con «campo_a»
+    // non si trova «campoxa», e la «\» dichiarata come escape si cerca come «\»
+    @Test
+    void laRicercaPerTesto_trattaPercentoTrattinoBassoEBarraComeCaratteri() throws Exception {
+        campettoService.crea(mario, campetto("Campo 100%", 45.07, 7.68, null));
+        campettoService.crea(mario, campetto("Campo 100x", 45.07, 7.68, null));
+        campettoService.crea(mario, campetto("campo_a", 45.07, 7.68, null));
+        campettoService.crea(mario, campetto("campoxa", 45.07, 7.68, null));
+        campettoService.crea(mario, campetto("Campo \\ retro", 45.07, 7.68, null));
+
+        mvc.perform(get(CAMPETTI).param("q", "100%")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].nome").value("Campo 100%"));
+        mvc.perform(get(CAMPETTI).param("q", "campo_a")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].nome").value("campo_a"));
+        mvc.perform(get(CAMPETTI).param("q", "\\")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].nome").value("Campo \\ retro"));
+        // Con un punto il risultato è lo stesso: cambia solo l'ordine
+        mvc.perform(get(CAMPETTI).param("q", "100%").param("lat", LAT_TORINO).param("lng", LNG_TORINO))
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
     /* ── L'ospite non vede l'id dell'autore ── */
 
     // Come per l'anagrafe: il nome dell'autore è pubblico, il suo id no. Senza token autoreId è null in entrambi i modi della

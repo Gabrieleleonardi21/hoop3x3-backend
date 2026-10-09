@@ -259,18 +259,22 @@ class CampettoServiceTest {
         assertThat(trovati).extracting(CampettoDTO::nome).containsExactly("Parco Dora — Le Arcate");
     }
 
-    // Con un punto (lat e lng senza raggioKm) i risultati del testo si ordinano per distanza da lì
+    // Con un punto (lat e lng senza raggioKm) il database restituisce le 200 righe più vicine sulla sfera (ordinate prima del
+    // limite: altrimenti con più di 200 risultati i più vicini potrebbero mancare) e qui si rifà l'ordine in chilometri
     @Test
-    void cercaPerTesto_conUnPunto_ordinaPerDistanzaDaQuelPunto() {
+    void cercaPerTesto_conUnPunto_chiedeAlDatabaseIPiuViciniEOrdinaPerDistanzaVera() {
         Campetto lontano = campetto("Lontano", LAT_TORINO + 0.1, LNG_TORINO);
         Campetto vicino = campetto("Vicino", LAT_TORINO + 0.01, LNG_TORINO);
         when(campetti.perTesto(eq("%campo%"), any())).thenReturn(List.of(lontano, vicino));
+        when(campetti.perTestoVicinoA(eq("%campo%"), eq(LAT_TORINO), eq(LNG_TORINO), eq(Math.cos(Math.toRadians(LAT_TORINO))),
+                eq(Limit.of(200)))).thenReturn(List.of(lontano, vicino));
 
         List<CampettoDTO> senzaPunto = servizio.cercaPerTesto("campo", null, null);
         List<CampettoDTO> conPunto = servizio.cercaPerTesto("campo", LAT_TORINO, LNG_TORINO);
 
         assertThat(senzaPunto).extracting(CampettoDTO::nome).containsExactly("Lontano", "Vicino");
         assertThat(conPunto).extracting(CampettoDTO::nome).containsExactly("Vicino", "Lontano");
+        verify(campetti, org.mockito.Mockito.times(1)).perTesto(any(), any());
     }
 
     /* ── Dati di prova ── */

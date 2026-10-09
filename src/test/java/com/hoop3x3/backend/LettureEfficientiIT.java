@@ -32,6 +32,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -359,6 +360,28 @@ class LettureEfficientiIT {
         assertAll(
                 () -> assertThat(misura.query()).as("query della ricerca per testo").isEqualTo(1),
                 () -> assertThat(misura.millisecondi()).as("ms della ricerca per testo").isLessThan(100));
+    }
+
+    // Con un punto, i 200 di un testo che ne trova 250 devono essere i 200 più vicini a quel punto, dal più vicino: se il database
+    // tagliasse a 200 per città e nome e si riordinasse dopo, i più vicini potrebbero mancare. Le 250 righe «Roma» stanno in tutta
+    // Italia (le città vanno a turno): l'ordine del database deve essere quello sulla sfera, un'approssimazione piana sbaglia il bordo
+    @Test
+    void laRicercaPerTestoConUnPunto_rispondeI200PiuViciniTraTuttiQuelliTrovati() {
+        List<Object[]> righe = campettiInItalia(5000);
+        List<String> aRomaDalPiuVicino = righe.stream()
+                .filter(r -> "Roma".equals(r[2]))
+                .sorted(Comparator.comparingDouble(r -> distanzaDaRoma((double) r[3], (double) r[4])))
+                .map(r -> (String) r[1])
+                .toList();
+        assertThat(aRomaDalPiuVicino).as("più del limite").hasSize(250);
+
+        var misura = misura(() -> campettoService.cercaPerTesto("roma", ROMA_LAT, ROMA_LNG));
+
+        assertThat(misura.risultato()).extracting(CampettoDTO::nome)
+                .containsExactlyElementsOf(aRomaDalPiuVicino.subList(0, CampettoService.MASSIMO_RIGHE));
+        assertAll(
+                () -> assertThat(misura.query()).as("query della ricerca per testo con un punto").isEqualTo(1),
+                () -> assertThat(misura.millisecondi()).as("ms della ricerca per testo con un punto").isLessThan(100));
     }
 
     /* ── Dati di prova ── */
