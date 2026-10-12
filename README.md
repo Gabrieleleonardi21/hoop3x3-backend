@@ -145,6 +145,7 @@ La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/cont
 | `PUT` | `/api/archivio/{tappaId}` | Proprietario della lega della tappa o ADMIN (e, se la pubblicazione esiste già, il suo autore o ADMIN) | 200 la copia pubblica; senza corpo; 409 se la tappa non è conclusa |
 | `DELETE` | `/api/archivio/{tappaId}` | Autore della pubblicazione (per quelle nuove, il proprietario della lega) o ADMIN | 204 |
 | `GET` | `/api/campetti` | Pubblico | 200 i campetti (`CampettoDTO`) entro un raggio (`?lat=&lng=&raggioKm=`) o con un testo nel nome o nella città (`?q=`), al massimo 200; 400 senza parametri validi |
+| `GET` | `/api/luoghi?q=` | Pubblico | 200 `{nome, lat, lng}` del primo luogo trovato da Nominatim (OpenStreetMap) per `q` (da 2 a 100 caratteri); 400 se `q` manca o è fuori intervallo; 404 «Luogo non trovato»; 502 se Nominatim non risponde |
 | `POST` | `/api/campetti` | Autenticato | 201 |
 | `PUT` | `/api/campetti/{id}` | Autore del campetto o ADMIN (solo ADMIN se l'autore è stato eliminato) | 200; 409 se il corpo porta una `versione` che non è più quella del database |
 | `DELETE` | `/api/campetti/{id}` | Autore del campetto o ADMIN (come la PUT) | 204 |
@@ -241,6 +242,8 @@ Il `ts` (millisecondi dell'ultima modifica) è lo stesso nelle due forme, e la r
 **Cache del client.** La forma dipende dal token, quindi il client deve svuotare la cache dell'anagrafe quando cambia chi la guarda, al login e al logout (il frontend lo fa: `svuota` in `useAnagrafeStore`). Se non lo fa, chi accede dopo aver aperto l'anagrafe da ospite si tiene la forma pubblica finché non ricarica la pagina, e un ADMIN che in quel caso modifica una scheda rimanda al server i campi riservati vuoti, che li sovrascrivono: il `PUT` salva ciò che riceve.
 
 ## Campetti
+
+**La ricerca di un luogo** (`GET /api/luoghi?q=firenze`) passa dal backend, che chiama Nominatim, il geocoding di OpenStreetMap, senza chiave: così il browser non parla con Nominatim e la politica d'uso è rispettata da un punto solo. Il server fa al massimo una richiesta al secondo, in tutto (non per utente), e tiene in cache 500 ricerche, anche quelle senza risultato. Dati: © OpenStreetMap contributors (licenza ODbL). Lo User-Agent è `HOOP3X3/1.0 (progetto HOOP 3X3)` (proprietà `nominatim.user-agent`).
 
 I campetti da basket che il frontend mostra su una mappa (tabella `campetti`, migrazione V8). Leggerli è pubblico e non chiede l'account; aggiungerne uno chiede il login; modificarlo o eliminarlo spetta all'autore o a un ADMIN. Un campetto è un dato del territorio e **sopravvive al suo autore**: se l'utente viene eliminato, `autore_id` diventa `NULL` (`ON DELETE SET NULL`, a differenza dell'anagrafe) e da allora lo modifica solo un ADMIN, perché nessun utente è il proprietario di un autore nullo.
 

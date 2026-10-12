@@ -169,7 +169,11 @@ class AccessoEndpointIT {
                 // Senza parametri la ricerca risponde 400 con il suo messaggio: la sicurezza ha lasciato passare (il 200 con i
                 // parametri lo prova CampettoIT)
                 new Pubblico(new Endpoint(GET, "/api/campetti", null), 400,
-                        "Indica lat, lng e raggioKm (ricerca per raggio) oppure q (ricerca per testo)"));
+                        "Indica lat, lng e raggioKm (ricerca per raggio) oppure q (ricerca per testo)"),
+                // La ricerca di un luogo è pubblica: senza q risponde 400 con il suo messaggio (la ricerca vera con Nominatim la
+                // prova LuoghiServiceTest, qui non si chiama mai il servizio esterno)
+                new Pubblico(new Endpoint(GET, "/api/luoghi", null), 400,
+                        "Indica il luogo da cercare (q, da 2 a 100 caratteri)"));
     }
 
     @Autowired MockMvc mvc;
