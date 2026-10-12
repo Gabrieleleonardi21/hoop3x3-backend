@@ -70,12 +70,8 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
-        <!-- RestClient verso Groq usa il client HTTP di spring-web: nessuna dipendenza extra -->
-        <!-- Email del recupero password (Gmail SMTP, JavaMailSender): versione dal BOM di Spring Boot -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-mail</artifactId>
-        </dependency>
+        <!-- RestClient verso Groq, Nominatim e Brevo (le email del recupero password) usa il client HTTP di spring-web: nessuna
+             dipendenza extra -->
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

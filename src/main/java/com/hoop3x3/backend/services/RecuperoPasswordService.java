@@ -25,7 +25,7 @@ import static com.hoop3x3.backend.services.RefreshTokenService.sha256;
  *   <li>Il token è come un refresh token (32 byte casuali, nel database solo il suo SHA-256), vale 30 minuti e una volta sola.
  *       Un link nuovo invalida quelli precedenti dello stesso utente.</li>
  *   <li>Chi chiede il link riceve sempre la stessa risposta, registrato o no: l'endpoint non dice quali email hanno un
- *       account. L'email parte su un altro thread (EmailSenderSmtp), quindi nemmeno i tempi lo dicono in modo evidente.</li>
+ *       account. L'email parte su un altro thread (EmailSenderBrevo), quindi nemmeno i tempi lo dicono in modo evidente.</li>
  *   <li>Al massimo 3 link ogni 15 minuti per account, contati sui token del database: oltre, nessuna email e la stessa risposta.
  *       Il limite per indirizzo IP è di LimiteRichiesteFilter.</li>
  *   <li>La password nuova ha le regole della registrazione, e chi la cambia chiude tutte le sessioni dell'account.</li>

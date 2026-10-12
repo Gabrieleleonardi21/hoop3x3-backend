@@ -45,7 +45,7 @@ class RecuperoPasswordServiceTest {
     private final EmailFinto email = new EmailFinto();
     // La barra finale si toglie: il link non deve avere «//reimposta-password»
     private final RecuperoPasswordService service = new RecuperoPasswordService(utenti, tokens, sessioni, encoder, email,
-            new AppProperties("https://hoop3x3.onrender.com/"));
+            new AppProperties("https://hoop3x3.onrender.com/", new AppProperties.Brevo(""), new AppProperties.Mail("")));
 
     private final Utente mario = conId("mario@x.it");
     private LogCatturato log;
