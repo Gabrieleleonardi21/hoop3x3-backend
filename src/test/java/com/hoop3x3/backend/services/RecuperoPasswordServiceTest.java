@@ -79,6 +79,9 @@ class RecuperoPasswordServiceTest {
         assertThat(inviata.oggetto()).isEqualTo("Reimposta la password di HOOP 3X3");
         assertThat(inviata.testo()).contains("https://hoop3x3.onrender.com/reimposta-password?token=" + token)
                 .contains("30 minuti");
+        // La versione HTML (EmailRecuperoPassword): il bottone con il link e il logo dal sito, senza la barra doppia
+        assertThat(inviata.html()).contains("<a href=\"https://hoop3x3.onrender.com/reimposta-password?token=" + token + "\"")
+                .contains("src=\"https://hoop3x3.onrender.com/logo.png\"");
         assertThat(salvato.getValue().getTokenHash()).isEqualTo(RefreshTokenService.sha256(token)).isNotEqualTo(token);
         assertThat(salvato.getValue().getUtente()).isSameAs(mario);
         assertThat(salvato.getValue().getScadenza())

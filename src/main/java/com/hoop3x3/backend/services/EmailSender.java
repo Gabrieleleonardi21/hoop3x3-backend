@@ -6,6 +6,9 @@ package com.hoop3x3.backend.services;
  */
 public interface EmailSender {
 
-    /** Un'email di testo semplice. Non deve far aspettare il chiamante l'invio vero */
-    void invia(String destinatario, String oggetto, String testo);
+    /**
+     * Un'email in HTML con il testo semplice come riserva, per i client che non mostrano l'HTML. Non deve far aspettare il
+     * chiamante l'invio vero
+     */
+    void invia(String destinatario, String oggetto, String testo, String html);
 }
