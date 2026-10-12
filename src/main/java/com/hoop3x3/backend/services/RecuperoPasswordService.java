@@ -46,6 +46,7 @@ public class RecuperoPasswordService {
     private static final int DURATA_MINUTI = 30;
     private static final int MASSIMO_LINK = 3;
     private static final int FINESTRA_MINUTI = 15;
+    private static final int PULIZIA_DOPO_GIORNI = 1;
 
     private final UtenteRepository utenti;
     private final TokenRecuperoPasswordRepository tokens;
@@ -81,6 +82,9 @@ public class RecuperoPasswordService {
                     mascheraEmail(utente.getEmail()));
             return;
         }
+        // Pulizia pigra, come per i refresh token: i token di più di un giorno fa sono scaduti da ore e non contano più nel
+        // limite dei 15 minuti, quindi si cancellano senza cambiare il conteggio
+        tokens.eliminaCreatiPrima(utente.getId(), adesso.minusDays(PULIZIA_DOPO_GIORNI));
         tokens.invalidaDellUtente(utente.getId(), adesso);
         String token = nuovoToken();
         tokens.save(new TokenRecuperoPassword(utente, sha256(token), adesso.plusMinutes(DURATA_MINUTI)));
@@ -95,9 +99,9 @@ public class RecuperoPasswordService {
         TokenRecuperoPassword salvato = tokens.findByTokenHash(sha256(token))
                 .filter(TokenRecuperoPassword::isUtilizzabile)
                 .orElseThrow(() -> new BadRequestException(LINK_NON_VALIDO));
-        // Dopo il token, così chi ha il link scaduto non corregge la password per niente; prima di usarlo, così chi deve
-        // accorciarla può riprovare con lo stesso link
-        UtenteService.controllaIByteDellaPassword(nuovaPassword);
+        // Le regole della registrazione (byte di BCrypt, admin123 vietata). Dopo il token, così chi ha il link scaduto non
+        // corregge la password per niente; prima di usarlo, così chi deve cambiarla può riprovare con lo stesso link
+        UtenteService.controllaPassword(nuovaPassword);
         LocalDateTime adesso = Tempo.adesso();
         // Due richieste insieme con lo stesso link: lo segna solo la prima, l'altra non cambia la password
         if (tokens.segnaUsato(salvato.getId(), adesso) == 0) throw new BadRequestException(LINK_NON_VALIDO);

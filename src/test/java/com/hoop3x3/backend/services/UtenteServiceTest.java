@@ -44,6 +44,17 @@ class UtenteServiceTest {
         verifyNoInteractions(repository, encoder);
     }
 
+    // La password dell'esempio pubblico non vale per nessun account: la regola condivisa con il recupero password
+    @Test
+    void laPasswordAdmin123_siRifiutaSenzaToccareDatabaseEPasswordEncoder() {
+        RegisterRequestDTO dto = new RegisterRequestDTO("Mario", "mario@x.it", "admin123");
+
+        assertThatThrownBy(() -> service.register(dto))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Questa password non è consentita: scegline un'altra");
+        verifyNoInteractions(repository, encoder);
+    }
+
     @Test
     void passwordDiEsattamente72Byte_siAccetta() {
         String password = "è".repeat(36); // 72 byte

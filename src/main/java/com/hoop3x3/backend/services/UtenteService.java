@@ -25,6 +25,9 @@ public class UtenteService implements UserDetailsService {
      */
     public static final int PASSWORD_MAX_BYTE = 72;
 
+    /** La password pubblica dell'esempio (vedi controllaPassword) */
+    private static final String PASSWORD_DI_ESEMPIO = "admin123";
+
     private final UtenteRepository utenteRepository;
     private final PasswordEncoder passwordEncoder;
 
@@ -42,7 +45,7 @@ public class UtenteService implements UserDetailsService {
 
     /** La registrazione assegna sempre USER: l'ADMIN nasce solo dal seeder */
     public Utente register(RegisterRequestDTO dto) {
-        controllaIByteDellaPassword(dto.password());
+        controllaPassword(dto.password());
         String email = normalizza(dto.email());
         if (utenteRepository.existsByEmail(email)) {
             throw new ConflictException("Email " + email + " già registrata");
@@ -52,14 +55,22 @@ public class UtenteService implements UserDetailsService {
     }
 
     /**
-     * Il DTO conta i caratteri, BCrypt i byte: una lettera accentata ne occupa 2 e un emoji 4, quindi 40 lettere accentate
-     * (80 byte) passano la validazione ma non l'encoder. Si controlla prima di toccare il database: alla registrazione e alla
-     * nuova password del recupero (RecuperoPasswordService), con lo stesso messaggio
+     * Le regole della password di un account che la validazione del DTO non può vedere, in un posto solo: alla registrazione e
+     * alla nuova password del recupero (RecuperoPasswordService), prima di toccare il database e con gli stessi messaggi.
+     * <ul>
+     *   <li>Il DTO conta i caratteri, BCrypt i byte: una lettera accentata ne occupa 2 e un emoji 4, quindi 40 lettere accentate
+     *       (80 byte) passano la validazione ma non l'encoder.</li>
+     *   <li>admin123 è la password che il vecchio env.properties.example proponeva per l'admin: è pubblica, e non vale per
+     *       nessun account. Per l'admin la stessa regola la applica il DataSeeder, a ADMIN_PASSWORD.</li>
+     * </ul>
      */
-    public static void controllaIByteDellaPassword(String password) {
+    public static void controllaPassword(String password) {
         if (superaIlLimiteDiBcrypt(password)) {
             throw new BadRequestException("La password supera i " + PASSWORD_MAX_BYTE
                     + " byte: accorciala (le lettere accentate occupano 2 byte, gli emoji 4)");
+        }
+        if (PASSWORD_DI_ESEMPIO.equals(password)) {
+            throw new BadRequestException("Questa password non è consentita: scegline un'altra");
         }
     }
 
