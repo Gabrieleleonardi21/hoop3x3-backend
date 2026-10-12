@@ -37,7 +37,7 @@ import java.util.UUID;
  * c'è un avviso con la causa. L'app parte senza i dati di prova.
  * <p>
  * Nella stessa transazione, con le stesse condizioni (SEED_DEMO e l'admin) ma con un segno suo («campetti»), entrano i sei
- * campetti di Torino di resources/seed/campetti-torino.json (le coordinate vengono da OpenStreetMap, con la fonte scritta in
+ * campetti di Torino di resources/seed/campetti-demo.json (le coordinate vengono da OpenStreetMap, con la fonte scritta in
  * testa al file): così li riceve anche un database che ha già il seed demo di prima, e anche loro una volta sola.
  */
 @Slf4j
@@ -52,7 +52,7 @@ public class DemoSeeder implements CommandLineRunner {
      * file): i dati possono cambiare e il segno deve restare riconoscibile.
      */
     private static final String SEGNO = "demo";
-    private static final String FILE_CAMPETTI = "/seed/campetti-torino.json";
+    private static final String FILE_CAMPETTI = "/seed/campetti-demo.json";
     private static final String SEGNO_CAMPETTI = "campetti";
 
     private final UtenteRepository utenti;
