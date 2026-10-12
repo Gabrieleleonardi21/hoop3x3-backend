@@ -40,6 +40,8 @@ public final class EmailRecuperoPassword {
 
             Se non l'hai chiesto tu, ignora questa email: la password resta quella di prima.
 
+            Questo è un messaggio automatico: non rispondere a questa email.
+
             HOOP 3X3
             """;
 
@@ -76,7 +78,8 @@ public final class EmailRecuperoPassword {
             <p style="margin:0;font-size:13px;line-height:1.5;word-break:break-all;"><a href="{link}" target="_blank" style="color:#ff6a1f;text-decoration:underline;">{link}</a></p>
             </td></tr>
             <tr><td style="padding:16px 32px 32px;border-top:1px solid #2a2f3d;font-family:'IBM Plex Sans',Arial,Helvetica,sans-serif;">
-            <p style="margin:0;font-size:13px;line-height:1.5;color:#8c8780;">Se non l'hai chiesto tu, ignora questa email: la password resta quella di prima.</p>
+            <p style="margin:0 0 8px;font-size:13px;line-height:1.5;color:#8c8780;">Se non l'hai chiesto tu, ignora questa email: la password resta quella di prima.</p>
+            <p style="margin:0;font-size:12px;line-height:1.5;color:#8c8780;">Questo è un messaggio automatico: non rispondere a questa email.</p>
             </td></tr>
             </table>
             </td></tr>

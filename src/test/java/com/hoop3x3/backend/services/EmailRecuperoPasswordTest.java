@@ -48,6 +48,16 @@ class EmailRecuperoPasswordTest {
                 "Se non l'hai chiesto tu, ignora questa email");
     }
 
+    // Il mittente è un indirizzo vero, ma l'email non aspetta risposte: lo dice il piè, sotto la nota per chi non l'ha chiesta
+    @Test
+    void ilPieDiceCheEUnMessaggioAutomatico_sottoLaNotaPerChiNonLHaChiesto() {
+        String riga = "Questo è un messaggio automatico: non rispondere a questa email.";
+        String nota = "Se non l'hai chiesto tu, ignora questa email";
+
+        assertThat(email.html().indexOf(riga)).isGreaterThan(email.html().indexOf(nota));
+        assertThat(email.testo().indexOf(riga)).isGreaterThan(email.testo().indexOf(nota));
+    }
+
     // Layout per i client di posta: tabelle, stili in linea, al massimo 560 px, i colori del tema del sito (asphalt e court)
     @Test
     void ilLayoutEFattoPerIClientDiPosta() {

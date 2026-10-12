@@ -67,6 +67,8 @@ class EmailSenderBrevoTest {
             assertThat(corpo.path("sender").path("name").asString()).isEqualTo("HOOP 3X3");
             assertThat(corpo.path("to")).hasSize(1);
             assertThat(corpo.path("to").get(0).path("email").asString()).isEqualTo("mario@x.it");
+            // Chi risponde comunque scrive al mittente, non a un indirizzo che non esiste
+            assertThat(corpo.path("replyTo").path("email").asString()).isEqualTo(MITTENTE);
             assertThat(corpo.path("subject").asString()).isEqualTo("Reimposta la password di HOOP 3X3");
             // L'HTML per i client che lo mostrano, il testo semplice come riserva per gli altri: partono tutti e due
             assertThat(corpo.path("textContent").asString())

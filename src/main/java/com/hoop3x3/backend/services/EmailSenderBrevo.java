@@ -40,11 +40,12 @@ public class EmailSenderBrevo implements EmailSender {
     static final String NOME_MITTENTE = "HOOP 3X3";
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
-    /** Il corpo che Brevo si aspetta: mittente con il nome, destinatari (solo l'email: un «name» null Brevo lo rifiuterebbe),
-     *  oggetto, HTML e testo semplice (la riserva per i client che non mostrano l'HTML) */
+    /** Il corpo che Brevo si aspetta: mittente con il nome, destinatari e indirizzo di risposta (solo l'email: un «name» null
+     *  Brevo lo rifiuterebbe), oggetto, HTML e testo semplice (la riserva per i client che non mostrano l'HTML) */
     private record Mittente(String email, String name) {}
-    private record Destinatario(String email) {}
-    private record Corpo(Mittente sender, List<Destinatario> to, String subject, String htmlContent, String textContent) {}
+    private record Indirizzo(String email) {}
+    private record Corpo(Mittente sender, List<Indirizzo> to, Indirizzo replyTo, String subject, String htmlContent,
+                         String textContent) {}
 
     private final String url;
     private final String apiKey;
@@ -80,8 +81,9 @@ public class EmailSenderBrevo implements EmailSender {
     public void invia(String destinatario, String oggetto, String testo, String html) {
         // Il motivo l'ha già detto il WARN dell'avvio: qui non si ripete a ogni richiesta
         if (!configurato) return;
-        Corpo corpo = new Corpo(new Mittente(mittente, NOME_MITTENTE), List.of(new Destinatario(destinatario)), oggetto, html,
-                testo);
+        // replyTo è il mittente stesso: l'email dice di non rispondere, ma una risposta mandata comunque non si perde
+        Corpo corpo = new Corpo(new Mittente(mittente, NOME_MITTENTE), List.of(new Indirizzo(destinatario)), new Indirizzo(mittente),
+                oggetto, html, testo);
         esecutore.execute(() -> spedisci(corpo, destinatario));
     }
 
