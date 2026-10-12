@@ -98,6 +98,26 @@ class DemoSeederIT {
                 .as("i segni hanno la data").isEqualTo(3);
     }
 
+    // Con SEED_CAMPETTI da solo (SEED_DEMO spento), sul database vero: nove campetti intestati all'admin e né il circuito, né la
+    // lega, né le persone. Il seed non riparte al riavvio
+    @Test
+    void soloSeedCampetti_sulDatabaseVero_noveCampettiSenzaCircuito() {
+        Utente admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
+        DemoSeeder soloCampetti = new DemoSeeder(utenti, giocatori, squadre, leghe, campetti, seedEseguiti, archivioService, mapper,
+                transazioni, new SeedProperties(false, true, new SeedProperties.Admin(admin.getEmail(), "")));
+
+        soloCampetti.run();
+        soloCampetti.run(); // il riavvio
+
+        assertThat(campetti.count()).isEqualTo(9);
+        assertThat(jdbc.queryForObject("select count(*) from campetti where autore_id = ?", Integer.class, admin.getId()))
+                .isEqualTo(9);
+        assertThat(leghe.count()).as("nessuna lega demo").isZero();
+        assertThat(giocatori.count()).as("nessun giocatore di fantasia").isZero();
+        assertThat(squadre.count()).as("nessuna squadra di fantasia").isZero();
+        assertThat(segni()).containsExactlyInAnyOrder("campetti", "campetti-roma");
+    }
+
     /* ── I campetti di Torino ── */
 
     // I sei campetti del file entrano intestati all'admin, si trovano con la ricerca per raggio dal centro di Torino (dal più
@@ -315,7 +335,7 @@ class DemoSeederIT {
     /** Un seeder acceso sull'admin, con l'archivio indicato (quello vero, o uno che fallisce): la transazione è quella vera */
     private DemoSeeder seederAcceso(Utente admin, ArchivioService archivio) {
         return new DemoSeeder(utenti, giocatori, squadre, leghe, campetti, seedEseguiti, archivio, mapper, transazioni,
-                new SeedProperties(true, new SeedProperties.Admin(admin.getEmail(), "")));
+                new SeedProperties(true, false, new SeedProperties.Admin(admin.getEmail(), "")));
     }
 
     /** I nomi dei seed che hanno lasciato il segno nel database */

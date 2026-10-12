@@ -36,10 +36,11 @@ import java.util.UUID;
  * Il seed non ferma mai l'avvio: gira in una transazione sua e, se qualcosa va storto, il database resta com'era e nei log
  * c'è un avviso con la causa. L'app parte senza i dati di prova.
  * <p>
- * Nella stessa transazione, con le stesse condizioni (SEED_DEMO e l'admin), entrano i campetti di esempio di
- * resources/seed/campetti-demo.json: sei di Torino e tre di Roma, a lotti, ognuno con il suo segno («campetti» e
- * «campetti-roma»). Le coordinate vengono da OpenStreetMap, con la fonte scritta in testa al file: così li riceve anche un
- * database che ha già il seed demo di prima, e ogni lotto una volta sola.
+ * I campetti di esempio di resources/seed/campetti-demo.json (sei di Torino e tre di Roma, a lotti, ognuno con il suo segno,
+ * «campetti» e «campetti-roma») entrano con SEED_DEMO o con SEED_CAMPETTI, e sempre con l'admin. SEED_CAMPETTI da solo non
+ * carica il circuito, la sua lega né le persone di fantasia: solo i campetti. Le coordinate vengono da OpenStreetMap, con la
+ * fonte scritta in testa al file; un database che ha già il seed demo di prima riceve i lotti che gli mancano, e ogni lotto
+ * una volta sola.
  */
 @Slf4j
 @Component
@@ -66,15 +67,17 @@ public class DemoSeeder implements CommandLineRunner {
     private final ObjectMapper mapper;
     private final TransactionTemplate transazione;
 
-    // SEED_DEMO e ADMIN_EMAIL (seed.*)
-    private final boolean abilitato;
+    // SEED_DEMO, SEED_CAMPETTI e ADMIN_EMAIL (seed.*)
+    private final boolean demo;
+    private final boolean seedCampetti;
     private final String adminEmail;
 
     public DemoSeeder(UtenteRepository utenti, AnagrafeGiocatoreRepository giocatori, AnagrafeSquadraRepository squadre,
                       LegaRepository leghe, CampettoRepository campetti, SeedEseguitoRepository seedEseguiti,
                       ArchivioService archivioService, ObjectMapper mapper, PlatformTransactionManager transazioni,
                       SeedProperties proprieta) {
-        this.abilitato = proprieta.demo();
+        this.demo = proprieta.demo();
+        this.seedCampetti = proprieta.campetti();
         this.adminEmail = proprieta.admin().email();
         this.utenti = utenti;
         this.giocatori = giocatori;
@@ -91,13 +94,14 @@ public class DemoSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        // Ogni salto dice perché nei log: INFO se è la configurazione normale, avviso se chi ha acceso il seed non otterrà i dati
-        if (!abilitato) {
-            log.info("Seed demo saltato: SEED_DEMO non è true");
+        // Ogni salto dice perché nei log: INFO se è la configurazione normale, avviso se chi ha acceso il seed non otterrà i dati.
+        // Con SEED_CAMPETTI da solo entra solo il lotto dei campetti (vedi semina)
+        if (!demo && !seedCampetti) {
+            log.info("Seed demo saltato: SEED_DEMO non è true e SEED_CAMPETTI nemmeno");
             return;
         }
         if (adminEmail.isBlank()) {
-            log.warn("Seed demo saltato: SEED_DEMO è true ma ADMIN_EMAIL è vuota, e i dati di prova si intestano all'admin");
+            log.warn("Seed demo saltato: ADMIN_EMAIL è vuota, e i dati di prova (campetti compresi) si intestano all'admin");
             return;
         }
         try {
@@ -120,7 +124,9 @@ public class DemoSeeder implements CommandLineRunner {
             log.warn("Seed demo saltato: {} è di un utente con ruolo USER, non dell'admin", adminEmail);
             return;
         }
-        seminaDemo(admin);
+        // Il circuito e la sua lega solo con SEED_DEMO; i campetti con SEED_DEMO o SEED_CAMPETTI (run() ha già scartato il caso
+        // di nessuno dei due accesi)
+        if (demo) seminaDemo(admin);
         seminaCampetti(admin);
     }
 

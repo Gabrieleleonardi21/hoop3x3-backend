@@ -62,7 +62,7 @@ class ProprietaTest {
     // Il toString() automatico di un record scrive tutti i campi: password e chiave non devono finire nei log
     @Test
     void passwordEChiaveNonCompaionoNelToString() {
-        assertThat(new SeedProperties(true, new SeedProperties.Admin("a@prova.it", "Segreta-di-prova-1")).toString())
+        assertThat(new SeedProperties(true, false, new SeedProperties.Admin("a@prova.it", "Segreta-di-prova-1")).toString())
                 .doesNotContain("Segreta-di-prova-1");
         assertThat(new GroqProperties(new GroqProperties.Api("chiave-di-prova"), "m", "low").toString())
                 .doesNotContain("chiave-di-prova");
