@@ -197,7 +197,7 @@ class DataSeederTest {
 
     /** Il seeder come lo crea Spring con ADMIN_EMAIL e ADMIN_PASSWORD */
     private DataSeeder nuovoSeeder(String email, String password) {
-        return new DataSeeder(utenteRepository, passwordEncoder, new SeedProperties(false, new SeedProperties.Admin(email, password)));
+        return new DataSeeder(utenteRepository, passwordEncoder, new SeedProperties(false, false, new SeedProperties.Admin(email, password)));
     }
 
     /** Imposta i valori che Spring leggerebbe da ADMIN_EMAIL e ADMIN_PASSWORD */

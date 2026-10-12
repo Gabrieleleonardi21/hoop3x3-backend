@@ -51,7 +51,7 @@ class ImportCampettiIT {
     void adminEComando() {
         admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
         comando = new ImportCampetti(campetti, utenti, validator, mapper, transazioni,
-                new SeedProperties(false, new SeedProperties.Admin(admin.getEmail(), "")));
+                new SeedProperties(false, false, new SeedProperties.Admin(admin.getEmail(), "")));
     }
 
     @Test

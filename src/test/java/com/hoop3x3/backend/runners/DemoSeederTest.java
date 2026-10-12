@@ -61,7 +61,7 @@ class DemoSeederTest {
     private final CampettoRepository campetti = mock(CampettoRepository.class);
     private final SeedEseguitoRepository seedEseguiti = mock(SeedEseguitoRepository.class);
     private final ArchivioService archivioService = mock(ArchivioService.class);
-    private DemoSeeder seeder = nuovoSeeder(false, "");
+    private DemoSeeder seeder = nuovoSeeder(false, false, "");
 
     private final Logger logDelSeeder = (Logger) LoggerFactory.getLogger(DemoSeeder.class);
     private final ListAppender<ILoggingEvent> logCatturato = new ListAppender<>();
@@ -277,15 +277,83 @@ class DemoSeederTest {
 
     /* ── Aiuti ── */
 
-    /** Il seeder come lo crea Spring con SEED_DEMO e ADMIN_EMAIL */
-    private DemoSeeder nuovoSeeder(boolean abilitato, String adminEmail) {
+    /** Il seeder come lo crea Spring con SEED_DEMO, SEED_CAMPETTI e ADMIN_EMAIL */
+    private DemoSeeder nuovoSeeder(boolean demo, boolean soloCampetti, String adminEmail) {
         // Il gestore delle transazioni è simulato: la transazione del seed qui non c'è, la prova DemoSeederIT
         return new DemoSeeder(utenti, giocatori, squadre, leghe, campetti, seedEseguiti, archivioService, JsonMapper.builder().build(),
-                mock(PlatformTransactionManager.class), new SeedProperties(abilitato, new SeedProperties.Admin(adminEmail, "")));
+                mock(PlatformTransactionManager.class),
+                new SeedProperties(demo, soloCampetti, new SeedProperties.Admin(adminEmail, "")));
     }
 
     private void configura(boolean abilitato, String adminEmail) {
-        seeder = nuovoSeeder(abilitato, adminEmail);
+        seeder = nuovoSeeder(abilitato, false, adminEmail);
+    }
+
+    /** Solo SEED_CAMPETTI acceso (SEED_DEMO spento), come su Render con la sola variabile dei campetti */
+    private void configuraSoloCampetti(String adminEmail) {
+        seeder = nuovoSeeder(false, true, adminEmail);
+    }
+
+    // SEED_CAMPETTI acceso da solo: entrano i nove campetti intestati all'admin, con i loro due segni, e né il circuito Estathé
+    // né la lega demo né le persone di fantasia
+    @Test
+    void soloSeedCampettiAcceso_caricaINoveCampettiSenzaIlCircuito() throws Exception {
+        Utente admin = new Utente("admin@hoop3x3.it", "hash", "Admin", Ruolo.ADMIN);
+        configuraSoloCampetti("admin@hoop3x3.it");
+        when(utenti.findByEmail("admin@hoop3x3.it")).thenReturn(Optional.of(admin));
+
+        seeder.run();
+
+        verifyNoInteractions(giocatori, squadre, leghe, archivioService);
+        ArgumentCaptor<Campetto> salvati = ArgumentCaptor.forClass(Campetto.class);
+        verify(campetti, times(9)).save(salvati.capture());
+        assertThat(salvati.getAllValues()).allSatisfy(c -> assertThat(c.getAutore()).isSameAs(admin));
+        ArgumentCaptor<SeedEseguito> segni = ArgumentCaptor.forClass(SeedEseguito.class);
+        verify(seedEseguiti, times(2)).save(segni.capture());
+        assertThat(segni.getAllValues()).extracting(SeedEseguito::getNome).containsExactlyInAnyOrder("campetti", "campetti-roma");
+    }
+
+    // SEED_CAMPETTI acceso ma nessun admin: niente campetti e un avviso che dice perché
+    @Test
+    void soloSeedCampettiAcceso_adminNonTrovato_nonFaNienteEAvvisaNelLog() throws Exception {
+        configuraSoloCampetti("admin@hoop3x3.it");
+        when(utenti.findByEmail("admin@hoop3x3.it")).thenReturn(Optional.empty());
+
+        seeder.run();
+
+        assertNessunaScrittura();
+        assertThat(logCatturato.list).singleElement().satisfies(riga -> {
+            assertThat(riga.getLevel()).isEqualTo(Level.WARN);
+            assertThat(riga.getFormattedMessage()).contains("admin admin@hoop3x3.it non trovato");
+        });
+    }
+
+    // SEED_CAMPETTI acceso senza ADMIN_EMAIL: i campetti si intestano all'admin, quindi non si caricano e lo si dice
+    @Test
+    void soloSeedCampettiAcceso_senzaAdminEmail_nonFaNienteEAvvisaNelLog() throws Exception {
+        configuraSoloCampetti(" ");
+
+        seeder.run();
+
+        assertNessunaScrittura();
+        assertThat(logCatturato.list).singleElement().satisfies(riga -> {
+            assertThat(riga.getLevel()).isEqualTo(Level.WARN);
+            assertThat(riga.getFormattedMessage()).contains("ADMIN_EMAIL è vuota");
+        });
+    }
+
+    // Nessuno dei due accesi: niente, e il motivo nel log dice che né SEED_DEMO né SEED_CAMPETTI sono accesi
+    @Test
+    void nessunoDeiDueSeedAccesi_nonScriveNienteEDiceIlMotivo() throws Exception {
+        configura(false, "admin@hoop3x3.it");
+
+        seeder.run();
+
+        assertNessunaScrittura();
+        assertThat(logCatturato.list).singleElement().satisfies(riga -> {
+            assertThat(riga.getLevel()).isEqualTo(Level.INFO);
+            assertThat(riga.getFormattedMessage()).contains("SEED_DEMO non è true", "SEED_CAMPETTI");
+        });
     }
 
     /**

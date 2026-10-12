@@ -314,7 +314,7 @@ class ImportCampettiTest {
     private ImportCampetti nuovoComando(String adminEmail) {
         // Il gestore delle transazioni è simulato: le transazioni a blocchi le prova ImportCampettiIT
         return new ImportCampetti(campetti, utenti, validator, JsonMapper.builder().build(),
-                mock(PlatformTransactionManager.class), new SeedProperties(false, new SeedProperties.Admin(adminEmail, "")));
+                mock(PlatformTransactionManager.class), new SeedProperties(false, false, new SeedProperties.Admin(adminEmail, "")));
     }
 
     private static DefaultApplicationArguments argomenti(Path file) {
