@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
  */
 public class EmailFinto implements EmailSender {
 
-    public record Email(String destinatario, String oggetto, String testo) {}
+    public record Email(String destinatario, String oggetto, String testo, String html) {}
 
     // Il token nel link dell'email: Base64 URL, senza padding
     private static final Pattern TOKEN = Pattern.compile("token=([A-Za-z0-9_-]+)");
@@ -23,8 +23,8 @@ public class EmailFinto implements EmailSender {
     private final List<Email> inviate = new CopyOnWriteArrayList<>();
 
     @Override
-    public void invia(String destinatario, String oggetto, String testo) {
-        inviate.add(new Email(destinatario, oggetto, testo));
+    public void invia(String destinatario, String oggetto, String testo, String html) {
+        inviate.add(new Email(destinatario, oggetto, testo, html));
     }
 
     public List<Email> inviate() {

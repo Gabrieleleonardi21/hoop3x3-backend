@@ -54,7 +54,8 @@ class EmailSenderBrevoTest {
     @Test
     void invioRiuscito_mandaAllApiIlCorpoELeIntestazioniDiBrevo() {
         sender(CHIAVE, MITTENTE, subito).invia("mario@x.it", "Reimposta la password di HOOP 3X3",
-                "Apri https://hoop3x3.onrender.com/reimposta-password?token=abc entro 30 minuti");
+                "Apri https://hoop3x3.onrender.com/reimposta-password?token=abc entro 30 minuti",
+                "<p><a href=\"https://hoop3x3.onrender.com/reimposta-password?token=abc\">Reimposta la password</a></p>");
 
         assertThat(brevo.richieste()).singleElement().satisfies(richiesta -> {
             assertThat(richiesta.metodo()).isEqualTo("POST");
@@ -67,8 +68,11 @@ class EmailSenderBrevoTest {
             assertThat(corpo.path("to")).hasSize(1);
             assertThat(corpo.path("to").get(0).path("email").asString()).isEqualTo("mario@x.it");
             assertThat(corpo.path("subject").asString()).isEqualTo("Reimposta la password di HOOP 3X3");
+            // L'HTML per i client che lo mostrano, il testo semplice come riserva per gli altri: partono tutti e due
             assertThat(corpo.path("textContent").asString())
                     .isEqualTo("Apri https://hoop3x3.onrender.com/reimposta-password?token=abc entro 30 minuti");
+            assertThat(corpo.path("htmlContent").asString())
+                    .isEqualTo("<p><a href=\"https://hoop3x3.onrender.com/reimposta-password?token=abc\">Reimposta la password</a></p>");
         });
         assertThat(log.righe()).isEmpty();
     }
@@ -77,7 +81,7 @@ class EmailSenderBrevoTest {
     @Test
     void lInvioAvvieneFuoriDalThreadDellaRichiesta() {
         List<Runnable> inAttesa = new ArrayList<>();
-        sender(CHIAVE, MITTENTE, inAttesa::add).invia("mario@x.it", "Oggetto", "Testo");
+        sender(CHIAVE, MITTENTE, inAttesa::add).invia("mario@x.it", "Oggetto", "Testo", "<p>Testo</p>");
 
         assertThat(brevo.richieste()).isEmpty();
         inAttesa.forEach(Runnable::run);
@@ -94,7 +98,7 @@ class EmailSenderBrevoTest {
     void unErroreDiBrevo_finisceNelLogConLoStatoSenzaCorpoNeChiave(int stato, String tipo, String risposta) {
         brevo.risponde(stato, risposta);
 
-        sender(CHIAVE, MITTENTE, subito).invia("mario@x.it", "Oggetto", "Testo");
+        sender(CHIAVE, MITTENTE, subito).invia("mario@x.it", "Oggetto", "Testo", "<p>Testo</p>");
 
         assertThat(log.livelli()).containsExactly(Level.ERROR);
         assertThat(log.righe().getFirst())
@@ -106,7 +110,7 @@ class EmailSenderBrevoTest {
     void unTimeoutDiBrevo_finisceNelLogConIlTipoDellErrore() {
         brevo.rispondeDopo(TIMEOUT.toMillis() * 4);
 
-        sender(CHIAVE, MITTENTE, subito).invia("mario@x.it", "Oggetto", "Testo");
+        sender(CHIAVE, MITTENTE, subito).invia("mario@x.it", "Oggetto", "Testo", "<p>Testo</p>");
 
         assertThat(log.livelli()).containsExactly(Level.ERROR);
         assertThat(log.righe().getFirst()).contains("ma***@x.it", "Exception").doesNotContain("mario@x.it", CHIAVE, "127.0.0.1");
@@ -117,7 +121,7 @@ class EmailSenderBrevoTest {
         EmailSenderBrevo sender = sender(CHIAVE, MITTENTE, subito);
         brevo.close();
 
-        sender.invia("mario@x.it", "Oggetto", "Testo");
+        sender.invia("mario@x.it", "Oggetto", "Testo", "<p>Testo</p>");
 
         assertThat(log.livelli()).containsExactly(Level.ERROR);
         assertThat(log.righe().getFirst()).contains("ma***@x.it", "Exception").doesNotContain("mario@x.it", CHIAVE, "127.0.0.1");
@@ -136,14 +140,14 @@ class EmailSenderBrevoTest {
         assertThat(log.righe()).containsExactly(avviso);
         assertThat(log.livelli()).containsExactly(Level.WARN);
 
-        sender.invia("mario@x.it", "Oggetto", "Testo");
+        sender.invia("mario@x.it", "Oggetto", "Testo", "<p>Testo</p>");
 
         assertThat(brevo.richieste()).isEmpty();
     }
 
     @Test
     void chiaveEMittenteNonImpostati_valgonoComeVuoti() {
-        sender(null, null, subito).invia("mario@x.it", "Oggetto", "Testo");
+        sender(null, null, subito).invia("mario@x.it", "Oggetto", "Testo", "<p>Testo</p>");
 
         assertThat(brevo.richieste()).isEmpty();
     }

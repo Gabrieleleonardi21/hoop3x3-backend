@@ -77,6 +77,7 @@ class RecuperoPasswordIT {
         assertThat(email.inviate()).singleElement().satisfies(inviata -> {
             assertThat(inviata.destinatario()).isEqualTo("mario@test.it");
             assertThat(inviata.testo()).contains("http://localhost:5173/reimposta-password?token=" + email.ultimoToken());
+            assertThat(inviata.html()).contains("href=\"http://localhost:5173/reimposta-password?token=" + email.ultimoToken() + "\"");
         });
         String token = email.ultimoToken();
         // Nel database solo lo SHA-256 del token, mai il token

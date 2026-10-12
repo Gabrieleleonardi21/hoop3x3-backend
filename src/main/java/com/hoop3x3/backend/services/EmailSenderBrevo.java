@@ -41,10 +41,10 @@ public class EmailSenderBrevo implements EmailSender {
     private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     /** Il corpo che Brevo si aspetta: mittente con il nome, destinatari (solo l'email: un «name» null Brevo lo rifiuterebbe),
-     *  oggetto e testo semplice */
+     *  oggetto, HTML e testo semplice (la riserva per i client che non mostrano l'HTML) */
     private record Mittente(String email, String name) {}
     private record Destinatario(String email) {}
-    private record Corpo(Mittente sender, List<Destinatario> to, String subject, String textContent) {}
+    private record Corpo(Mittente sender, List<Destinatario> to, String subject, String htmlContent, String textContent) {}
 
     private final String url;
     private final String apiKey;
@@ -77,10 +77,11 @@ public class EmailSenderBrevo implements EmailSender {
     }
 
     @Override
-    public void invia(String destinatario, String oggetto, String testo) {
+    public void invia(String destinatario, String oggetto, String testo, String html) {
         // Il motivo l'ha già detto il WARN dell'avvio: qui non si ripete a ogni richiesta
         if (!configurato) return;
-        Corpo corpo = new Corpo(new Mittente(mittente, NOME_MITTENTE), List.of(new Destinatario(destinatario)), oggetto, testo);
+        Corpo corpo = new Corpo(new Mittente(mittente, NOME_MITTENTE), List.of(new Destinatario(destinatario)), oggetto, html,
+                testo);
         esecutore.execute(() -> spedisci(corpo, destinatario));
     }
 

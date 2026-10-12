@@ -42,7 +42,6 @@ public class RecuperoPasswordService {
     /** Un solo messaggio per token sconosciuto, già usato o scaduto: chi prova a indovinare non impara niente */
     public static final String LINK_NON_VALIDO = "Il link non è valido o è scaduto. Richiedine uno nuovo.";
 
-    static final String OGGETTO = "Reimposta la password di HOOP 3X3";
     private static final int DURATA_MINUTI = 30;
     private static final int MASSIMO_LINK = 3;
     private static final int FINESTRA_MINUTI = 15;
@@ -89,7 +88,9 @@ public class RecuperoPasswordService {
         String token = nuovoToken();
         tokens.save(new TokenRecuperoPassword(utente, sha256(token), adesso.plusMinutes(DURATA_MINUTI)));
         // L'email parte dopo il salvataggio; anche se la transazione fallisse, il link porterebbe solo a «link non valido»
-        email.invia(utente.getEmail(), OGGETTO, testo(frontendUrl + "/reimposta-password?token=" + token));
+        EmailRecuperoPassword.Contenuto contenuto =
+                EmailRecuperoPassword.componi(frontendUrl, frontendUrl + "/reimposta-password?token=" + token, DURATA_MINUTI);
+        email.invia(utente.getEmail(), contenuto.oggetto(), contenuto.testo(), contenuto.html());
         log.info("Recupero password: link inviato a {}", mascheraEmail(utente.getEmail()));
     }
 
@@ -112,14 +113,5 @@ public class RecuperoPasswordService {
         // Chi ha cambiato la password perché qualcuno gliel'ha rubata chiude anche le sessioni di quel qualcuno
         sessioni.revocaTutte(utente);
         log.info("Password reimpostata con il link di recupero: utente {}", utente.getId());
-    }
-
-    /** Il corpo dell'email: il link e la sua durata, nient'altro dell'account */
-    private static String testo(String link) {
-        return "Ciao,\n\n"
-                + "per scegliere una nuova password di HOOP 3X3 apri questo link entro " + DURATA_MINUTI + " minuti:\n\n"
-                + link + "\n\n"
-                + "Il link vale una volta sola. Se non hai chiesto tu di reimpostare la password, ignora questa email: "
-                + "la password resta quella di prima.\n";
     }
 }
