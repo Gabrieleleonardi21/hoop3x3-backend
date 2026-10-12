@@ -2,6 +2,7 @@ package com.hoop3x3.backend.runners;
 
 import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.TestDiIntegrazione;
+import com.hoop3x3.backend.dto.CampettoDTO;
 import com.hoop3x3.backend.dto.CopiaPubblicaDTO;
 import com.hoop3x3.backend.dto.VoceArchivioDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
@@ -11,11 +12,13 @@ import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
 import com.hoop3x3.backend.repositories.AnagrafeSquadraRepository;
+import com.hoop3x3.backend.repositories.CampettoRepository;
 import com.hoop3x3.backend.repositories.LegaRepository;
 import com.hoop3x3.backend.repositories.SeedEseguitoRepository;
 import com.hoop3x3.backend.repositories.TappaRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.services.ArchivioService;
+import com.hoop3x3.backend.services.CampettoService;
 import com.hoop3x3.backend.services.LegaService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,6 +56,8 @@ class DemoSeederIT {
     @Autowired TappaRepository tappe;
     @Autowired AnagrafeGiocatoreRepository giocatori;
     @Autowired AnagrafeSquadraRepository squadre;
+    @Autowired CampettoRepository campetti;
+    @Autowired CampettoService campettoService;
     @Autowired JdbcTemplate jdbc;
     @Autowired ArchivioService archivioService;
     @Autowired LegaService legaService;
@@ -87,9 +92,62 @@ class DemoSeederIT {
 
         seeder.run();
 
-        assertThat(segni()).containsExactly("demo");
+        assertThat(segni()).containsExactlyInAnyOrder("demo", "campetti");
         assertThat(jdbc.queryForObject("select count(*) from seed_eseguiti where eseguito_il is not null", Integer.class))
-                .as("il segno ha la data").isEqualTo(1);
+                .as("i segni hanno la data").isEqualTo(2);
+    }
+
+    /* ── I campetti di Torino ── */
+
+    // I sei campetti del file entrano intestati all'admin, si trovano con la ricerca per raggio dal centro di Torino (dal più
+    // vicino) e, eliminati dall'app, non rinascono al riavvio: lo ricorda il segno «campetti»
+    @Test
+    void iSeiCampettiDiTorinoSonoDellAdmin_siTrovanoPerRaggio_eNonRinasconoDopoLEliminazione() {
+        Utente admin = accendiIlSeed();
+
+        seeder.run();
+
+        List<CampettoDTO> vicini = campettoService.cercaPerRaggio(45.07, 7.68, 20);
+        assertThat(vicini).hasSize(6).allSatisfy(c -> {
+            assertThat(c.autore()).isEqualTo("Admin");
+            assertThat(c.autoreId()).isEqualTo(admin.getId());
+            assertThat(c.tipo()).isEqualTo("campetto");
+            assertThat(c.citta()).isEqualTo("Torino");
+            assertThat(c.note()).isEmpty();
+            // Il seed non passa dalla validazione del DTO: un refuso nel JSON farebbe respingere l'intero elenco allo schema
+            // zod del frontend, quindi i valori ammessi si controllano qui
+            assertThat(c.superficie()).isIn("Asfalto", "Cemento", "Sintetico", "Altro");
+            assertThat(c.stato()).isIn("buono", "discreto", "da sistemare");
+            assertThat(c.canestri()).isBetween(1, 8);
+        });
+        assertThat(vicini.getFirst().nome()).as("il più vicino al centro").isEqualTo("Giardini Reali — Playground");
+        assertThat(vicini).extracting(CampettoDTO::nome).containsExactlyInAnyOrder("Parco Ruffini — Campo 2",
+                "Giardini Reali — Playground", "Parco Dora — Le Arcate", "Piazza d'Armi — Spazio 3x3", "Campo Vanchiglia",
+                "Parco Colletta — Campo A");
+        assertThat(campettoService.cercaPerTesto("dora", null, null)).hasSize(1);
+        assertThat(jdbc.queryForObject("select count(*) from campetti where fonte is not null", Integer.class)).isZero();
+
+        campetti.deleteAll();
+        seeder.run(); // il riavvio
+
+        assertThat(campetti.count()).isZero();
+        assertThat(segni()).contains("campetti");
+    }
+
+    // Un database con il seed demo di prima (segno «demo» ma non «campetti») riceve i campetti al primo avvio
+    @Test
+    void databaseConIlSeedDemoMaSenzaCampetti_riceveSoloICampetti() {
+        accendiIlSeed();
+        seeder.run();
+        long giocatoriDemo = giocatori.count();
+        jdbc.update("delete from campetti");
+        jdbc.update("delete from seed_eseguiti where nome = 'campetti'");
+
+        seeder.run();
+
+        assertThat(campetti.count()).isEqualTo(6);
+        assertThat(giocatori.count()).as("il seed demo non riparte").isEqualTo(giocatoriDemo);
+        assertThat(segni()).containsExactlyInAnyOrder("demo", "campetti");
     }
 
     // Il difetto di BE-17 (la spiegazione è in SeedEseguito): senza il segno, dopo l'eliminazione della lega demo il
@@ -135,7 +193,7 @@ class DemoSeederIT {
         assertThat(giocatori.count()).isEqualTo(giocatoriDemo);
         assertThat(squadre.count()).isEqualTo(squadreDemo);
         assertThat(tappe.count()).isEqualTo(tappeDemo);
-        assertThat(segni()).containsExactly("demo");
+        assertThat(segni()).containsExactlyInAnyOrder("demo", "campetti");
     }
 
     // I dati demo sono di fantasia e coerenti (TR-4): nell'archivio ogni giocatore delle squadre delle tappe ha il nome con cui
@@ -181,6 +239,7 @@ class DemoSeederIT {
         assertThat(giocatori.count()).as("nessun giocatore demo").isZero();
         assertThat(squadre.count()).as("nessuna squadra demo").isZero();
         assertThat(tappe.count()).as("nessuna tappa demo").isZero();
+        assertThat(campetti.count()).as("nessun campetto: i due seed stanno nella stessa transazione").isZero();
         assertThat(leghe.count()).as("solo la lega che c'era").isEqualTo(1);
         assertThat(segni()).as("nessun segno: il prossimo avvio riprova").isEmpty();
     }
@@ -208,7 +267,7 @@ class DemoSeederIT {
 
     /** Un seeder acceso sull'admin, con l'archivio indicato (quello vero, o uno che fallisce): la transazione è quella vera */
     private DemoSeeder seederAcceso(Utente admin, ArchivioService archivio) {
-        return new DemoSeeder(utenti, giocatori, squadre, leghe, seedEseguiti, archivio, mapper, transazioni,
+        return new DemoSeeder(utenti, giocatori, squadre, leghe, campetti, seedEseguiti, archivio, mapper, transazioni,
                 new SeedProperties(true, new SeedProperties.Admin(admin.getEmail(), "")));
     }
 

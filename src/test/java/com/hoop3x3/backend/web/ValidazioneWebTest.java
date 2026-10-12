@@ -4,9 +4,11 @@ import com.hoop3x3.backend.CampiDiTesto;
 import com.hoop3x3.backend.controllers.AnagrafeController;
 import com.hoop3x3.backend.controllers.ArchivioController;
 import com.hoop3x3.backend.controllers.AuthController;
+import com.hoop3x3.backend.controllers.CampettoController;
 import com.hoop3x3.backend.controllers.CoachController;
 import com.hoop3x3.backend.controllers.LegaController;
 import com.hoop3x3.backend.controllers.TappaController;
+import com.hoop3x3.backend.dto.CampettoRequestDTO;
 import com.hoop3x3.backend.dto.GiocatoreRequestDTO;
 import com.hoop3x3.backend.dto.LoginRequestDTO;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
@@ -27,6 +29,7 @@ import com.hoop3x3.backend.security.LimiteDimensioneFilter;
 import com.hoop3x3.backend.security.SecurityConfig;
 import com.hoop3x3.backend.services.AnagrafeService;
 import com.hoop3x3.backend.services.ArchivioService;
+import com.hoop3x3.backend.services.CampettoService;
 import com.hoop3x3.backend.services.CoachAiService;
 import com.hoop3x3.backend.services.LegaService;
 import com.hoop3x3.backend.services.RefreshTokenService;
@@ -89,7 +92,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * chiamato: sono l'unica strada verso il database, quindi una richiesta rifiutata qui non lo raggiunge.
  */
 @WebMvcTest(controllers = {LegaController.class, TappaController.class, AnagrafeController.class,
-        ArchivioController.class, AuthController.class, CoachController.class})
+        ArchivioController.class, AuthController.class, CoachController.class, CampettoController.class})
 @Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class,
         ExceptionsHandler.class, LimiteDimensioneFilter.class, UtenteService.class})
 // I login e le registrazioni di questa classe partono tutti dallo stesso indirizzo e sono quasi quanti ne ammette il limite di
@@ -102,6 +105,7 @@ class ValidazioneWebTest {
     @MockitoBean LegaService legaService;
     @MockitoBean AnagrafeService anagrafeService;
     @MockitoBean ArchivioService archivioService;
+    @MockitoBean CampettoService campettoService;
     @MockitoBean CoachAiService coachAiService;
     @MockitoBean RefreshTokenService refreshTokenService;
     @MockitoBean AuthenticationManager authenticationManager;
@@ -147,6 +151,11 @@ class ValidazioneWebTest {
 
     private static Map<String, Object> squadra() {
         return new LinkedHashMap<>(Map.of("nome", "Roma 3x3"));
+    }
+
+    private static Map<String, Object> campetto() {
+        return new LinkedHashMap<>(Map.of("nome", "Parco Dora", "lat", 45.08972, "lng", 7.66669, "superficie", "Sintetico",
+                "canestri", 4, "stato", "buono"));
     }
 
     private static Map<String, Object> accesso(String email) {
@@ -195,8 +204,8 @@ class ValidazioneWebTest {
     private void rifiutataConMessaggio(HttpMethod metodo, String url, Object corpo, Matcher<String> messaggio) throws Exception {
         corpoStandard(invia(metodo, url, corpo).andExpect(status().isBadRequest()))
                 .andExpect(jsonPath("$.message", messaggio));
-        verifyNoInteractions(legaService, anagrafeService, archivioService, coachAiService, authenticationManager, refreshTokenService,
-                utenteRepository);
+        verifyNoInteractions(legaService, anagrafeService, archivioService, campettoService, coachAiService, authenticationManager,
+                refreshTokenService, utenteRepository);
     }
 
     /** Il corpo d'errore è solo {message, timestamp}, con il timestamp nel formato ISO di ExceptionsHandler (LocalDateTime) */
@@ -267,6 +276,8 @@ class ValidazioneWebTest {
                 arguments(PUT, "/api/anagrafe/giocatori/" + UUID.randomUUID(), Map.of(), List.of("nome", "cognome")),
                 arguments(POST, "/api/anagrafe/squadre", Map.of(), List.of("nome")),
                 arguments(PUT, "/api/anagrafe/squadre/" + UUID.randomUUID(), Map.of(), List.of("nome")),
+                arguments(POST, "/api/campetti", Map.of(), List.of("nome", "lat", "lng", "superficie", "canestri", "stato")),
+                arguments(PUT, "/api/campetti/" + UUID.randomUUID(), Map.of(), List.of("nome", "lat", "lng", "superficie", "canestri", "stato")),
                 arguments(POST, "/api/auth/login", Map.of(), List.of("email", "password")),
                 arguments(POST, "/api/auth/register", Map.of(), List.of("name", "email", "password")),
                 arguments(POST, "/api/coach/chat", Map.of(), List.of("messages")));
@@ -312,6 +323,7 @@ class ValidazioneWebTest {
             TappaDTO.class, new Scrittura(POST, urlNuovaTappa(), ValidazioneWebTest::tappa),
             GiocatoreRequestDTO.class, new Scrittura(POST, "/api/anagrafe/giocatori", ValidazioneWebTest::giocatore),
             SquadraRequestDTO.class, new Scrittura(POST, "/api/anagrafe/squadre", ValidazioneWebTest::squadra),
+            CampettoRequestDTO.class, new Scrittura(POST, "/api/campetti", ValidazioneWebTest::campetto),
             RegisterRequestDTO.class, new Scrittura(POST, "/api/auth/register", () -> registrazione("mario@x.it")),
             LoginRequestDTO.class, new Scrittura(POST, "/api/auth/login", () -> accesso("mario@x.it")));
 

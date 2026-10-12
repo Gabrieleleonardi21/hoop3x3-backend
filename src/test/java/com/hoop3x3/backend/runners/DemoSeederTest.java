@@ -6,12 +6,14 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.hoop3x3.backend.entities.AnagrafeGiocatore;
 import com.hoop3x3.backend.entities.AnagrafeSquadra;
+import com.hoop3x3.backend.entities.Campetto;
 import com.hoop3x3.backend.entities.Lega;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.SeedEseguito;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
 import com.hoop3x3.backend.repositories.AnagrafeSquadraRepository;
+import com.hoop3x3.backend.repositories.CampettoRepository;
 import com.hoop3x3.backend.repositories.LegaRepository;
 import com.hoop3x3.backend.repositories.SeedEseguitoRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
@@ -27,6 +29,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -55,6 +58,7 @@ class DemoSeederTest {
     private final AnagrafeGiocatoreRepository giocatori = mock(AnagrafeGiocatoreRepository.class);
     private final AnagrafeSquadraRepository squadre = mock(AnagrafeSquadraRepository.class);
     private final LegaRepository leghe = mock(LegaRepository.class);
+    private final CampettoRepository campetti = mock(CampettoRepository.class);
     private final SeedEseguitoRepository seedEseguiti = mock(SeedEseguitoRepository.class);
     private final ArchivioService archivioService = mock(ArchivioService.class);
     private DemoSeeder seeder = nuovoSeeder(false, "");
@@ -136,7 +140,51 @@ class DemoSeederTest {
 
         assertNessunaScrittura();
         verify(seedEseguiti, never()).save(any());
-        assertSingolaRiga(Level.INFO, "già eseguito");
+        assertRigaDelSeedDemo(Level.INFO, "già eseguito");
+    }
+
+    /* ── I campetti di Torino: un segno loro, così entrano anche dove il seed demo c'è già ── */
+
+    // Il database ha il seed demo di prima ma non i campetti: entrano loro soli, intestati all'admin, e il segno è «campetti»
+    @Test
+    void seedDemoGiaEseguitoMaCampettiNo_inserisceISeiCampettiEScriveIlLoroSegno() throws Exception {
+        Utente admin = adminTrovato();
+        when(seedEseguiti.existsById("demo")).thenReturn(true);
+        when(seedEseguiti.existsById("campetti")).thenReturn(false);
+
+        seeder.run();
+
+        ArgumentCaptor<Campetto> salvati = ArgumentCaptor.forClass(Campetto.class);
+        verify(campetti, times(6)).save(salvati.capture());
+        assertThat(salvati.getAllValues()).allSatisfy(c -> {
+            assertThat(c.getAutore()).isSameAs(admin);
+            assertThat(c.getTipo()).isEqualTo("campetto");
+            assertThat(c.getCitta()).isEqualTo("Torino");
+            assertThat(c.getFonte()).isNull();
+        });
+        assertThat(salvati.getAllValues()).extracting(Campetto::getNome).contains("Parco Dora — Le Arcate", "Campo Vanchiglia");
+        verifyNoInteractions(giocatori, squadre, leghe, archivioService);
+        ArgumentCaptor<SeedEseguito> segno = ArgumentCaptor.forClass(SeedEseguito.class);
+        verify(seedEseguiti).save(segno.capture());
+        assertThat(segno.getValue().getNome()).isEqualTo("campetti");
+        assertThat(righeChe("Seed campetti")).singleElement().satisfies(riga -> {
+            assertThat(riga.getLevel()).isEqualTo(Level.INFO);
+            assertThat(riga.getFormattedMessage()).isEqualTo("Seed campetti completato: 6 campetti");
+        });
+    }
+
+    @Test
+    void campettiGiaSeminati_nonSiInserisconoDiNuovoELoDiceUnaRigaInfo() throws Exception {
+        adminTrovato();
+        when(seedEseguiti.existsById("demo")).thenReturn(true);
+
+        seeder.run();
+
+        verifyNoInteractions(campetti);
+        assertThat(righeChe("Seed campetti")).singleElement().satisfies(riga -> {
+            assertThat(riga.getLevel()).isEqualTo(Level.INFO);
+            assertThat(riga.getFormattedMessage()).isEqualTo("Seed campetti saltato: già eseguito");
+        });
     }
 
     // Un database seminato prima del segno ha ancora la lega demo dell'admin (gli id delle tappe sono casuali e non dicono
@@ -151,7 +199,7 @@ class DemoSeederTest {
         verifyNoInteractions(giocatori, squadre, archivioService);
         verify(leghe, never()).save(any());
         assertSegnoScritto();
-        assertSingolaRiga(Level.INFO, "segno scritto");
+        assertRigaDelSeedDemo(Level.INFO, "segno scritto");
     }
 
     // Gli id delle tappe demo erano derivati dal file, quindi prevedibili: chiunque poteva creare una tappa con quell'id e il seed
@@ -212,7 +260,7 @@ class DemoSeederTest {
     /** Il seeder come lo crea Spring con SEED_DEMO e ADMIN_EMAIL */
     private DemoSeeder nuovoSeeder(boolean abilitato, String adminEmail) {
         // Il gestore delle transazioni è simulato: la transazione del seed qui non c'è, la prova DemoSeederIT
-        return new DemoSeeder(utenti, giocatori, squadre, leghe, seedEseguiti, archivioService, JsonMapper.builder().build(),
+        return new DemoSeeder(utenti, giocatori, squadre, leghe, campetti, seedEseguiti, archivioService, JsonMapper.builder().build(),
                 mock(PlatformTransactionManager.class), new SeedProperties(abilitato, new SeedProperties.Admin(adminEmail, "")));
     }
 
@@ -220,11 +268,15 @@ class DemoSeederTest {
         seeder = nuovoSeeder(abilitato, adminEmail);
     }
 
-    /** SEED_DEMO acceso e un admin che si trova: il seed arriva ai controlli sul segno */
+    /**
+     * SEED_DEMO acceso e un admin che si trova: il seed arriva ai controlli sul segno. I campetti risultano già seminati, così i
+     * test del seed demo guardano solo lui (i campetti hanno i loro test)
+     */
     private Utente adminTrovato() {
         configura(true, "admin@hoop3x3.it");
         Utente admin = new Utente("admin@hoop3x3.it", "hash", "Admin", Ruolo.ADMIN);
         when(utenti.findByEmail("admin@hoop3x3.it")).thenReturn(Optional.of(admin));
+        when(seedEseguiti.existsById("campetti")).thenReturn(true);
         return admin;
     }
 
@@ -247,7 +299,7 @@ class DemoSeederTest {
 
     /** Il seeder non ha inserito né cancellato niente: nessun repository di dati demo è stato toccato */
     private void assertNessunaScrittura() {
-        verifyNoInteractions(giocatori, squadre, leghe, archivioService);
+        verifyNoInteractions(giocatori, squadre, leghe, campetti, archivioService);
     }
 
     /** Il seeder ha scritto una riga sola, di quel livello, e il suo messaggio contiene il motivo */
@@ -256,5 +308,18 @@ class DemoSeederTest {
             assertThat(riga.getLevel()).isEqualTo(livello);
             assertThat(riga.getFormattedMessage()).startsWith("Seed demo saltato: ").contains(motivo);
         });
+    }
+
+    /** Come assertSingolaRiga, ma tra le righe del solo seed demo: dopo di lui scrive la sua anche il seed dei campetti */
+    private void assertRigaDelSeedDemo(Level livello, String motivo) {
+        assertThat(righeChe("Seed demo")).singleElement().satisfies(riga -> {
+            assertThat(riga.getLevel()).isEqualTo(livello);
+            assertThat(riga.getFormattedMessage()).startsWith("Seed demo saltato: ").contains(motivo);
+        });
+    }
+
+    /** Le righe di log il cui messaggio comincia così */
+    private List<ILoggingEvent> righeChe(String inizio) {
+        return logCatturato.list.stream().filter(riga -> riga.getFormattedMessage().startsWith(inizio)).toList();
     }
 }

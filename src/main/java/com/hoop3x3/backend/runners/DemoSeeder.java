@@ -35,6 +35,10 @@ import java.util.UUID;
  * <p>
  * Il seed non ferma mai l'avvio: gira in una transazione sua e, se qualcosa va storto, il database resta com'era e nei log
  * c'è un avviso con la causa. L'app parte senza i dati di prova.
+ * <p>
+ * Nella stessa transazione, con le stesse condizioni (SEED_DEMO e l'admin) ma con un segno suo («campetti»), entrano i sei
+ * campetti di Torino di resources/seed/campetti-torino.json (le coordinate vengono da OpenStreetMap, con la fonte scritta in
+ * testa al file): così li riceve anche un database che ha già il seed demo di prima, e anche loro una volta sola.
  */
 @Slf4j
 @Component
@@ -48,11 +52,14 @@ public class DemoSeeder implements CommandLineRunner {
      * file): i dati possono cambiare e il segno deve restare riconoscibile.
      */
     private static final String SEGNO = "demo";
+    private static final String FILE_CAMPETTI = "/seed/campetti-torino.json";
+    private static final String SEGNO_CAMPETTI = "campetti";
 
     private final UtenteRepository utenti;
     private final AnagrafeGiocatoreRepository giocatori;
     private final AnagrafeSquadraRepository squadre;
     private final LegaRepository leghe;
+    private final CampettoRepository campetti;
     private final SeedEseguitoRepository seedEseguiti;
     private final ArchivioService archivioService;
     private final ObjectMapper mapper;
@@ -63,14 +70,16 @@ public class DemoSeeder implements CommandLineRunner {
     private final String adminEmail;
 
     public DemoSeeder(UtenteRepository utenti, AnagrafeGiocatoreRepository giocatori, AnagrafeSquadraRepository squadre,
-                      LegaRepository leghe, SeedEseguitoRepository seedEseguiti, ArchivioService archivioService,
-                      ObjectMapper mapper, PlatformTransactionManager transazioni, SeedProperties proprieta) {
+                      LegaRepository leghe, CampettoRepository campetti, SeedEseguitoRepository seedEseguiti,
+                      ArchivioService archivioService, ObjectMapper mapper, PlatformTransactionManager transazioni,
+                      SeedProperties proprieta) {
         this.abilitato = proprieta.demo();
         this.adminEmail = proprieta.admin().email();
         this.utenti = utenti;
         this.giocatori = giocatori;
         this.squadre = squadre;
         this.leghe = leghe;
+        this.campetti = campetti;
         this.seedEseguiti = seedEseguiti;
         this.archivioService = archivioService;
         this.mapper = mapper;
@@ -98,7 +107,7 @@ public class DemoSeeder implements CommandLineRunner {
         }
     }
 
-    /** Il seed vero e proprio, dentro la transazione: tutto o niente, segno compreso */
+    /** I due seed, dentro la transazione: tutto o niente, segni compresi */
     private void semina() {
         Utente admin = utenti.findByEmail(UtenteService.normalizza(adminEmail)).orElse(null);
         if (admin == null) {
@@ -110,13 +119,18 @@ public class DemoSeeder implements CommandLineRunner {
             log.warn("Seed demo saltato: {} è di un utente con ruolo USER, non dell'admin", adminEmail);
             return;
         }
+        seminaDemo(admin);
+        seminaCampetti(admin);
+    }
 
+    /** Il circuito Estathé: anagrafe, lega con le tappe e archivio, con il segno «demo» */
+    private void seminaDemo(Utente admin) {
         if (seedEseguiti.existsById(SEGNO)) {
             log.info("Seed demo saltato: già eseguito");
             return;
         }
 
-        JsonNode dati = leggiIlFile();
+        JsonNode dati = leggiIlFile(FILE);
         // Un database seminato prima del segno non ce l'ha, ma ha ancora la lega demo (dell'admin, con il nome del file): il seed è
         // già stato eseguito. Il segno si scrive adesso, per i prossimi avvii
         if (leghe.existsByOwnerAndNome(admin, testo(dati, "lega"))) {
@@ -136,11 +150,46 @@ public class DemoSeeder implements CommandLineRunner {
                 giocatoriPerId.size(), squadrePerId.size(), lega.getTappe().size(), lega.getNome());
     }
 
-    private JsonNode leggiIlFile() {
-        try (InputStream in = getClass().getResourceAsStream(FILE)) {
+    /**
+     * I campetti di Torino, intestati all'admin, con il segno «campetti»: un segno a parte perché un database che ha già il
+     * seed demo deve riceverli lo stesso, e un campetto eliminato dall'app non deve rinascere al riavvio
+     */
+    private void seminaCampetti(Utente admin) {
+        if (seedEseguiti.existsById(SEGNO_CAMPETTI)) {
+            log.info("Seed campetti saltato: già eseguito");
+            return;
+        }
+        int quanti = 0;
+        for (JsonNode n : leggiIlFile(FILE_CAMPETTI).path("campetti")) {
+            Campetto c = new Campetto();
+            c.setAutore(admin);
+            c.setNome(testo(n, "nome"));
+            c.setIndirizzo(testo(n, "indirizzo"));
+            c.setCitta(testo(n, "citta"));
+            c.setLat(n.path("lat").asDouble());
+            c.setLng(n.path("lng").asDouble());
+            c.setSuperficie(testo(n, "superficie"));
+            c.setCanestri((short) n.path("canestri").asInt(2));
+            c.setIlluminato(n.path("illuminato").asBoolean(false));
+            c.setCoperto(n.path("coperto").asBoolean(false));
+            c.setGratuito(n.path("gratuito").asBoolean(false));
+            c.setRetine(n.path("retine").asBoolean(false));
+            c.setLinee(n.path("linee").asBoolean(false));
+            c.setFontanella(n.path("fontanella").asBoolean(false));
+            c.setStato(testo(n, "stato"));
+            c.setNote(testo(n, "note"));
+            campetti.save(c);
+            quanti++;
+        }
+        seedEseguiti.save(new SeedEseguito(SEGNO_CAMPETTI));
+        log.info("Seed campetti completato: {} campetti", quanti);
+    }
+
+    private JsonNode leggiIlFile(String file) {
+        try (InputStream in = getClass().getResourceAsStream(file)) {
             return mapper.readTree(in);
         } catch (java.io.IOException e) {
-            throw new IllegalStateException("File dei dati di prova non leggibile: " + FILE, e);
+            throw new IllegalStateException("File dei dati di prova non leggibile: " + file, e);
         }
     }
 
