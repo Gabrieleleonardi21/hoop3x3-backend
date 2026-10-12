@@ -169,7 +169,11 @@ class AccessoEndpointIT {
                 // Senza parametri la ricerca risponde 400 con il suo messaggio: la sicurezza ha lasciato passare (il 200 con i
                 // parametri lo prova CampettoIT)
                 new Pubblico(new Endpoint(GET, "/api/campetti", null), 400,
-                        "Indica lat, lng e raggioKm (ricerca per raggio) oppure q (ricerca per testo)"));
+                        "Indica lat, lng e raggioKm (ricerca per raggio) oppure q (ricerca per testo)"),
+                // La mappa di un punto è pubblica: senza parametri risponde 400 con il suo messaggio (con i parametri il 503
+                // senza chiave lo prova MappaIT)
+                new Pubblico(new Endpoint(GET, "/api/mappa-campetti", null), 400,
+                        "Indica lat, lng e zoom (la mappa di un punto)"));
     }
 
     @Autowired MockMvc mvc;
