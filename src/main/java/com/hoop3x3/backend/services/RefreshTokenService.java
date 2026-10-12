@@ -31,9 +31,11 @@ public class RefreshTokenService {
 
     private static final String SESSIONE_SCADUTA = "Sessione scaduta: accedi di nuovo";
 
+    // SecureRandom è thread-safe: uno solo basta per tutti i token
+    private static final SecureRandom RANDOM = new SecureRandom();
+
     private final RefreshTokenRepository repository;
     private final long durataGiorni;
-    private final SecureRandom random = new SecureRandom();
 
     public RefreshTokenService(RefreshTokenRepository repository, AuthProperties proprieta) {
         this.repository = repository;
@@ -44,9 +46,7 @@ public class RefreshTokenService {
     @Transactional
     public String emetti(Utente utente) {
         repository.eliminaScaduti(utente.getId(), Tempo.adesso());
-        byte[] bytes = new byte[32];
-        random.nextBytes(bytes);
-        String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String token = nuovoToken();
         repository.save(new RefreshToken(utente, sha256(token), Tempo.adesso().plusDays(durataGiorni)));
         return token;
     }
@@ -70,7 +70,20 @@ public class RefreshTokenService {
         repository.eliminaPerHash(sha256(token));
     }
 
-    /** Hash esadecimale del token: è l'unica forma in cui finisce nel database */
+    /** Tutte le sessioni dell'utente (password reimpostata): i JWT già emessi restano validi fino alla loro scadenza */
+    @Transactional
+    public void revocaTutte(Utente utente) {
+        repository.eliminaDellUtente(utente.getId());
+    }
+
+    /** 32 byte casuali in Base64 URL senza padding (43 caratteri): anche i link del recupero password (RecuperoPasswordService) */
+    static String nuovoToken() {
+        byte[] bytes = new byte[32];
+        RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    /** Hash esadecimale del token: è l'unica forma in cui finisce nel database (anche per i token del recupero password) */
     static String sha256(String testo) {
         try {
             byte[] hash = MessageDigest.getInstance("SHA-256").digest(testo.getBytes(StandardCharsets.UTF_8));

@@ -42,18 +42,25 @@ public class UtenteService implements UserDetailsService {
 
     /** La registrazione assegna sempre USER: l'ADMIN nasce solo dal seeder */
     public Utente register(RegisterRequestDTO dto) {
-        // Il DTO conta i caratteri, BCrypt i byte: una lettera accentata ne occupa 2 e un emoji 4, quindi 40 lettere
-        // accentate (80 byte) passano la validazione ma non l'encoder. Si controlla prima di toccare il database
-        if (superaIlLimiteDiBcrypt(dto.password())) {
-            throw new BadRequestException("La password supera i " + PASSWORD_MAX_BYTE
-                    + " byte: accorciala (le lettere accentate occupano 2 byte, gli emoji 4)");
-        }
+        controllaIByteDellaPassword(dto.password());
         String email = normalizza(dto.email());
         if (utenteRepository.existsByEmail(email)) {
             throw new ConflictException("Email " + email + " già registrata");
         }
         Utente utente = new Utente(email, passwordEncoder.encode(dto.password()), dto.name().trim(), Ruolo.USER);
         return utenteRepository.save(utente);
+    }
+
+    /**
+     * Il DTO conta i caratteri, BCrypt i byte: una lettera accentata ne occupa 2 e un emoji 4, quindi 40 lettere accentate
+     * (80 byte) passano la validazione ma non l'encoder. Si controlla prima di toccare il database: alla registrazione e alla
+     * nuova password del recupero (RecuperoPasswordService), con lo stesso messaggio
+     */
+    public static void controllaIByteDellaPassword(String password) {
+        if (superaIlLimiteDiBcrypt(password)) {
+            throw new BadRequestException("La password supera i " + PASSWORD_MAX_BYTE
+                    + " byte: accorciala (le lettere accentate occupano 2 byte, gli emoji 4)");
+        }
     }
 
     /** La password in UTF-8 supera i 72 byte di BCrypt: il PasswordEncoder la rifiuterebbe con un'eccezione */

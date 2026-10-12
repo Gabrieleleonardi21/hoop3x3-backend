@@ -26,4 +26,9 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, UUID
     @Modifying
     @Query("delete from RefreshToken r where r.tokenHash = :tokenHash")
     int eliminaPerHash(@Param("tokenHash") String tokenHash);
+
+    /** Tutte le sessioni dell'utente in un solo DELETE: dopo una password reimpostata nessuna si rinnova più */
+    @Modifying
+    @Query("delete from RefreshToken r where r.utente.id = :utenteId")
+    int eliminaDellUtente(@Param("utenteId") UUID utenteId);
 }
