@@ -36,6 +36,7 @@ class LimiteRichiesteFilterTest {
     private static final String LOGIN = "/api/auth/login";
     private static final String REGISTRAZIONE = "/api/auth/register";
     private static final String RINNOVO = "/api/auth/refresh";
+    private static final String RECUPERO = "/api/auth/password/dimenticata";
     private static final String COACH = "/api/coach/chat";
     private static final String INDIRIZZO = "203.0.113.9";
 
@@ -99,7 +100,7 @@ class LimiteRichiesteFilterTest {
     /* ── Login, registrazione e rinnovo: per indirizzo, ognuno con il suo contatore ── */
 
     @ParameterizedTest
-    @ValueSource(strings = {LOGIN, REGISTRAZIONE, RINNOVO})
+    @ValueSource(strings = {LOGIN, REGISTRAZIONE, RINNOVO, RECUPERO})
     void laQuartaRichiestaDelMinutoDelloStessoIndirizzo_nonProseguePerLaStradaDegliErrori(String percorso) throws Exception {
         postPassano(percorso, INDIRIZZO, 3);
 
@@ -137,6 +138,18 @@ class LimiteRichiesteFilterTest {
 
         postPassano(REGISTRAZIONE, INDIRIZZO, 3);
         postPassano(RINNOVO, INDIRIZZO, 3);
+        postPassano(RECUPERO, INDIRIZZO, 3);
+    }
+
+    // Ogni richiesta di recupero può far partire un'email: oltre il limite si ferma qui, con il suo messaggio. Il limite per
+    // email (3 ogni 15 minuti) è del servizio, che conta i token nel database
+    @Test
+    void ilRecuperoPasswordOltreIlLimite_haIlSuoMessaggio() throws Exception {
+        postPassano(RECUPERO, INDIRIZZO, 3);
+
+        assertThat(postPassa(RECUPERO, INDIRIZZO)).isFalse();
+
+        assertThat(ultimoRifiuto().getMessage()).isEqualTo("Troppe richieste di recupero password: riprova tra 40 secondi");
     }
 
     // Si contano solo le POST agli endpoint limitati: la GET dello stesso percorso, il logout, le altre API (il controllo di

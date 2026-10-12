@@ -4,8 +4,10 @@ import com.hoop3x3.backend.dto.CampettoRequestDTO;
 import com.hoop3x3.backend.dto.GiocatoreRequestDTO;
 import com.hoop3x3.backend.dto.LoginRequestDTO;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
+import com.hoop3x3.backend.dto.PasswordDimenticataDTO;
 import com.hoop3x3.backend.dto.PatchLegaDTO;
 import com.hoop3x3.backend.dto.RegisterRequestDTO;
+import com.hoop3x3.backend.dto.ReimpostaPasswordDTO;
 import com.hoop3x3.backend.dto.SquadraRequestDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import jakarta.validation.constraints.Size;
@@ -86,7 +88,12 @@ public final class CampiDiTesto {
             // La password non si salva: in tabella c'è solo l'hash BCrypt, e il tetto è il limite di BCrypt (72)
             campo(RegisterRequestDTO.class, "password"),
             // Il login non salva niente, ma cerca l'email nella colonna: una più lunga non può esistere
-            campo(LoginRequestDTO.class, "email", "utenti.email"));
+            campo(LoginRequestDTO.class, "email", "utenti.email"),
+            // Il recupero password cerca l'email come il login; il token non si salva (in tabella c'è il suo SHA-256, sempre
+            // di 64 caratteri) e la nuova password finisce nell'hash, come quella della registrazione
+            campo(PasswordDimenticataDTO.class, "email", "utenti.email"),
+            campo(ReimpostaPasswordDTO.class, "token"),
+            campo(ReimpostaPasswordDTO.class, "nuovaPassword"));
 
     private static Campo campo(Class<?> dto, String componente, String... colonne) {
         return new Campo(dto, componente, List.of(colonne));

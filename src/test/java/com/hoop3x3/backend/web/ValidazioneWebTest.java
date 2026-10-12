@@ -7,13 +7,16 @@ import com.hoop3x3.backend.controllers.AuthController;
 import com.hoop3x3.backend.controllers.CampettoController;
 import com.hoop3x3.backend.controllers.CoachController;
 import com.hoop3x3.backend.controllers.LegaController;
+import com.hoop3x3.backend.controllers.RecuperoPasswordController;
 import com.hoop3x3.backend.controllers.TappaController;
 import com.hoop3x3.backend.dto.CampettoRequestDTO;
 import com.hoop3x3.backend.dto.GiocatoreRequestDTO;
 import com.hoop3x3.backend.dto.LoginRequestDTO;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
+import com.hoop3x3.backend.dto.PasswordDimenticataDTO;
 import com.hoop3x3.backend.dto.PatchLegaDTO;
 import com.hoop3x3.backend.dto.RegisterRequestDTO;
+import com.hoop3x3.backend.dto.ReimpostaPasswordDTO;
 import com.hoop3x3.backend.dto.SquadraRequestDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
 import com.hoop3x3.backend.entities.Ruolo;
@@ -32,6 +35,7 @@ import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.CampettoService;
 import com.hoop3x3.backend.services.CoachAiService;
 import com.hoop3x3.backend.services.LegaService;
+import com.hoop3x3.backend.services.RecuperoPasswordService;
 import com.hoop3x3.backend.services.RefreshTokenService;
 import com.hoop3x3.backend.services.UtenteService;
 import org.hamcrest.Matcher;
@@ -92,7 +96,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * chiamato: sono l'unica strada verso il database, quindi una richiesta rifiutata qui non lo raggiunge.
  */
 @WebMvcTest(controllers = {LegaController.class, TappaController.class, AnagrafeController.class,
-        ArchivioController.class, AuthController.class, CoachController.class, CampettoController.class})
+        ArchivioController.class, AuthController.class, CoachController.class, CampettoController.class,
+        RecuperoPasswordController.class})
 @Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class,
         ExceptionsHandler.class, LimiteDimensioneFilter.class, UtenteService.class})
 // I login e le registrazioni di questa classe partono tutti dallo stesso indirizzo e sono quasi quanti ne ammette il limite di
@@ -107,6 +112,7 @@ class ValidazioneWebTest {
     @MockitoBean ArchivioService archivioService;
     @MockitoBean CampettoService campettoService;
     @MockitoBean CoachAiService coachAiService;
+    @MockitoBean RecuperoPasswordService recuperoPasswordService;
     @MockitoBean RefreshTokenService refreshTokenService;
     @MockitoBean AuthenticationManager authenticationManager;
     @MockitoBean JwtTools jwtTools;
@@ -205,7 +211,7 @@ class ValidazioneWebTest {
         corpoStandard(invia(metodo, url, corpo).andExpect(status().isBadRequest()))
                 .andExpect(jsonPath("$.message", messaggio));
         verifyNoInteractions(legaService, anagrafeService, archivioService, campettoService, coachAiService, authenticationManager,
-                refreshTokenService, utenteRepository);
+                refreshTokenService, utenteRepository, recuperoPasswordService);
     }
 
     /** Il corpo d'errore è solo {message, timestamp}, con il timestamp nel formato ISO di ExceptionsHandler (LocalDateTime) */
@@ -280,6 +286,8 @@ class ValidazioneWebTest {
                 arguments(PUT, "/api/campetti/" + UUID.randomUUID(), Map.of(), List.of("nome", "lat", "lng", "superficie", "canestri", "stato")),
                 arguments(POST, "/api/auth/login", Map.of(), List.of("email", "password")),
                 arguments(POST, "/api/auth/register", Map.of(), List.of("name", "email", "password")),
+                arguments(POST, "/api/auth/password/dimenticata", Map.of(), List.of("email")),
+                arguments(POST, "/api/auth/password/reimposta", Map.of(), List.of("token", "nuovaPassword")),
                 arguments(POST, "/api/coach/chat", Map.of(), List.of("messages")));
     }
 
@@ -325,7 +333,11 @@ class ValidazioneWebTest {
             SquadraRequestDTO.class, new Scrittura(POST, "/api/anagrafe/squadre", ValidazioneWebTest::squadra),
             CampettoRequestDTO.class, new Scrittura(POST, "/api/campetti", ValidazioneWebTest::campetto),
             RegisterRequestDTO.class, new Scrittura(POST, "/api/auth/register", () -> registrazione("mario@x.it")),
-            LoginRequestDTO.class, new Scrittura(POST, "/api/auth/login", () -> accesso("mario@x.it")));
+            LoginRequestDTO.class, new Scrittura(POST, "/api/auth/login", () -> accesso("mario@x.it")),
+            PasswordDimenticataDTO.class, new Scrittura(POST, "/api/auth/password/dimenticata",
+                    () -> new LinkedHashMap<>(Map.of("email", "mario@x.it"))),
+            ReimpostaPasswordDTO.class, new Scrittura(POST, "/api/auth/password/reimposta",
+                    () -> new LinkedHashMap<>(Map.of("token", "token-del-link", "nuovaPassword", "password-valida"))));
 
     /** Ogni campo della tabella con l'endpoint che lo riceve, un corpo valido e il suo tetto (letto dal DTO) */
     static Stream<Arguments> campiConUnTetto() {

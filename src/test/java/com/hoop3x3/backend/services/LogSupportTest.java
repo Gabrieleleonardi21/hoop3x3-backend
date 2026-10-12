@@ -57,4 +57,20 @@ class LogSupportTest {
     void ilValoreNullo_restaNullo() {
         assertThat(LogSupport.perLog(null)).isNull();
     }
+
+    /* ── Email mascherate (recupero password): le prime due lettere e il dominio ── */
+
+    @ParameterizedTest(name = "{0} -> {1}")
+    @MethodSource("emailMascherate")
+    void lEmailSiMaschera(String email, String mascherata) {
+        assertThat(LogSupport.mascheraEmail(email)).isEqualTo(mascherata);
+    }
+
+    static Stream<Arguments> emailMascherate() {
+        return Stream.of(
+                arguments("mario.rossi@gmail.com", "ma***@gmail.com"),
+                arguments("m@x.it", "m***@x.it"),        // una lettera sola: non si mostra più di quella
+                arguments("senza-chiocciola", "***"),     // non è un'email: niente di ciò che c'è scritto
+                arguments("ma\nrio@x.it ", "ma***@x.it\\u2028")); // e il dominio passa da perLog
+    }
 }

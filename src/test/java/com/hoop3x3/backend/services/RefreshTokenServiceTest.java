@@ -59,6 +59,14 @@ class RefreshTokenServiceTest {
         assertThat(service.emetti(utente)).isNotEqualTo(service.emetti(utente));
     }
 
+    // Dopo una password reimpostata nessuna sessione aperta (altri browser, altri dispositivi) si rinnova più
+    @Test
+    void revocaTutte_cancellaOgniRefreshTokenDellUtente() {
+        service.revocaTutte(utente);
+
+        verify(repository).eliminaDellUtente(utente.getId());
+    }
+
     @Test
     void ruotaCancellaIlVecchioTokenENeEmetteUnoNuovo() {
         RefreshToken vecchio = new RefreshToken(utente, RefreshTokenService.sha256("vecchio"), Tempo.adesso().plusDays(1));

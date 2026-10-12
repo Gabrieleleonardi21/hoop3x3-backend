@@ -29,9 +29,11 @@ import static org.springframework.security.web.servlet.util.matcher.PathPatternR
  * Limiti di frequenza: conta le richieste e, oltre il massimo, risponde 429 con Retry-After senza lasciarle arrivare al
  * controller. Due regole:
  * <ul>
- *   <li><b>Login, registrazione e rinnovo del token</b>, per indirizzo IP e ognuno con il suo contatore: ogni login e ogni
- *       registrazione costano un BCrypt a 12 giri, che gira nel controller, e senza limite le password si proverebbero a
- *       ripetizione e gli account si creerebbero a migliaia (BE-11). Respinta qui, la richiesta non costa niente.</li>
+ *   <li><b>Login, registrazione, rinnovo del token e richiesta del link di recupero password</b>, per indirizzo IP e ognuno
+ *       con il suo contatore: ogni login e ogni registrazione costano un BCrypt a 12 giri, che gira nel controller, e senza
+ *       limite le password si proverebbero a ripetizione e gli account si creerebbero a migliaia (BE-11); ogni richiesta del
+ *       link può far partire un'email, e senza limite il server diventerebbe un modo per riempire le caselle degli altri
+ *       (il limite per email, 3 ogni 15 minuti, è di RecuperoPasswordService). Respinta qui, la richiesta non costa niente.</li>
  *   <li><b>Coach AI</b> (POST /api/coach/chat), per utente e in due finestre, il minuto e il giorno UTC: ogni richiesta è una
  *       chiamata alla chiave Groq del server, e la registrazione è libera, quindi qualsiasi account potrebbe usarla come proxy
  *       senza fine (BE-2). Respinta qui, non arriva a Groq.</li>
@@ -41,7 +43,7 @@ import static org.springframework.security.web.servlet.util.matcher.PathPatternR
  * ne legge fino a 2 MB) e non arriva a Spring MVC, e un interceptor non conterebbe le richieste che un filtro ha già fermato,
  * per esempio con il 413. Sta subito dopo il JwtFilter: il Coach si conta per utente e l'utente lo riconosce lui (senza
  * utente non si conta niente: ci pensa l'autorizzazione con il 401), mentre login, registrazione e rinnovo non passano dal
- * JwtFilter.
+ * JwtFilter, come il recupero password.
  * <p>
  * I percorsi si confrontano come fanno le regole di autorizzazione di SecurityConfig (PathPatternRequestMatcher): Spring
  * decodifica il percorso e ne toglie i parametri prima di scegliere il controller, e con un confronto sul testo grezzo
@@ -62,6 +64,8 @@ public class LimiteRichiesteFilter extends OncePerRequestFilter {
     private static final RequestMatcher LOGIN = pathPattern(HttpMethod.POST, "/api/auth/login");
     private static final RequestMatcher REGISTRAZIONE = pathPattern(HttpMethod.POST, "/api/auth/register");
     private static final RequestMatcher RINNOVO = pathPattern(HttpMethod.POST, "/api/auth/refresh");
+    // Solo la richiesta del link manda un'email: la nuova password con il token non ne manda e non si conta
+    private static final RequestMatcher RECUPERO = pathPattern(HttpMethod.POST, "/api/auth/password/dimenticata");
     // Solo la chat chiama Groq: lo stato del Coach (GET /api/coach/status) legge una proprietà e non consuma la quota
     private static final RequestMatcher COACH = pathPattern(HttpMethod.POST, "/api/coach/chat");
 
@@ -74,6 +78,7 @@ public class LimiteRichiesteFilter extends OncePerRequestFilter {
     private final LimiteRichieste login;
     private final LimiteRichieste registrazione;
     private final LimiteRichieste rinnovo;
+    private final LimiteRichieste recupero;
     private final LimiteRichieste coachAlMinuto;
     private final LimiteRichieste coachAlGiorno;
 
@@ -83,6 +88,7 @@ public class LimiteRichiesteFilter extends OncePerRequestFilter {
         this.login = new LimiteRichieste(limiti.authAlMinuto(), MINUTO, orologio);
         this.registrazione = new LimiteRichieste(limiti.authAlMinuto(), MINUTO, orologio);
         this.rinnovo = new LimiteRichieste(limiti.authAlMinuto(), MINUTO, orologio);
+        this.recupero = new LimiteRichieste(limiti.authAlMinuto(), MINUTO, orologio);
         this.coachAlMinuto = new LimiteRichieste(limiti.coachAlMinuto(), MINUTO, orologio);
         this.coachAlGiorno = new LimiteRichieste(limiti.coachAlGiorno(), GIORNO, orologio);
     }
@@ -108,6 +114,8 @@ public class LimiteRichiesteFilter extends OncePerRequestFilter {
             conta(registrazione, request.getRemoteAddr(), INDIRIZZO, "Troppe richieste di registrazione");
         } else if (RINNOVO.matches(request)) {
             conta(rinnovo, request.getRemoteAddr(), INDIRIZZO, "Troppi rinnovi della sessione");
+        } else if (RECUPERO.matches(request)) {
+            conta(recupero, request.getRemoteAddr(), INDIRIZZO, "Troppe richieste di recupero password");
         } else if (COACH.matches(request)) {
             controllaIlCoach();
         }

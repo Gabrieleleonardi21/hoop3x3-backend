@@ -3,6 +3,7 @@ package com.hoop3x3.backend;
 import com.hoop3x3.backend.runners.SeedProperties;
 import com.hoop3x3.backend.security.AuthProperties;
 import com.hoop3x3.backend.security.CorsProperties;
+import com.hoop3x3.backend.services.AppProperties;
 import com.hoop3x3.backend.services.GroqProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
@@ -38,6 +39,14 @@ class ProprietaTest {
         assertThat(groq.api().key()).isEmpty();
         assertThat(groq.model()).isEqualTo("openai/gpt-oss-120b");
         assertThat(groq.reasoningEffort()).isEqualTo("low");
+        // Il link del recupero password porta al frontend di sviluppo
+        assertThat(leggi(nessuna, "app", AppProperties.class).frontendUrl()).isEqualTo("http://localhost:5173");
+    }
+
+    @Test
+    void lIndirizzoDelFrontendSiLeggeDaAppFrontendUrl() {
+        assertThat(leggi(Map.of("app.frontend-url", "https://hoop3x3.onrender.com"), "app", AppProperties.class).frontendUrl())
+                .isEqualTo("https://hoop3x3.onrender.com");
     }
 
     @Test

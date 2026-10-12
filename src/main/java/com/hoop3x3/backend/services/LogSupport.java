@@ -27,6 +27,16 @@ public final class LogSupport {
                 .replaceAll(trovato -> Matcher.quoteReplacement(perEsteso(trovato.group().charAt(0))));
     }
 
+    /**
+     * L'email per il log del recupero password: le prime due lettere e il dominio (mario@x.it diventa ma***@x.it). Basta a
+     * capire di chi si parla senza scrivere l'indirizzo intero; passa comunque da perLog, perché la sceglie chi chiede il link
+     */
+    public static String mascheraEmail(String email) {
+        int chiocciola = email.lastIndexOf('@');
+        if (chiocciola < 0) return "***";
+        return perLog(email.substring(0, Math.min(2, chiocciola)) + "***" + email.substring(chiocciola));
+    }
+
     private static String perEsteso(char carattere) {
         return switch (carattere) {
             case '\r' -> "\\r";
