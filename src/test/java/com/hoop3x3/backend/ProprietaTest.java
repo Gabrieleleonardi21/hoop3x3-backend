@@ -40,7 +40,20 @@ class ProprietaTest {
         assertThat(groq.model()).isEqualTo("openai/gpt-oss-120b");
         assertThat(groq.reasoningEffort()).isEqualTo("low");
         // Il link del recupero password porta al frontend di sviluppo
-        assertThat(leggi(nessuna, "app", AppProperties.class).frontendUrl()).isEqualTo("http://localhost:5173");
+        AppProperties app = leggi(nessuna, "app", AppProperties.class);
+        assertThat(app.frontendUrl()).isEqualTo("http://localhost:5173");
+        // Senza chiave e senza mittente le email del recupero non partono (EmailSenderBrevo)
+        assertThat(app.brevo().apiKey()).isEmpty();
+        assertThat(app.mail().mittente()).isEmpty();
+    }
+
+    @Test
+    void chiaveDiBrevoEMittenteSiLeggonoDaAppBrevoEAppMail() {
+        AppProperties app = leggi(Map.of("app.brevo.api-key", "xkeysib-di-prova", "app.mail.mittente", "hoop3x3@gmail.com"),
+                "app", AppProperties.class);
+
+        assertThat(app.brevo().apiKey()).isEqualTo("xkeysib-di-prova");
+        assertThat(app.mail().mittente()).isEqualTo("hoop3x3@gmail.com");
     }
 
     @Test
@@ -75,5 +88,7 @@ class ProprietaTest {
                 .doesNotContain("Segreta-di-prova-1");
         assertThat(new GroqProperties(new GroqProperties.Api("chiave-di-prova"), "m", "low").toString())
                 .doesNotContain("chiave-di-prova");
+        assertThat(new AppProperties("http://localhost:5173", new AppProperties.Brevo("xkeysib-di-prova"),
+                new AppProperties.Mail("hoop3x3@gmail.com")).toString()).doesNotContain("xkeysib-di-prova");
     }
 }
