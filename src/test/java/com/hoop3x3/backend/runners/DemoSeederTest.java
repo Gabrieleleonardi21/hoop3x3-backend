@@ -145,45 +145,65 @@ class DemoSeederTest {
 
     /* ── I campetti di Torino: un segno loro, così entrano anche dove il seed demo c'è già ── */
 
-    // Il database ha il seed demo di prima ma non i campetti: entrano loro soli, intestati all'admin, e il segno è «campetti»
+    // Il database ha il seed demo di prima ma non i campetti: entrano tutti e nove, intestati all'admin, con un segno per lotto
+    // (Torino con «campetti», Roma con «campetti-roma»)
     @Test
-    void seedDemoGiaEseguitoMaCampettiNo_inserisceISeiCampettiEScriveIlLoroSegno() throws Exception {
+    void seedDemoGiaEseguitoMaCampettiNo_inserisceINoveCampettiEScriveIDueSegni() throws Exception {
         Utente admin = adminTrovato();
         when(seedEseguiti.existsById("demo")).thenReturn(true);
         when(seedEseguiti.existsById("campetti")).thenReturn(false);
+        when(seedEseguiti.existsById("campetti-roma")).thenReturn(false);
 
         seeder.run();
 
         ArgumentCaptor<Campetto> salvati = ArgumentCaptor.forClass(Campetto.class);
-        verify(campetti, times(6)).save(salvati.capture());
+        verify(campetti, times(9)).save(salvati.capture());
         assertThat(salvati.getAllValues()).allSatisfy(c -> {
             assertThat(c.getAutore()).isSameAs(admin);
             assertThat(c.getTipo()).isEqualTo("campetto");
-            assertThat(c.getCitta()).isEqualTo("Torino");
             assertThat(c.getFonte()).isNull();
         });
-        assertThat(salvati.getAllValues()).extracting(Campetto::getNome).contains("Parco Dora — Le Arcate", "Campo Vanchiglia");
+        assertThat(salvati.getAllValues()).filteredOn(c -> c.getCitta().equals("Torino")).hasSize(6);
+        assertThat(salvati.getAllValues()).filteredOn(c -> c.getCitta().equals("Roma")).hasSize(3);
+        assertThat(salvati.getAllValues()).extracting(Campetto::getNome)
+                .contains("Parco Dora — Le Arcate", "Campo Vanchiglia", "Quadrato");
         verifyNoInteractions(giocatori, squadre, leghe, archivioService);
-        ArgumentCaptor<SeedEseguito> segno = ArgumentCaptor.forClass(SeedEseguito.class);
-        verify(seedEseguiti).save(segno.capture());
-        assertThat(segno.getValue().getNome()).isEqualTo("campetti");
-        assertThat(righeChe("Seed campetti")).singleElement().satisfies(riga -> {
-            assertThat(riga.getLevel()).isEqualTo(Level.INFO);
-            assertThat(riga.getFormattedMessage()).isEqualTo("Seed campetti completato: 6 campetti");
-        });
+        ArgumentCaptor<SeedEseguito> segni = ArgumentCaptor.forClass(SeedEseguito.class);
+        verify(seedEseguiti, times(2)).save(segni.capture());
+        assertThat(segni.getAllValues()).extracting(SeedEseguito::getNome).containsExactlyInAnyOrder("campetti", "campetti-roma");
+        assertThat(righeChe("Seed campetti")).allSatisfy(riga -> assertThat(riga.getLevel()).isEqualTo(Level.INFO))
+                .extracting(ILoggingEvent::getFormattedMessage)
+                .containsExactlyInAnyOrder("Seed campetti completato: 6 campetti", "Seed campetti-roma completato: 3 campetti");
     }
 
+    // Un campetto già presente con lo stesso nome e la stessa città non si reinserisce: il lotto salta solo quello
     @Test
-    void campettiGiaSeminati_nonSiInserisconoDiNuovoELoDiceUnaRigaInfo() throws Exception {
+    void campettoGiaPresenteConLoStessoNomeECitta_nonSiReinserisce() throws Exception {
+        adminTrovato();
+        when(seedEseguiti.existsById("demo")).thenReturn(true);
+        when(seedEseguiti.existsById("campetti")).thenReturn(false);
+        when(seedEseguiti.existsById("campetti-roma")).thenReturn(false);
+        when(campetti.existsByNomeAndCitta("Quadrato", "Roma")).thenReturn(true);
+
+        seeder.run();
+
+        ArgumentCaptor<Campetto> salvati = ArgumentCaptor.forClass(Campetto.class);
+        verify(campetti, times(8)).save(salvati.capture());
+        assertThat(salvati.getAllValues()).extracting(Campetto::getNome).doesNotContain("Quadrato");
+    }
+
+    // Con entrambi i segni scritti non entra niente: un campetto eliminato dall'app non rinasce al riavvio
+    @Test
+    void campettiGiaSeminati_nonSiInserisconoDiNuovoEDiconoDueRigheInfo() throws Exception {
         adminTrovato();
         when(seedEseguiti.existsById("demo")).thenReturn(true);
 
         seeder.run();
 
         verifyNoInteractions(campetti);
-        assertThat(righeChe("Seed campetti")).singleElement().satisfies(riga -> {
+        assertThat(righeChe("Seed campetti")).hasSize(2).allSatisfy(riga -> {
             assertThat(riga.getLevel()).isEqualTo(Level.INFO);
-            assertThat(riga.getFormattedMessage()).isEqualTo("Seed campetti saltato: già eseguito");
+            assertThat(riga.getFormattedMessage()).endsWith("saltato: già eseguito");
         });
     }
 
@@ -269,14 +289,15 @@ class DemoSeederTest {
     }
 
     /**
-     * SEED_DEMO acceso e un admin che si trova: il seed arriva ai controlli sul segno. I campetti risultano già seminati, così i
-     * test del seed demo guardano solo lui (i campetti hanno i loro test)
+     * SEED_DEMO acceso e un admin che si trova: il seed arriva ai controlli sul segno. I campetti risultano già seminati (entrambi
+     * i lotti), così i test del seed demo guardano solo lui (i campetti hanno i loro test)
      */
     private Utente adminTrovato() {
         configura(true, "admin@hoop3x3.it");
         Utente admin = new Utente("admin@hoop3x3.it", "hash", "Admin", Ruolo.ADMIN);
         when(utenti.findByEmail("admin@hoop3x3.it")).thenReturn(Optional.of(admin));
         when(seedEseguiti.existsById("campetti")).thenReturn(true);
+        when(seedEseguiti.existsById("campetti-roma")).thenReturn(true);
         return admin;
     }
 

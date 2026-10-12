@@ -6,6 +6,7 @@ import com.hoop3x3.backend.dto.CampettoDTO;
 import com.hoop3x3.backend.dto.CopiaPubblicaDTO;
 import com.hoop3x3.backend.dto.VoceArchivioDTO;
 import com.hoop3x3.backend.dto.TappaDTO;
+import com.hoop3x3.backend.entities.Campetto;
 import com.hoop3x3.backend.entities.Lega;
 import com.hoop3x3.backend.entities.Tappa;
 import com.hoop3x3.backend.entities.Ruolo;
@@ -92,9 +93,9 @@ class DemoSeederIT {
 
         seeder.run();
 
-        assertThat(segni()).containsExactlyInAnyOrder("demo", "campetti");
+        assertThat(segni()).containsExactlyInAnyOrder("demo", "campetti", "campetti-roma");
         assertThat(jdbc.queryForObject("select count(*) from seed_eseguiti where eseguito_il is not null", Integer.class))
-                .as("i segni hanno la data").isEqualTo(2);
+                .as("i segni hanno la data").isEqualTo(3);
     }
 
     /* ── I campetti di Torino ── */
@@ -134,20 +135,65 @@ class DemoSeederIT {
         assertThat(segni()).contains("campetti");
     }
 
-    // Un database con il seed demo di prima (segno «demo» ma non «campetti») riceve i campetti al primo avvio
+    // Un database seminato con i sei campetti di Torino (e il loro segno «campetti») ma senza quelli di Roma riceve solo questi
+    // tre, al primo avvio: nove campetti, nessuno raddoppiato, quelli di Torino con gli stessi id. Il segno «campetti-roma» è
+    // di questo lotto e il seed dei campetti non riparte in blocco, così un campetto eliminato dall'app non rinasce
     @Test
-    void databaseConIlSeedDemoMaSenzaCampetti_riceveSoloICampetti() {
+    void databaseConISeiDiTorino_riceveSoloITreDiRomaSenzaDoppioni() {
         accendiIlSeed();
         seeder.run();
+        List<UUID> torino = jdbc.queryForList("select id from campetti where citta = 'Torino'", UUID.class);
+        jdbc.update("delete from campetti where citta = 'Roma'");
+        jdbc.update("delete from seed_eseguiti where nome = 'campetti-roma'");
         long giocatoriDemo = giocatori.count();
-        jdbc.update("delete from campetti");
-        jdbc.update("delete from seed_eseguiti where nome = 'campetti'");
 
         seeder.run();
 
-        assertThat(campetti.count()).isEqualTo(6);
+        assertThat(campetti.count()).as("nove campetti").isEqualTo(9);
+        assertThat(jdbc.queryForObject("select count(*) from (select distinct nome, citta from campetti) t", Integer.class))
+                .as("nessun campetto doppio").isEqualTo(9);
+        assertThat(jdbc.queryForList("select id from campetti where citta = 'Torino'", UUID.class))
+                .as("i sei di Torino non sono stati toccati").containsExactlyInAnyOrderElementsOf(torino);
         assertThat(giocatori.count()).as("il seed demo non riparte").isEqualTo(giocatoriDemo);
-        assertThat(segni()).containsExactlyInAnyOrder("demo", "campetti");
+        assertThat(segni()).containsExactlyInAnyOrder("demo", "campetti", "campetti-roma");
+    }
+
+    // I tre campetti di Roma entrano intestati all'admin e si trovano dal centro di Roma; da Torino sono troppo lontani per
+    // comparire nella ricerca di Torino
+    @Test
+    void iTreCampettiDiRoma_siTrovanoDalCentroDiRoma() {
+        Utente admin = accendiIlSeed();
+
+        seeder.run();
+
+        List<CampettoDTO> romani = campettoService.cercaPerRaggio(41.9028, 12.4964, 20);
+        assertThat(romani).extracting(CampettoDTO::nome).containsExactlyInAnyOrder("Quadrato",
+                "Cinodromo — campo da basket", "Playground Parco delle Energie");
+        assertThat(romani).allSatisfy(c -> {
+            assertThat(c.citta()).isEqualTo("Roma");
+            assertThat(c.autoreId()).isEqualTo(admin.getId());
+        });
+        assertThat(campettoService.cercaPerRaggio(45.07, 7.68, 20)).extracting(CampettoDTO::citta).doesNotContain("Roma");
+    }
+
+    // I nove campetti del seed (sei di Torino, tre di Roma) hanno i valori ammessi dal DTO e dallo schema zod del frontend. Il
+    // seed non passa dalla validazione: un refuso nel JSON farebbe respingere l'intero elenco, quindi qui si controlla
+    @Test
+    void iNoveCampettiDelSeedHannoIValoriAmmessi() {
+        Utente admin = accendiIlSeed();
+
+        seeder.run();
+
+        List<Campetto> tutti = campetti.findAll();
+        assertThat(tutti).hasSize(9).allSatisfy(c -> {
+            assertThat(c.getSuperficie()).isIn("Asfalto", "Cemento", "Sintetico", "Altro");
+            assertThat(c.getStato()).isIn("buono", "discreto", "da sistemare");
+            assertThat(c.getCanestri()).isBetween((short) 1, (short) 8);
+            assertThat(c.getTipo()).isEqualTo("campetto");
+            assertThat(c.getFonte()).isNull();
+        });
+        assertThat(jdbc.queryForObject("select count(*) from campetti where autore_id = ?", Integer.class, admin.getId()))
+                .as("tutti intestati all'admin").isEqualTo(9);
     }
 
     // Il difetto di BE-17 (la spiegazione è in SeedEseguito): senza il segno, dopo l'eliminazione della lega demo il
@@ -193,7 +239,8 @@ class DemoSeederIT {
         assertThat(giocatori.count()).isEqualTo(giocatoriDemo);
         assertThat(squadre.count()).isEqualTo(squadreDemo);
         assertThat(tappe.count()).isEqualTo(tappeDemo);
-        assertThat(segni()).containsExactlyInAnyOrder("demo", "campetti");
+        assertThat(campetti.count()).as("i campetti non raddoppiano").isEqualTo(9);
+        assertThat(segni()).containsExactlyInAnyOrder("demo", "campetti", "campetti-roma");
     }
 
     // I dati demo sono di fantasia e coerenti (TR-4): nell'archivio ogni giocatore delle squadre delle tappe ha il nome con cui

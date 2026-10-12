@@ -47,6 +47,9 @@ public interface CampettoRepository extends JpaRepository<Campetto, UUID> {
             + MEZZO_GRADO + ")")
     List<Campetto> perTestoVicinoA(String filtro, double lat, double lng, double cosLat, Limit limite);
 
+    /** C'è già un campetto con questo nome in questa città: il seed dei campetti non lo reinserisce */
+    boolean existsByNomeAndCitta(String nome, String citta);
+
     /** I campetti già importati da una fonte con quegli id nella fonte (indice unico della V8): li usa ImportCampetti */
     List<Campetto> findByFonteAndFonteIdIn(String fonte, Collection<String> fonteId);
 }

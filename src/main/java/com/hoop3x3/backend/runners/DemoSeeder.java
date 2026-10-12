@@ -36,9 +36,10 @@ import java.util.UUID;
  * Il seed non ferma mai l'avvio: gira in una transazione sua e, se qualcosa va storto, il database resta com'era e nei log
  * c'è un avviso con la causa. L'app parte senza i dati di prova.
  * <p>
- * Nella stessa transazione, con le stesse condizioni (SEED_DEMO e l'admin) ma con un segno suo («campetti»), entrano i sei
- * campetti di Torino di resources/seed/campetti-torino.json (le coordinate vengono da OpenStreetMap, con la fonte scritta in
- * testa al file): così li riceve anche un database che ha già il seed demo di prima, e anche loro una volta sola.
+ * Nella stessa transazione, con le stesse condizioni (SEED_DEMO e l'admin), entrano i campetti di esempio di
+ * resources/seed/campetti-demo.json: sei di Torino e tre di Roma, a lotti, ognuno con il suo segno («campetti» e
+ * «campetti-roma»). Le coordinate vengono da OpenStreetMap, con la fonte scritta in testa al file: così li riceve anche un
+ * database che ha già il seed demo di prima, e ogni lotto una volta sola.
  */
 @Slf4j
 @Component
@@ -52,8 +53,8 @@ public class DemoSeeder implements CommandLineRunner {
      * file): i dati possono cambiare e il segno deve restare riconoscibile.
      */
     private static final String SEGNO = "demo";
-    private static final String FILE_CAMPETTI = "/seed/campetti-torino.json";
-    private static final String SEGNO_CAMPETTI = "campetti";
+    /** I campetti di esempio, a lotti: Torino (segno «campetti») e Roma (segno «campetti-roma»), nel file stesso */
+    private static final String FILE_CAMPETTI = "/seed/campetti-demo.json";
 
     private final UtenteRepository utenti;
     private final AnagrafeGiocatoreRepository giocatori;
@@ -151,38 +152,53 @@ public class DemoSeeder implements CommandLineRunner {
     }
 
     /**
-     * I campetti di Torino, intestati all'admin, con il segno «campetti»: un segno a parte perché un database che ha già il
-     * seed demo deve riceverli lo stesso, e un campetto eliminato dall'app non deve rinascere al riavvio
+     * I campetti del file, a lotti: ogni lotto ha il suo segno in seed_eseguiti e si inserisce una sola volta, intestato
+     * all'admin. Il segno è per lotto e non per file perché un database già seminato con Torino riceve solo Roma, quando il
+     * file cresce. Un campetto eliminato dall'app non rinasce al riavvio: il segno del suo lotto dice che è già stato fatto
      */
     private void seminaCampetti(Utente admin) {
-        if (seedEseguiti.existsById(SEGNO_CAMPETTI)) {
-            log.info("Seed campetti saltato: già eseguito");
+        for (JsonNode lotto : leggiIlFile(FILE_CAMPETTI).path("lotti")) {
+            seminaLotto(admin, lotto.path("segno").asString(), lotto.path("campetti"));
+        }
+    }
+
+    /** Un lotto: se il suo segno c'è, non fa niente; altrimenti inserisce i campetti che non ci sono già (nome e città) */
+    private void seminaLotto(Utente admin, String segno, JsonNode lista) {
+        if (seedEseguiti.existsById(segno)) {
+            log.info("Seed {} saltato: già eseguito", segno);
             return;
         }
-        int quanti = 0;
-        for (JsonNode n : leggiIlFile(FILE_CAMPETTI).path("campetti")) {
-            Campetto c = new Campetto();
-            c.setAutore(admin);
-            c.setNome(testo(n, "nome"));
-            c.setIndirizzo(testo(n, "indirizzo"));
-            c.setCitta(testo(n, "citta"));
-            c.setLat(n.path("lat").asDouble());
-            c.setLng(n.path("lng").asDouble());
-            c.setSuperficie(testo(n, "superficie"));
-            c.setCanestri((short) n.path("canestri").asInt(2));
-            c.setIlluminato(n.path("illuminato").asBoolean(false));
-            c.setCoperto(n.path("coperto").asBoolean(false));
-            c.setGratuito(n.path("gratuito").asBoolean(false));
-            c.setRetine(n.path("retine").asBoolean(false));
-            c.setLinee(n.path("linee").asBoolean(false));
-            c.setFontanella(n.path("fontanella").asBoolean(false));
-            c.setStato(testo(n, "stato"));
-            c.setNote(testo(n, "note"));
-            campetti.save(c);
-            quanti++;
+        int inseriti = 0;
+        for (JsonNode n : lista) {
+            // Un campetto con lo stesso nome e città c'è già (creato a mano, o da un lotto precedente): non lo si raddoppia
+            if (campetti.existsByNomeAndCitta(testo(n, "nome"), testo(n, "citta"))) continue;
+            campetti.save(campettoDa(admin, n));
+            inseriti++;
         }
-        seedEseguiti.save(new SeedEseguito(SEGNO_CAMPETTI));
-        log.info("Seed campetti completato: {} campetti", quanti);
+        seedEseguiti.save(new SeedEseguito(segno));
+        log.info("Seed {} completato: {} campetti", segno, inseriti);
+    }
+
+    /** Il campetto dal nodo del file: i campi booleani assenti valgono false, quelli di testo vuoti */
+    private static Campetto campettoDa(Utente admin, JsonNode n) {
+        Campetto c = new Campetto();
+        c.setAutore(admin);
+        c.setNome(testo(n, "nome"));
+        c.setIndirizzo(testo(n, "indirizzo"));
+        c.setCitta(testo(n, "citta"));
+        c.setLat(n.path("lat").asDouble());
+        c.setLng(n.path("lng").asDouble());
+        c.setSuperficie(testo(n, "superficie"));
+        c.setCanestri((short) n.path("canestri").asInt(2));
+        c.setIlluminato(n.path("illuminato").asBoolean(false));
+        c.setCoperto(n.path("coperto").asBoolean(false));
+        c.setGratuito(n.path("gratuito").asBoolean(false));
+        c.setRetine(n.path("retine").asBoolean(false));
+        c.setLinee(n.path("linee").asBoolean(false));
+        c.setFontanella(n.path("fontanella").asBoolean(false));
+        c.setStato(testo(n, "stato"));
+        c.setNote(testo(n, "note"));
+        return c;
     }
 
     private JsonNode leggiIlFile(String file) {
