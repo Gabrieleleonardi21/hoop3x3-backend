@@ -162,6 +162,10 @@ class AccessoEndpointIT {
                 // il suo messaggio (quello della catena di sicurezza è «Autenticazione richiesta: accedi per continuare»)
                 new Pubblico(new Endpoint(POST, "/api/auth/refresh", null), 401, "Sessione scaduta: accedi di nuovo"),
                 new Pubblico(new Endpoint(POST, "/api/auth/logout", null), 204),
+                // Recupero password: chi l'ha dimenticata non ha un token. Senza corpo valido il controller risponde 400 (il 200
+                // della richiesta del link e il giro completo li prova RecuperoPasswordIT)
+                new Pubblico(new Endpoint(POST, "/api/auth/password/dimenticata", Map.of()), 400),
+                new Pubblico(new Endpoint(POST, "/api/auth/password/reimposta", Map.of()), 400),
                 new Pubblico(new Endpoint(GET, "/api/anagrafe/giocatori", null), 200),
                 new Pubblico(new Endpoint(GET, "/api/anagrafe/squadre", null), 200),
                 new Pubblico(new Endpoint(GET, "/api/archivio", null), 200),
