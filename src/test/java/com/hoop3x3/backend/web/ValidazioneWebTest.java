@@ -576,6 +576,15 @@ class ValidazioneWebTest {
         rifiutataConMessaggio(POST, "/api/auth/register", r, containsString("72 byte"));
     }
 
+    // La password dell'esempio pubblico: 400 con il suo messaggio, senza arrivare al database
+    @Test
+    void passwordAdmin123_risponde400ConIlMessaggioDellaPasswordNonConsentita() throws Exception {
+        Map<String, Object> r = registrazione("mario@x.it");
+        r.put("password", "admin123");
+
+        rifiutataConMessaggio(POST, "/api/auth/register", r, is("Questa password non è consentita: scegline un'altra"));
+    }
+
     @Test
     void passwordDi72ByteEsatti_siAccetta() throws Exception {
         Map<String, Object> r = registrazione("mario@x.it");

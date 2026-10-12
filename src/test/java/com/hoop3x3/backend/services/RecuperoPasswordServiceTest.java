@@ -94,6 +94,19 @@ class RecuperoPasswordServiceTest {
         ordine.verify(tokens).save(any(TokenRecuperoPassword.class));
     }
 
+    // I token creati più di un giorno fa se ne vanno prima del nuovo: la tabella non cresce senza fine. Quelli più recenti
+    // restano, quindi il conteggio dei 15 minuti non cambia
+    @Test
+    void richiesta_cancellaITokenDellUtenteCreatiPiuDiUnGiornoFa_primaDiSalvareIlNuovo() {
+        service.richiedi("mario@x.it");
+
+        ArgumentCaptor<LocalDateTime> limite = ArgumentCaptor.forClass(LocalDateTime.class);
+        InOrder ordine = inOrder(tokens);
+        ordine.verify(tokens).eliminaCreatiPrima(eq(mario.getId()), limite.capture());
+        ordine.verify(tokens).save(any(TokenRecuperoPassword.class));
+        assertThat(limite.getValue()).isBetween(Tempo.adesso().minusDays(1).minusMinutes(1), Tempo.adesso().minusDays(1).plusMinutes(1));
+    }
+
     @Test
     void dueRichieste_generanoTokenDiversi() {
         service.richiedi("mario@x.it");
@@ -217,6 +230,19 @@ class RecuperoPasswordServiceTest {
 
         assertThatThrownBy(() -> service.reimposta("buono", "è".repeat(40)))
                 .isInstanceOf(BadRequestException.class).hasMessageContaining("72 byte");
+        verify(tokens, never()).segnaUsato(any(), any());
+        verifyNoInteractions(sessioni, encoder);
+        assertThat(mario.getPassword()).isEqualTo("hash");
+    }
+
+    // La password dell'esempio pubblico non vale per nessun account, come alla registrazione (UtenteService.controllaPassword).
+    // Il token resta valido: chi ne sceglie un'altra riusa lo stesso link
+    @Test
+    void reimpostaConLaPasswordAdmin123_risponde400SenzaUsareIlToken() {
+        salvato("buono", Tempo.adesso().plusMinutes(10), null);
+
+        assertThatThrownBy(() -> service.reimposta("buono", "admin123"))
+                .isInstanceOf(BadRequestException.class).hasMessage("Questa password non è consentita: scegline un'altra");
         verify(tokens, never()).segnaUsato(any(), any());
         verifyNoInteractions(sessioni, encoder);
         assertThat(mario.getPassword()).isEqualTo("hash");

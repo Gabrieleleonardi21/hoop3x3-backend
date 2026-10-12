@@ -23,9 +23,11 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.LocalDateTime;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -145,6 +147,43 @@ class RecuperoPasswordIT {
     void unTokenInventato_eRifiutatoConLoStessoMessaggio() throws Exception {
         reimposta("token-inventato", "nuova-password").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(LINK_NON_VALIDO));
+    }
+
+    // La password dell'esempio pubblico non vale per nessun account: il link resta buono per sceglierne un'altra
+    @Test
+    void laPasswordAdmin123_eRifiutata_eIlLinkValeAncora() throws Exception {
+        chiediIlLink("mario@test.it");
+        String token = email.ultimoToken();
+
+        reimposta(token, "admin123").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Questa password non è consentita: scegline un'altra"));
+
+        login("vecchia-password").andExpect(status().isOk());
+        reimposta(token, "nuova-password").andExpect(status().isOk());
+    }
+
+    /* ── Pulizia: i token creati più di un giorno fa se ne vanno alla richiesta successiva ── */
+
+    @Test
+    void unaNuovaRichiesta_cancellaITokenDiPiuDiUnGiornoFa_tieneQuelliRecenti_eCreaIlNuovo() throws Exception {
+        UUID vecchio = tokenGiaSalvato(Tempo.adesso().minusDays(2));
+        UUID recente = tokenGiaSalvato(Tempo.adesso().minusHours(2));
+
+        chiediIlLink("mario@test.it").andExpect(status().isOk());
+
+        List<String> rimasti = jdbc.queryForList("select id::text from token_recupero_password", String.class);
+        assertThat(rimasti).hasSize(2).contains(recente.toString()).doesNotContain(vecchio.toString());
+        assertThat(jdbc.queryForObject("select count(*) from token_recupero_password where token_hash = ?", Integer.class,
+                sha256(email.ultimoToken()))).isEqualTo(1);
+    }
+
+    /** Un token di Mario creato a quell'ora (scaduto 30 minuti dopo), scritto direttamente nel database */
+    private UUID tokenGiaSalvato(LocalDateTime creatoIl) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("insert into token_recupero_password (id, utente_id, token_hash, scadenza, usato_il, creato_il) "
+                + "values (?, ?, ?, ?, null, ?)", id, mario.getId(), id.toString().replace("-", "") + "0".repeat(32),
+                creatoIl.plusMinutes(30), creatoIl);
+        return id;
     }
 
     /* ── Limite per email: 3 link ogni 15 minuti, contati nel database ── */
