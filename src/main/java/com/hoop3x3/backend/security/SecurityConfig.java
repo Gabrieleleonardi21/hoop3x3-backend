@@ -77,9 +77,10 @@ public class SecurityConfig {
                         // refresh e logout si autenticano con il cookie httpOnly, non con il Bearer
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login",
                                 "/api/auth/refresh", "/api/auth/logout").permitAll()
-                        // recupero password: chi l'ha dimenticata non ha una sessione
+                        // recupero password: chi l'ha dimenticata non ha una sessione. La conferma del cambio email si apre
+                        // dal link nell'email, anche da un browser senza sessione: vale il token del link
                         .requestMatchers(HttpMethod.POST, "/api/auth/password/dimenticata",
-                                "/api/auth/password/reimposta").permitAll()
+                                "/api/auth/password/reimposta", "/api/auth/email/conferma").permitAll()
                         // anagrafe, archivio, campetti e la ricerca di un luogo sono pubblici in lettura: l'ospite (senza account) li consulta
                         .requestMatchers(HttpMethod.GET, "/api/anagrafe/**", "/api/archivio/**", "/api/campetti",
                                 "/api/luoghi").permitAll()

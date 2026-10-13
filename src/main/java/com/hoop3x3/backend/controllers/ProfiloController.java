@@ -1,8 +1,11 @@
 package com.hoop3x3.backend.controllers;
 
 import com.hoop3x3.backend.dto.AuthResponseDTO;
+import com.hoop3x3.backend.dto.CambioEmailDTO;
 import com.hoop3x3.backend.dto.CambioNomeDTO;
 import com.hoop3x3.backend.dto.CambioPasswordDTO;
+import com.hoop3x3.backend.dto.ConfermaEmailDTO;
+import com.hoop3x3.backend.dto.MessaggioDTO;
 import com.hoop3x3.backend.dto.UtenteDTO;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.services.ProfiloService;
@@ -16,9 +19,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Il profilo dell'account, accanto ad AuthController sotto /api/auth: chi è dentro cambia il suo nome e la sua password. Il
- * JWT identifica l'utente per id (JwtTools), quindi cambiare il nome non invalida il token in corso. Come funziona: vedi
- * ProfiloService e il README, «Profilo dell'account». I tentativi con la password li limita LimiteRichiesteFilter, per utente.
+ * Il profilo dell'account, accanto ad AuthController sotto /api/auth: chi è dentro cambia il suo nome, la sua password e la
+ * sua email. Il JWT identifica l'utente per id (JwtTools), quindi cambiare nome o email non invalida il token in corso. Come
+ * funziona: vedi ProfiloService e il README, «Profilo dell'account». I tentativi con la password li limita
+ * LimiteRichiesteFilter, per utente. La conferma dell'email è pubblica (SecurityConfig) e senza Bearer (JwtFilter): il link
+ * si apre anche da un browser senza sessione, e vale il token.
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -47,5 +52,19 @@ public class ProfiloController {
                                           HttpServletResponse response) {
         service.cambiaPassword(utente, dto.passwordAttuale(), dto.nuovaPassword());
         return sessioni.apri(utente, response);
+    }
+
+    /** 200 con il messaggio: il link parte verso il nuovo indirizzo, l'email dell'account cambia solo alla conferma */
+    @PostMapping("/me/email")
+    public MessaggioDTO richiediCambioEmail(@AuthenticationPrincipal Utente utente, @RequestBody @Validated CambioEmailDTO dto) {
+        service.richiediCambioEmail(utente, dto.nuovaEmail(), dto.password());
+        return new MessaggioDTO(ProfiloService.RISPOSTA_LINK_INVIATO);
+    }
+
+    /** 200 se l'email è cambiata; 400 con un messaggio unico se il link non vale più; 409 se l'indirizzo è stato preso */
+    @PostMapping("/email/conferma")
+    public MessaggioDTO confermaEmail(@RequestBody @Validated ConfermaEmailDTO dto) {
+        service.confermaEmail(dto.token());
+        return new MessaggioDTO(ProfiloService.RISPOSTA_EMAIL_CAMBIATA);
     }
 }

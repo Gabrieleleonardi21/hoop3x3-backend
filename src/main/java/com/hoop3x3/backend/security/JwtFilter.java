@@ -31,7 +31,7 @@ public class JwtFilter extends OncePerRequestFilter {
     /** Endpoint pubblici di autenticazione: non passano dal filtro (vedi shouldNotFilter) */
     private static final Set<String> ENDPOINT_SENZA_BEARER =
             Set.of("/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout",
-                    "/api/auth/password/dimenticata", "/api/auth/password/reimposta");
+                    "/api/auth/password/dimenticata", "/api/auth/password/reimposta", "/api/auth/email/conferma");
 
     private final JwtTools jwtTools;
     private final UtenteRepository utenteRepository;
@@ -44,8 +44,9 @@ public class JwtFilter extends OncePerRequestFilter {
         this.exceptionResolver = exceptionResolver;
     }
 
-    /** Login, registrazione, rinnovo, uscita e recupero password non usano il Bearer: un JWT scaduto rimasto nella richiesta
-     *  non deve impedire di rinnovare la sessione, di uscire o di reimpostare la password. */
+    /** Login, registrazione, rinnovo, uscita, recupero password e conferma del cambio email non usano il Bearer: un JWT
+     *  scaduto rimasto nella richiesta non deve impedire di rinnovare la sessione, di uscire, di reimpostare la password o di
+     *  confermare l'email. */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         // getRequestURI e non getServletPath: con MockMvc il servlet path è vuoto e i test non vedrebbero il percorso

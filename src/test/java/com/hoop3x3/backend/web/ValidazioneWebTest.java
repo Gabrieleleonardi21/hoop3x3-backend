@@ -11,9 +11,11 @@ import com.hoop3x3.backend.controllers.ProfiloController;
 import com.hoop3x3.backend.controllers.RecuperoPasswordController;
 import com.hoop3x3.backend.controllers.Sessioni;
 import com.hoop3x3.backend.controllers.TappaController;
+import com.hoop3x3.backend.dto.CambioEmailDTO;
 import com.hoop3x3.backend.dto.CambioNomeDTO;
 import com.hoop3x3.backend.dto.CambioPasswordDTO;
 import com.hoop3x3.backend.dto.CampettoRequestDTO;
+import com.hoop3x3.backend.dto.ConfermaEmailDTO;
 import com.hoop3x3.backend.dto.GiocatoreRequestDTO;
 import com.hoop3x3.backend.dto.LoginRequestDTO;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
@@ -303,6 +305,8 @@ class ValidazioneWebTest {
                 arguments(POST, "/api/auth/password/reimposta", Map.of(), List.of("token", "nuovaPassword")),
                 arguments(PATCH, "/api/auth/me", Map.of(), List.of("name")),
                 arguments(POST, "/api/auth/me/password", Map.of(), List.of("passwordAttuale", "nuovaPassword")),
+                arguments(POST, "/api/auth/me/email", Map.of(), List.of("nuovaEmail", "password")),
+                arguments(POST, "/api/auth/email/conferma", Map.of(), List.of("token")),
                 arguments(POST, "/api/coach/chat", Map.of(), List.of("messages")));
     }
 
@@ -355,7 +359,11 @@ class ValidazioneWebTest {
             entry(ReimpostaPasswordDTO.class, new Scrittura(POST, "/api/auth/password/reimposta",
                     () -> new LinkedHashMap<>(Map.of("token", "token-del-link", "nuovaPassword", "password-valida")))),
             entry(CambioNomeDTO.class, new Scrittura(PATCH, "/api/auth/me", () -> new LinkedHashMap<>(Map.of("name", "Mario")))),
-            entry(CambioPasswordDTO.class, new Scrittura(POST, "/api/auth/me/password", ValidazioneWebTest::cambioPassword)));
+            entry(CambioPasswordDTO.class, new Scrittura(POST, "/api/auth/me/password", ValidazioneWebTest::cambioPassword)),
+            entry(CambioEmailDTO.class, new Scrittura(POST, "/api/auth/me/email",
+                    () -> new LinkedHashMap<>(Map.of("nuovaEmail", "nuova@x.it", "password", "password-attuale")))),
+            entry(ConfermaEmailDTO.class, new Scrittura(POST, "/api/auth/email/conferma",
+                    () -> new LinkedHashMap<>(Map.of("token", "token-del-link")))));
 
     /** Ogni campo della tabella con l'endpoint che lo riceve, un corpo valido e il suo tetto (letto dal DTO) */
     static Stream<Arguments> campiConUnTetto() {
@@ -402,6 +410,13 @@ class ValidazioneWebTest {
         rifiutata(PATCH, "/api/auth/me", Map.of("name", nome), "name");
     }
 
+    // La nuova email ha le regole dell'email della registrazione: un indirizzo che non è un'email non arriva al servizio
+    @ParameterizedTest
+    @ValueSource(strings = {"non-una-email", "mario@", " "})
+    void nuovaEmailNonValida_risponde400ConIlCampo(String indirizzo) throws Exception {
+        rifiutata(POST, "/api/auth/me/email", Map.of("nuovaEmail", indirizzo, "password", "password-attuale"), "nuovaEmail");
+    }
+
     @Test
     void passwordAttualeVuota_risponde400ConIlCampo() throws Exception {
         Map<String, Object> c = cambioPassword();
@@ -428,7 +443,7 @@ class ValidazioneWebTest {
      * altrimenti il 400 non sarebbe per la lunghezza
      */
     private static String testoDi(String campo, int lunghezza) {
-        if (campo.equals("email")) return emailDi(lunghezza);
+        if (campo.equals("email") || campo.equals("nuovaEmail")) return emailDi(lunghezza);
         if (INDIRIZZI_WEB.contains(campo)) return "https://" + "x".repeat(lunghezza - "https://".length());
         return "x".repeat(lunghezza);
     }
