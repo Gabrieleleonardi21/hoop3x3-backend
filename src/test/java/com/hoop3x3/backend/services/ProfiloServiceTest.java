@@ -17,7 +17,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
@@ -52,7 +54,8 @@ class ProfiloServiceTest {
     // La barra finale si toglie: il link non deve avere «//conferma-email»
     private final ProfiloService service = new ProfiloService(utenti, sessioni, encoder, new UtenteService(utenti, encoder),
             tokens, tokenDelRecupero, email,
-            new AppProperties("https://hoop3x3.onrender.com/", new AppProperties.Brevo(""), new AppProperties.Mail("")));
+            new AppProperties("https://hoop3x3.onrender.com/", new AppProperties.Brevo(""), new AppProperties.Mail("")),
+            mock(PlatformTransactionManager.class)); // le transazioni della conferma: senza database non c'è niente da aprire
 
     private final Utente mario = conId("mario@x.it");
     private LogCatturato log;
@@ -64,6 +67,8 @@ class ProfiloServiceTest {
         when(encoder.matches("vecchia-password", "hash")).thenReturn(true);
         when(encoder.encode(anyString())).thenReturn("hash-nuovo");
         when(utenti.save(any(Utente.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
+        when(utenti.saveAndFlush(any(Utente.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
+        when(utenti.findById(mario.getId())).thenReturn(Optional.of(mario));
         when(tokens.segnaUsato(any(), any())).thenReturn(1);
         log = new LogCatturato(ProfiloService.class);
     }
@@ -269,7 +274,7 @@ class ProfiloServiceTest {
         assertThat(aggiornato.getEmail()).isEqualTo("mario.nuovo@y.it");
         verify(tokens).segnaUsato(eq(token.getId()), any(LocalDateTime.class));
         verify(tokens).invalidaDellUtente(eq(mario.getId()), any(LocalDateTime.class));
-        verify(utenti).save(mario);
+        verify(utenti).saveAndFlush(mario);
         // I link di recupero ancora aperti erano stati mandati all'indirizzo di prima: non valgono più
         verify(tokenDelRecupero).invalidaDellUtente(eq(mario.getId()), any(LocalDateTime.class));
         verifyNoInteractions(sessioni);
@@ -287,7 +292,7 @@ class ProfiloServiceTest {
                     .isInstanceOf(BadRequestException.class).hasMessage(RecuperoPasswordService.LINK_NON_VALIDO);
         }
         verify(tokens, never()).segnaUsato(any(), any());
-        verify(utenti, never()).save(any());
+        verify(utenti, never()).saveAndFlush(any());
         assertThat(mario.getEmail()).isEqualTo("mario@x.it");
     }
 
@@ -299,7 +304,7 @@ class ProfiloServiceTest {
 
         assertThatThrownBy(() -> service.confermaEmail("conteso"))
                 .isInstanceOf(BadRequestException.class).hasMessage(RecuperoPasswordService.LINK_NON_VALIDO);
-        verify(utenti, never()).save(any());
+        verify(utenti, never()).saveAndFlush(any());
         assertThat(mario.getEmail()).isEqualTo("mario@x.it");
     }
 
@@ -313,7 +318,7 @@ class ProfiloServiceTest {
                 .isInstanceOf(ConflictException.class).hasMessage("Email preso@y.it già registrata");
 
         verify(tokens).segnaUsato(eq(token.getId()), any(LocalDateTime.class));
-        verify(utenti, never()).save(any());
+        verify(utenti, never()).saveAndFlush(any());
         assertThat(mario.getEmail()).isEqualTo("mario@x.it");
     }
 
@@ -346,6 +351,19 @@ class ProfiloServiceTest {
         verify(utenti).deleteById(mario.getId());
         assertThat(log.righe()).containsExactly("Account eliminato: utente " + mario.getId());
         assertThat(log.righe()).noneSatisfy(riga -> assertThat(riga).contains("mario@x.it"));
+    }
+
+    // Due conferme verso lo stesso indirizzo, di due utenti, nello stesso istante: il controllo passa a entrambe e l'UNIQUE di
+    // utenti.email scatta alla flush della seconda. Diventa lo stesso 409 del controllo, con lo stesso testo
+    @Test
+    void confermaQuandoLUniqueScattaAllaFlush_409ConIlTestoDellaRegistrazione_eIlTokenEUsato() {
+        TokenCambioEmail token = salvato("buono", "conteso@y.it", Tempo.adesso().plusMinutes(10), null);
+        when(utenti.saveAndFlush(any(Utente.class))).thenThrow(new DataIntegrityViolationException("utenti_email_key"));
+
+        assertThatThrownBy(() -> service.confermaEmail("buono"))
+                .isInstanceOf(ConflictException.class).hasMessage("Email conteso@y.it già registrata");
+
+        verify(tokens).segnaUsato(eq(token.getId()), any(LocalDateTime.class));
     }
 }
 

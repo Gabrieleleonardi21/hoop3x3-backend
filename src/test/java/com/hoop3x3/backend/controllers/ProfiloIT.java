@@ -11,6 +11,7 @@ import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.services.AnagrafeService;
 import com.hoop3x3.backend.services.EmailFinto;
 import com.hoop3x3.backend.services.RefreshTokenService;
+import com.hoop3x3.backend.services.UtenteService;
 import com.hoop3x3.backend.support.Tempo;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +25,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import tools.jackson.databind.ObjectMapper;
@@ -37,6 +39,8 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -74,6 +78,8 @@ class ProfiloIT {
     @Autowired JdbcTemplate jdbc;
     @Autowired EmailFinto email;
     @Autowired OrologioDiProva orologio;
+    // Il servizio vero; un test solo ne salta il controllo dell'email libera per arrivare all'UNIQUE del database
+    @MockitoSpyBean UtenteService utenteService;
 
     private Utente mario;
 
@@ -261,6 +267,24 @@ class ProfiloIT {
         richiediEmail(mario, "conteso@test.it", VECCHIA).andExpect(status().isOk());
         String token = email.ultimoToken();
         utenti.save(new Utente("conteso@test.it", "hash", "Luigi", Ruolo.USER));
+
+        conferma(token).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message").value("Email conteso@test.it già registrata"));
+
+        assertThat(emailDiMario()).isEqualTo("mario@test.it");
+        assertThat(jdbc.queryForObject("select count(*) from token_cambio_email where usato_il is null", Integer.class)).isZero();
+        conferma(token).andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(LINK_NON_VALIDO));
+    }
+
+    // Due conferme verso lo stesso indirizzo nello stesso istante passano entrambe il controllo dell'email libera: qui il controllo
+    // si salta, l'altro account c'è già e scatta l'UNIQUE di utenti.email alla flush. Lo stesso 409 del controllo, l'email
+    // resta, e il link non vale più
+    @Test
+    void seLUniqueScattaAllaConferma_409_lEmailResta_eIlTokenEUsato() throws Exception {
+        richiediEmail(mario, "conteso@test.it", VECCHIA).andExpect(status().isOk());
+        String token = email.ultimoToken();
+        utenti.save(new Utente("conteso@test.it", "hash", "Luigi", Ruolo.USER));
+        doNothing().when(utenteService).controllaEmailLibera(anyString());
 
         conferma(token).andExpect(status().isConflict())
                 .andExpect(jsonPath("$.message").value("Email conteso@test.it già registrata"));

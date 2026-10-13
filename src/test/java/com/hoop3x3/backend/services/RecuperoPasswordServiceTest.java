@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
@@ -49,7 +50,7 @@ class RecuperoPasswordServiceTest {
             new AppProperties("https://hoop3x3.onrender.com/", new AppProperties.Brevo(""), new AppProperties.Mail(""));
     // Il profilo vero, con gli stessi repository simulati: la chiusura dopo il cambio password è la sua (un punto solo)
     private final ProfiloService profilo = new ProfiloService(utenti, sessioni, encoder, new UtenteService(utenti, encoder),
-            tokenDelCambioEmail, tokens, email, proprieta);
+            tokenDelCambioEmail, tokens, email, proprieta, mock(PlatformTransactionManager.class));
     // La barra finale si toglie: il link non deve avere «//reimposta-password»
     private final RecuperoPasswordService service = new RecuperoPasswordService(utenti, tokens, profilo, encoder, email, proprieta);
 

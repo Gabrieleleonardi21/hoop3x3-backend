@@ -3,7 +3,6 @@ package com.hoop3x3.backend.services;
 import com.hoop3x3.backend.entities.TokenCambioEmail;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.BadRequestException;
-import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.ForbiddenException;
 import com.hoop3x3.backend.exceptions.TroppeRichiesteException;
 import com.hoop3x3.backend.repositories.TokenCambioEmailRepository;
@@ -12,11 +11,15 @@ import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.support.Tempo;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static com.hoop3x3.backend.services.LogSupport.mascheraEmail;
 import static com.hoop3x3.backend.services.RecuperoPasswordService.DURATA_MINUTI;
@@ -69,10 +72,13 @@ public class ProfiloService {
     private final TokenRecuperoPasswordRepository tokenDelRecupero;
     private final EmailSender email;
     private final String frontendUrl;
+    // Per la conferma dell'email, in due transazioni (vedi confermaEmail)
+    private final TransactionTemplate transazione;
 
     public ProfiloService(UtenteRepository utenti, RefreshTokenService sessioni, PasswordEncoder encoder,
                           UtenteService utenteService, TokenCambioEmailRepository tokens,
-                          TokenRecuperoPasswordRepository tokenDelRecupero, EmailSender email, AppProperties proprieta) {
+                          TokenRecuperoPasswordRepository tokenDelRecupero, EmailSender email, AppProperties proprieta,
+                          PlatformTransactionManager transazioni) {
         this.utenti = utenti;
         this.sessioni = sessioni;
         this.encoder = encoder;
@@ -82,6 +88,7 @@ public class ProfiloService {
         this.email = email;
         // Senza la barra finale: «https://sito/» darebbe un link con «//conferma-email»
         this.frontendUrl = proprieta.frontendUrl().replaceAll("/+$", "");
+        this.transazione = new TransactionTemplate(transazioni);
     }
 
     /** Il nome mostrato nell'app (l'«autore» delle schede): i limiti di lunghezza li ha già controllati il DTO */
@@ -155,26 +162,46 @@ public class ProfiloService {
 
     /**
      * Conferma il cambio con il token del link: 400 LINK_NON_VALIDO se il token non c'è, è già usato, sostituito o scaduto;
-     * 409 se nel frattempo l'indirizzo è stato registrato da un altro. In quel caso il token resta consumato (noRollbackFor):
-     * il link non vale più, e chi lo vuole ne chiede uno per un altro indirizzo. Le sessioni restano aperte: il JWT
+     * 409 se l'indirizzo è stato registrato da un altro, anche nello stesso istante. Le sessioni restano aperte: il JWT
      * identifica l'utente per id, e l'email nuova non lo rende meno suo.
+     * <p>
+     * Due transazioni e non una: il token si consuma nella prima, che si chiude comunque, e l'email cambia nella seconda.
+     * Se l'UNIQUE di utenti.email scatta alla flush, PostgreSQL annulla tutta la transazione in corso (e Spring la segna
+     * rollback-only): in una transazione sola il token tornerebbe utilizzabile, qualunque noRollbackFor. Così invece il link
+     * non vale più, e chi lo vuole ne chiede uno per un altro indirizzo.
      */
-    @Transactional(noRollbackFor = ConflictException.class)
     public Utente confermaEmail(String token) {
+        TokenCambioEmail salvato = transazione.execute(stato -> consumaIlToken(token));
+        try {
+            return transazione.execute(stato -> cambiaEmail(salvato.getUtente().getId(), salvato.getEmailNuova()));
+        } catch (DataIntegrityViolationException e) {
+            // Due conferme verso lo stesso indirizzo nello stesso istante passano entrambe controllaEmailLibera: per la seconda
+            // l'UNIQUE diventa lo stesso 409, con lo stesso testo
+            throw UtenteService.emailGiaRegistrata(salvato.getEmailNuova());
+        }
+    }
+
+    /** Il token del link segnato come usato, e gli altri link di cambio email dell'utente invalidati */
+    private TokenCambioEmail consumaIlToken(String token) {
         TokenCambioEmail salvato = tokens.findByTokenHash(sha256(token))
                 .filter(TokenCambioEmail::isUtilizzabile)
                 .orElseThrow(() -> new BadRequestException(LINK_NON_VALIDO));
         LocalDateTime adesso = Tempo.adesso();
         // Due richieste insieme con lo stesso link: lo segna solo la prima, l'altra non cambia l'email
         if (tokens.segnaUsato(salvato.getId(), adesso) == 0) throw new BadRequestException(LINK_NON_VALIDO);
-        Utente utente = salvato.getUtente();
-        tokens.invalidaDellUtente(utente.getId(), adesso);
-        utenteService.controllaEmailLibera(salvato.getEmailNuova());
-        utente.setEmail(salvato.getEmailNuova());
-        Utente aggiornato = utenti.save(utente);
+        tokens.invalidaDellUtente(salvato.getUtente().getId(), adesso);
+        return salvato;
+    }
+
+    /** L'email nuova all'account, riletto in questa transazione; saveAndFlush, così l'UNIQUE scatta qui e non al commit */
+    private Utente cambiaEmail(UUID utenteId, String emailNuova) {
+        utenteService.controllaEmailLibera(emailNuova);
+        Utente utente = utenti.findById(utenteId).orElseThrow(() -> new BadRequestException(LINK_NON_VALIDO));
+        utente.setEmail(emailNuova);
+        Utente aggiornato = utenti.saveAndFlush(utente);
         // I link di recupero ancora aperti sono andati all'indirizzo di prima, che potrebbe non essere più dell'utente
-        tokenDelRecupero.invalidaDellUtente(utente.getId(), adesso);
-        log.info("Email cambiata: utente {}", utente.getId());
+        tokenDelRecupero.invalidaDellUtente(utenteId, Tempo.adesso());
+        log.info("Email cambiata: utente {}", utenteId);
         return aggiornato;
     }
 

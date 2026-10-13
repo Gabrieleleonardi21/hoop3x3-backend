@@ -57,9 +57,12 @@ public class UtenteService implements UserDetailsService {
      * (ProfiloService, alla richiesta e alla conferma)
      */
     public void controllaEmailLibera(String emailNormalizzata) {
-        if (utenteRepository.existsByEmail(emailNormalizzata)) {
-            throw new ConflictException("Email " + emailNormalizzata + " già registrata");
-        }
+        if (utenteRepository.existsByEmail(emailNormalizzata)) throw emailGiaRegistrata(emailNormalizzata);
+    }
+
+    /** Il 409 dell'email già registrata, con il suo testo: lo usa anche ProfiloService quando l'UNIQUE scatta alla flush */
+    public static ConflictException emailGiaRegistrata(String emailNormalizzata) {
+        return new ConflictException("Email " + emailNormalizzata + " già registrata");
     }
 
     /**
