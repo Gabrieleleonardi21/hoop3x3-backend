@@ -27,8 +27,8 @@ import static com.hoop3x3.backend.services.RefreshTokenService.nuovoToken;
 import static com.hoop3x3.backend.services.RefreshTokenService.sha256;
 
 /**
- * Il profilo dell'account: chi è dentro cambia il suo nome, la sua password e la sua email (vedi il README, «Profilo
- * dell'account»).
+ * Il profilo dell'account: chi è dentro cambia il suo nome, la sua password e la sua email, ed elimina l'account (vedi il
+ * README, «Profilo dell'account»).
  * <ul>
  *   <li>Le operazioni delicate chiedono la password attuale anche con un JWT valido: un JWT rubato da solo non basta. Se è
  *       sbagliata la risposta è 400 e non 401: un 401 farebbe tentare al client il rinnovo della sessione e, se fallisse,
@@ -38,8 +38,8 @@ import static com.hoop3x3.backend.services.RefreshTokenService.sha256;
  *   <li>L'email cambia solo quando il link mandato al NUOVO indirizzo viene aperto e confermato: un errore di battitura non
  *       lascia l'account con un indirizzo che nessuno legge. Il link ha le regole di quello del recupero password (token di 32
  *       byte, nel database solo lo SHA-256, 30 minuti, una volta sola, al massimo 3 ogni 15 minuti per account).</li>
- *   <li>L'ADMIN non cambia email dall'app: lo riconosce il DataSeeder da ADMIN_EMAIL, e con un'email cambiata al riavvio ne
- *       nascerebbe un secondo (o resterebbe un WARN).</li>
+ *   <li>L'ADMIN non cambia email e non si elimina dall'app: lo riconosce il DataSeeder da ADMIN_EMAIL, e con un'email
+ *       cambiata (o senza la sua riga) al riavvio ne nascerebbe un altro.</li>
  * </ul>
  * Nei log solo l'id dell'utente e l'email mascherata: mai le password né i token, e mai il nome, che lo scrive l'utente.
  */
@@ -156,6 +156,22 @@ public class ProfiloService {
         Utente aggiornato = utenti.save(utente);
         log.info("Email cambiata: utente {}", utente.getId());
         return aggiornato;
+    }
+
+    /**
+     * Elimina l'account con la password attuale: 403 per l'ADMIN (nasce da ADMIN_EMAIL: il DataSeeder lo ricreerebbe e i dati
+     * di prova intestati a lui resterebbero senza proprietario), 400 se la password è sbagliata. Basta la DELETE della riga
+     * di utenti, perché Utente non ha collezioni mappate: il resto lo fa il database con le sue chiavi esterne, nella stessa
+     * transazione. Vanno via sessioni e token (ON DELETE CASCADE), le leghe con le loro tappe e le pubblicazioni; i campetti
+     * restano senza autore (ON DELETE SET NULL, V8). Vedi il README, «Profilo dell'account».
+     */
+    @Transactional
+    public void elimina(Utente utente, String password) {
+        if (utente.isAdmin()) throw new ForbiddenException(ADMIN_DALLA_CONFIGURAZIONE);
+        verificaPassword(utente, password);
+        utenti.deleteById(utente.getId());
+        // Solo l'id: l'email non esiste più e non deve restare nei log
+        log.info("Account eliminato: utente {}", utente.getId());
     }
 
     /** La password attuale dell'account: 400 PASSWORD_ATTUALE_ERRATA se non è quella giusta (mai 401, vedi la classe) */

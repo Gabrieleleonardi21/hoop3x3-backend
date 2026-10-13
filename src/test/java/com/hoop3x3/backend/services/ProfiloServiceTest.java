@@ -297,4 +297,36 @@ class ProfiloServiceTest {
         verify(utenti, never()).save(any());
         assertThat(mario.getEmail()).isEqualTo("mario@x.it");
     }
+
+    /* ── Eliminazione ── */
+
+    // D6: l'ADMIN non si elimina dall'app (il seeder lo ricreerebbe e il seed demo resterebbe senza proprietario)
+    @Test
+    void eliminazioneDellAdmin_403SenzaToccareIlDatabase() {
+        Utente admin = conId("admin@x.it", Ruolo.ADMIN);
+
+        assertThatThrownBy(() -> service.elimina(admin, "vecchia-password"))
+                .isInstanceOf(ForbiddenException.class).hasMessage(ProfiloService.ADMIN_DALLA_CONFIGURAZIONE);
+
+        verifyNoInteractions(utenti, encoder);
+    }
+
+    @Test
+    void eliminazioneConLaPasswordSbagliata_400_eNonEliminaNiente() {
+        assertThatThrownBy(() -> service.elimina(mario, "sbagliata"))
+                .isInstanceOf(BadRequestException.class).hasMessage(ProfiloService.PASSWORD_ATTUALE_ERRATA);
+
+        verify(utenti, never()).deleteById(any());
+    }
+
+    // Il resto (sessioni, token, leghe con tappe e pubblicazioni) lo cancella il database con le sue chiavi esterne
+    @Test
+    void eliminazione_cancellaLaRigaDellUtente_eNelLogLasciaSoloLId() {
+        service.elimina(mario, "vecchia-password");
+
+        verify(utenti).deleteById(mario.getId());
+        assertThat(log.righe()).containsExactly("Account eliminato: utente " + mario.getId());
+        assertThat(log.righe()).noneSatisfy(riga -> assertThat(riga).contains("mario@x.it"));
+    }
 }
+
