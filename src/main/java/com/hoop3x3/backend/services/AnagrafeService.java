@@ -151,7 +151,7 @@ public class AnagrafeService {
         return autore.getId();
     }
 
-        private AnagrafeGiocatore trovaGiocatore(UUID id) {
+    private AnagrafeGiocatore trovaGiocatore(UUID id) {
         return giocatori.findById(id).orElseThrow(() -> new NotFoundException("Giocatore non trovato: " + id));
     }
 
