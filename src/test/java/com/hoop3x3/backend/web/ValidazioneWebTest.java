@@ -8,6 +8,7 @@ import com.hoop3x3.backend.controllers.CampettoController;
 import com.hoop3x3.backend.controllers.CoachController;
 import com.hoop3x3.backend.controllers.LegaController;
 import com.hoop3x3.backend.controllers.RecuperoPasswordController;
+import com.hoop3x3.backend.controllers.Sessioni;
 import com.hoop3x3.backend.controllers.TappaController;
 import com.hoop3x3.backend.dto.CampettoRequestDTO;
 import com.hoop3x3.backend.dto.GiocatoreRequestDTO;
@@ -98,7 +99,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(controllers = {LegaController.class, TappaController.class, AnagrafeController.class,
         ArchivioController.class, AuthController.class, CoachController.class, CampettoController.class,
         RecuperoPasswordController.class})
-@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class,
+@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class, Sessioni.class,
         ExceptionsHandler.class, LimiteDimensioneFilter.class, UtenteService.class})
 // I login e le registrazioni di questa classe partono tutti dallo stesso indirizzo e sono quasi quanti ne ammette il limite di
 // produzione (10 al minuto): un caso in più rischierebbe un 429 che non c'entra (stesso valore di LogApplicativiTest)

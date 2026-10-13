@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /** Solo lo strato web: servizi e repository sono simulati, la catena di sicurezza è quella vera. */
 @WebMvcTest(AuthController.class)
-@Import({SecurityConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class})
+@Import({SecurityConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class, Sessioni.class})
 class AuthControllerTest {
 
     // Il 401 che il filtro dà a un JWT scaduto: lo stesso testo di JwtTools, che qui è simulato
