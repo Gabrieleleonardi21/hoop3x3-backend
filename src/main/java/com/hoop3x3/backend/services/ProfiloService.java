@@ -7,6 +7,7 @@ import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.ForbiddenException;
 import com.hoop3x3.backend.exceptions.TroppeRichiesteException;
 import com.hoop3x3.backend.repositories.TokenCambioEmailRepository;
+import com.hoop3x3.backend.repositories.TokenRecuperoPasswordRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.support.Tempo;
 import lombok.extern.slf4j.Slf4j;
@@ -33,8 +34,9 @@ import static com.hoop3x3.backend.services.RefreshTokenService.sha256;
  *   <li>Le operazioni delicate chiedono la password attuale anche con un JWT valido: un JWT rubato da solo non basta. Se è
  *       sbagliata la risposta è 400 e non 401: un 401 farebbe tentare al client il rinnovo della sessione e, se fallisse,
  *       lo farebbe uscire. I tentativi a raffica li ferma il limite per utente di LimiteRichiesteFilter.</li>
- *   <li>Cambiare la password chiude tutte le sessioni dell'account, come il recupero: la riapre il controller per il solo
- *       browser che ha fatto la richiesta.</li>
+ *   <li>Cambiare la password, dal profilo o con il recupero, chiude tutte le sessioni dell'account e i link ancora aperti
+ *       (chiudiTuttoDopoIlCambioPassword, la regola in un punto solo): il controller del profilo riapre la sessione per il
+ *       solo browser che ha fatto la richiesta.</li>
  *   <li>L'email cambia solo quando il link mandato al NUOVO indirizzo viene aperto e confermato: un errore di battitura non
  *       lascia l'account con un indirizzo che nessuno legge. Il link ha le regole di quello del recupero password (token di 32
  *       byte, nel database solo lo SHA-256, 30 minuti, una volta sola, al massimo 3 ogni 15 minuti per account).</li>
@@ -64,17 +66,19 @@ public class ProfiloService {
     private final PasswordEncoder encoder;
     private final UtenteService utenteService;
     private final TokenCambioEmailRepository tokens;
+    private final TokenRecuperoPasswordRepository tokenDelRecupero;
     private final EmailSender email;
     private final String frontendUrl;
 
     public ProfiloService(UtenteRepository utenti, RefreshTokenService sessioni, PasswordEncoder encoder,
-                          UtenteService utenteService, TokenCambioEmailRepository tokens, EmailSender email,
-                          AppProperties proprieta) {
+                          UtenteService utenteService, TokenCambioEmailRepository tokens,
+                          TokenRecuperoPasswordRepository tokenDelRecupero, EmailSender email, AppProperties proprieta) {
         this.utenti = utenti;
         this.sessioni = sessioni;
         this.encoder = encoder;
         this.utenteService = utenteService;
         this.tokens = tokens;
+        this.tokenDelRecupero = tokenDelRecupero;
         this.email = email;
         // Senza la barra finale: «https://sito/» darebbe un link con «//conferma-email»
         this.frontendUrl = proprieta.frontendUrl().replaceAll("/+$", "");
@@ -99,10 +103,24 @@ public class ProfiloService {
         UtenteService.controllaPassword(nuova);
         utente.setPassword(encoder.encode(nuova));
         Utente salvato = utenti.save(utente);
-        // Chi cambia la password perché qualcuno l'ha scoperta chiude anche le sessioni di quel qualcuno
-        sessioni.revocaTutte(utente);
+        chiudiTuttoDopoIlCambioPassword(utente);
         log.info("Password cambiata dal profilo: utente {}", utente.getId());
         return salvato;
+    }
+
+    /**
+     * Dopo un cambio della password (dal profilo o con il link del recupero, RecuperoPasswordService): chi la cambia perché
+     * qualcuno l'ha scoperta chiude anche ciò che quel qualcuno potrebbe ancora usare senza password. Nell'ordine: tutte le
+     * sessioni, i link di cambio email ancora aperti (uno chiesto verso l'indirizzo di chi conosceva la password vecchia
+     * varrebbe altri 30 minuti, e la conferma è pubblica) e i link di recupero ancora aperti. I JWT già emessi restano validi
+     * fino alla loro scadenza.
+     */
+    @Transactional
+    public void chiudiTuttoDopoIlCambioPassword(Utente utente) {
+        LocalDateTime adesso = Tempo.adesso();
+        sessioni.revocaTutte(utente);
+        tokens.invalidaDellUtente(utente.getId(), adesso);
+        tokenDelRecupero.invalidaDellUtente(utente.getId(), adesso);
     }
 
     /**

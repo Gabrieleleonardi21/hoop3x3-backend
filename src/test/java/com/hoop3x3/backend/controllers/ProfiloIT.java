@@ -151,6 +151,19 @@ class ProfiloIT {
         login(VECCHIA).andExpect(status().isUnauthorized());
     }
 
+    // Chi conosceva la password vecchia ha chiesto il cambio email verso il suo indirizzo: il cambio password della vittima
+    // chiude anche quel link, che altrimenti varrebbe ancora 30 minuti con la conferma pubblica
+    @Test
+    void unLinkDiCambioEmailChiestoPrimaDelCambioPassword_nonValePiu() throws Exception {
+        richiediEmail(mario, "attaccante@test.it", VECCHIA).andExpect(status().isOk());
+        String link = email.ultimoToken();
+
+        cambiaPassword(mario, VECCHIA, "nuova-password").andExpect(status().isOk());
+
+        conferma(link).andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(LINK_NON_VALIDO));
+        assertThat(emailDiMario()).isEqualTo("mario@test.it");
+    }
+
     // Un JWT rubato non basta a provare password a raffica: oltre 10 tentativi nel minuto, 429 prima del BCrypt
     @Test
     void oltre10TentativiAlMinuto_429() throws Exception {

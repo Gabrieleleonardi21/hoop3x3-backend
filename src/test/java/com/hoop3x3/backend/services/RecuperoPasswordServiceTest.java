@@ -4,6 +4,7 @@ import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.entities.TokenRecuperoPassword;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.BadRequestException;
+import com.hoop3x3.backend.repositories.TokenCambioEmailRepository;
 import com.hoop3x3.backend.repositories.TokenRecuperoPasswordRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.support.Tempo;
@@ -43,9 +44,14 @@ class RecuperoPasswordServiceTest {
     private final RefreshTokenService sessioni = mock(RefreshTokenService.class);
     private final PasswordEncoder encoder = mock(PasswordEncoder.class);
     private final EmailFinto email = new EmailFinto();
+    private final TokenCambioEmailRepository tokenDelCambioEmail = mock(TokenCambioEmailRepository.class);
+    private final AppProperties proprieta =
+            new AppProperties("https://hoop3x3.onrender.com/", new AppProperties.Brevo(""), new AppProperties.Mail(""));
+    // Il profilo vero, con gli stessi repository simulati: la chiusura dopo il cambio password è la sua (un punto solo)
+    private final ProfiloService profilo = new ProfiloService(utenti, sessioni, encoder, new UtenteService(utenti, encoder),
+            tokenDelCambioEmail, tokens, email, proprieta);
     // La barra finale si toglie: il link non deve avere «//reimposta-password»
-    private final RecuperoPasswordService service = new RecuperoPasswordService(utenti, tokens, sessioni, encoder, email,
-            new AppProperties("https://hoop3x3.onrender.com/", new AppProperties.Brevo(""), new AppProperties.Mail("")));
+    private final RecuperoPasswordService service = new RecuperoPasswordService(utenti, tokens, profilo, encoder, email, proprieta);
 
     private final Utente mario = conId("mario@x.it");
     private LogCatturato log;
@@ -186,8 +192,12 @@ class RecuperoPasswordServiceTest {
         verify(encoder).encode("nuova-password");
         verify(utenti).save(mario);
         verify(tokens).segnaUsato(eq(token.getId()), any(LocalDateTime.class));
-        verify(tokens).invalidaDellUtente(eq(mario.getId()), any(LocalDateTime.class));
-        verify(sessioni).revocaTutte(mario);
+        // Le stesse chiusure del cambio password dal profilo, nello stesso ordine: sessioni, link di cambio email, link di recupero
+        InOrder ordine = inOrder(utenti, sessioni, tokenDelCambioEmail, tokens);
+        ordine.verify(utenti).save(mario);
+        ordine.verify(sessioni).revocaTutte(mario);
+        ordine.verify(tokenDelCambioEmail).invalidaDellUtente(eq(mario.getId()), any(LocalDateTime.class));
+        ordine.verify(tokens).invalidaDellUtente(eq(mario.getId()), any(LocalDateTime.class));
         // Nel log l'id dell'utente, mai la password né il token
         assertThat(log.righe()).isNotEmpty().noneSatisfy(riga -> assertThat(riga).containsAnyOf("buono", "nuova-password"));
     }

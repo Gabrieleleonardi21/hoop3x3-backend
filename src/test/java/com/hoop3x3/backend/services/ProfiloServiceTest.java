@@ -9,6 +9,7 @@ import com.hoop3x3.backend.exceptions.ConflictException;
 import com.hoop3x3.backend.exceptions.ForbiddenException;
 import com.hoop3x3.backend.exceptions.TroppeRichiesteException;
 import com.hoop3x3.backend.repositories.TokenCambioEmailRepository;
+import com.hoop3x3.backend.repositories.TokenRecuperoPasswordRepository;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.support.Tempo;
 import org.junit.jupiter.api.AfterEach;
@@ -46,10 +47,12 @@ class ProfiloServiceTest {
     private final RefreshTokenService sessioni = mock(RefreshTokenService.class);
     private final PasswordEncoder encoder = mock(PasswordEncoder.class);
     private final TokenCambioEmailRepository tokens = mock(TokenCambioEmailRepository.class);
+    private final TokenRecuperoPasswordRepository tokenDelRecupero = mock(TokenRecuperoPasswordRepository.class);
     private final EmailFinto email = new EmailFinto();
     // La barra finale si toglie: il link non deve avere «//conferma-email»
     private final ProfiloService service = new ProfiloService(utenti, sessioni, encoder, new UtenteService(utenti, encoder),
-            tokens, email, new AppProperties("https://hoop3x3.onrender.com/", new AppProperties.Brevo(""), new AppProperties.Mail("")));
+            tokens, tokenDelRecupero, email,
+            new AppProperties("https://hoop3x3.onrender.com/", new AppProperties.Brevo(""), new AppProperties.Mail("")));
 
     private final Utente mario = conId("mario@x.it");
     private LogCatturato log;
@@ -126,16 +129,30 @@ class ProfiloServiceTest {
     }
 
     @Test
-    void cambiaPassword_salvaLHashDellaNuova_ePoiChiudeTutteLeSessioni() {
+    void cambiaPassword_salvaLHashDellaNuova_ePoiChiudeSessioniELinkAperti() {
         service.cambiaPassword(mario, "vecchia-password", "nuova-password");
 
         assertThat(mario.getPassword()).isEqualTo("hash-nuovo");
-        InOrder ordine = inOrder(encoder, utenti, sessioni);
+        InOrder ordine = inOrder(encoder, utenti, sessioni, tokens, tokenDelRecupero);
         ordine.verify(encoder).encode("nuova-password");
         ordine.verify(utenti).save(mario);
         ordine.verify(sessioni).revocaTutte(mario);
+        ordine.verify(tokens).invalidaDellUtente(eq(mario.getId()), any(LocalDateTime.class));
+        ordine.verify(tokenDelRecupero).invalidaDellUtente(eq(mario.getId()), any(LocalDateTime.class));
         // Nel log l'id, mai le password
         assertThat(log.righe()).containsExactly("Password cambiata dal profilo: utente " + mario.getId());
+    }
+
+    // Chi cambia la password chiude tutto ciò che vale senza password: le sessioni, e i link di cambio email e di recupero
+    // ancora aperti. Un link di cambio email chiesto da chi conosceva la password vecchia non deve sopravvivere al cambio
+    @Test
+    void chiudiTuttoDopoIlCambioPassword_sessioni_linkDelCambioEmail_eLinkDelRecupero_inQuestOrdine() {
+        service.chiudiTuttoDopoIlCambioPassword(mario);
+
+        InOrder ordine = inOrder(sessioni, tokens, tokenDelRecupero);
+        ordine.verify(sessioni).revocaTutte(mario);
+        ordine.verify(tokens).invalidaDellUtente(eq(mario.getId()), any(LocalDateTime.class));
+        ordine.verify(tokenDelRecupero).invalidaDellUtente(eq(mario.getId()), any(LocalDateTime.class));
     }
 
     /* ── Richiesta del cambio email ── */
