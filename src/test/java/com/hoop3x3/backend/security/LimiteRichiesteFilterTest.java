@@ -38,6 +38,9 @@ class LimiteRichiesteFilterTest {
     private static final String RINNOVO = "/api/auth/refresh";
     private static final String RECUPERO = "/api/auth/password/dimenticata";
     private static final String COACH = "/api/coach/chat";
+    private static final String PASSWORD_DEL_PROFILO = "/api/auth/me/password";
+    private static final String EMAIL_DEL_PROFILO = "/api/auth/me/email";
+    private static final String ELIMINAZIONE = "/api/auth/me/elimina";
     private static final String INDIRIZZO = "203.0.113.9";
 
     private final OrologioDiProva orologio = new OrologioDiProva();
@@ -268,6 +271,63 @@ class LimiteRichiesteFilterTest {
         orologio.avanza(Duration.ofMinutes(1));
         assertThat(postPassa(COACH, INDIRIZZO)).as("la quota è consumata dalle sole 4 passate").isFalse();
         assertThat(ultimoRifiuto().getMessage()).startsWith("Quota giornaliera del Coach AI esaurita");
+    }
+
+    /* ── Profilo: i tre endpoint con la password, per utente e con un contatore solo ── */
+
+    // Chi ha rubato un JWT non può provare password a raffica: l'undicesima del piano, qui la quarta, si ferma prima del
+    // BCrypt del servizio, con il suo messaggio
+    @Test
+    void laQuartaPasswordDelProfiloNelMinutoDelloStessoUtente_nonProsegue() throws Exception {
+        accediComeUtente(conId("mario@x.it"));
+        postPassano(PASSWORD_DEL_PROFILO, INDIRIZZO, 3);
+
+        assertThat(postPassa(PASSWORD_DEL_PROFILO, INDIRIZZO)).isFalse();
+
+        assertThat(arrivateAValle).isEqualTo(3);
+        assertThat(ultimoRifiuto().getSecondiAttesa()).isEqualTo(40);
+        assertThat(ultimoRifiuto().getMessage()).isEqualTo("Troppi tentativi con la password: riprova tra 40 secondi");
+    }
+
+    // Il contatore è dell'utente: un altro, anche dallo stesso indirizzo, ha il suo
+    @Test
+    void ilProfiloDiUnAltroUtente_haIlSuoContatore() throws Exception {
+        accediComeUtente(conId("mario@x.it"));
+        postPassano(PASSWORD_DEL_PROFILO, INDIRIZZO, 3);
+        assertThat(postPassa(PASSWORD_DEL_PROFILO, INDIRIZZO)).isFalse();
+
+        accediComeUtente(conId("luca@x.it"));
+        postPassano(PASSWORD_DEL_PROFILO, INDIRIZZO, 3);
+    }
+
+    // Senza utente risponde l'autorizzazione con il 401: contare permetterebbe a chiunque di togliere i tentativi agli altri
+    @Test
+    void senzaUtente_ilProfiloNonSiConta() throws Exception {
+        postPassano(PASSWORD_DEL_PROFILO, INDIRIZZO, 10);
+        postPassano(ELIMINAZIONE, INDIRIZZO, 10);
+        assertThat(errori).isEmpty();
+    }
+
+    // Password, email ed eliminazione chiedono tutte la password attuale: chi la cerca non si prende tre contatori
+    @Test
+    void iTreEndpointConLaPassword_condividonoIlContatore() throws Exception {
+        accediComeUtente(conId("mario@x.it"));
+        assertThat(postPassa(PASSWORD_DEL_PROFILO, INDIRIZZO)).isTrue();
+        assertThat(postPassa(EMAIL_DEL_PROFILO, INDIRIZZO)).isTrue();
+        assertThat(postPassa(ELIMINAZIONE, INDIRIZZO)).isTrue();
+
+        assertThat(postPassa(PASSWORD_DEL_PROFILO, INDIRIZZO)).isFalse();
+        assertThat(postPassa(EMAIL_DEL_PROFILO, INDIRIZZO)).isFalse();
+        assertThat(postPassa(ELIMINAZIONE, INDIRIZZO)).isFalse();
+    }
+
+    // Il cambio del nome non chiede la password e non si conta
+    @Test
+    void ilCambioDelNome_nonSiConta() throws Exception {
+        accediComeUtente(conId("mario@x.it"));
+        for (int i = 0; i < 10; i++) {
+            assertThat(passa("PATCH", "/api/auth/me", INDIRIZZO)).isTrue();
+        }
     }
 
     /* ── Il log: una riga per chiave e per finestra ── */

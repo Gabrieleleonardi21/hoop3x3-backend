@@ -11,7 +11,8 @@ import org.springframework.validation.annotation.Validated;
  * tutti, quindi il server non parte e dice quale proprietà è sbagliata.
  *
  * @param authAlMinuto   login, registrazione, rinnovo del token e richiesta del link di recupero password: ognuno ha il suo
- *                       contatore, per indirizzo IP
+ *                       contatore, per indirizzo IP. Lo stesso numero vale, per utente, per i tre endpoint del profilo che
+ *                       chiedono la password attuale (cambio della password e dell'email, eliminazione), con un contatore solo
  * @param coachAlMinuto  Coach AI, per utente
  * @param coachAlGiorno  Coach AI, per utente: il giorno finisce a mezzanotte UTC
  */
