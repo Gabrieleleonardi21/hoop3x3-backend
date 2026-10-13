@@ -35,6 +35,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.allOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -46,7 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Il profilo dell'account con il database vero e la catena vera (JWT, limiti di frequenza): il nome cambia subito ed è quello
  * che l'anagrafe mostra come autore, la password cambia solo con quella attuale giusta e chiude le altre sessioni, l'email
- * cambia solo con il link mandato al nuovo indirizzo. Il limite
+ * cambia solo con il link mandato al nuovo indirizzo, l'account si elimina solo con la password giusta e mai l'ADMIN. Il limite
  * dei tentativi è quello di produzione (10 al minuto) con un orologio che si sposta a comando: ogni test parte da un minuto
  * nuovo. Nessuna email vera: EmailSender è quello finto (EmailFinto).
  */
@@ -290,7 +292,52 @@ class ProfiloIT {
         assertThat(rimasti).containsExactly(luigi.getId().toString());
     }
 
+    /* ── Eliminazione ── */
+
+    // Dopo il 204 l'account non c'è più: il cookie si cancella, il login non riesce e il JWT di prima non vale più
+    @Test
+    void eliminareLAccount_conLaPasswordGiusta_204_cancellaIlCookie_eIlLoginNonFunzionaPiu() throws Exception {
+        String jwtDiPrima = bearer(mario);
+
+        elimina(mario, VECCHIA).andExpect(status().isNoContent())
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, allOf(
+                        containsString(AuthCookies.NOME + "="), containsString("Max-Age=0"), containsString("Path=/api/auth"))));
+
+        assertThat(utenti.findById(mario.getId())).isEmpty();
+        login(VECCHIA).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/auth/me").header(AUTHORIZATION, jwtDiPrima)).andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("L'utente associato al token non esiste più"));
+    }
+
+    @Test
+    void eliminareLAccount_conLaPasswordSbagliata_400_eNienteCambia() throws Exception {
+        String sessione = refreshTokenService.emetti(mario);
+
+        elimina(mario, "sbagliata").andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("La password attuale non è corretta"))
+                .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+
+        assertThat(utenti.findById(mario.getId())).isPresent();
+        rinnova(sessione).andExpect(status().isOk());
+    }
+
+    // D6: l'ADMIN nasce da ADMIN_EMAIL; senza la sua riga il seeder lo ricreerebbe e il seed demo resterebbe senza proprietario
+    @Test
+    void lAdmin_nonSiElimina_403() throws Exception {
+        Utente admin = utenti.save(new Utente("admin@test.it", encoder.encode(VECCHIA), "Admin", Ruolo.ADMIN));
+
+        elimina(admin, VECCHIA).andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("L'account ADMIN si gestisce dalla configurazione del server (ADMIN_EMAIL)"));
+
+        assertThat(utenti.findById(admin.getId())).isPresent();
+    }
+
     /* ── Richieste ── */
+
+    private ResultActions elimina(Utente utente, String password) throws Exception {
+        return mvc.perform(post("/api/auth/me/elimina").header(AUTHORIZATION, bearer(utente))
+                .contentType(MediaType.APPLICATION_JSON).content(json(Map.of("password", password))));
+    }
 
     private String bearer(Utente utente) {
         return "Bearer " + jwt.generateToken(utente);
