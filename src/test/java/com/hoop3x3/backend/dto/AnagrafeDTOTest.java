@@ -54,6 +54,39 @@ class AnagrafeDTOTest {
         assertThat(pubblica.autoreId()).isNull();
     }
 
+    // V11: l'autore eliminato lascia la scheda con autore_id NULL. La forma completa la mostra senza autore, come un campetto
+    // (CampettoDTO): nome vuoto (il frontend non scrive «Registrato da») e id null (nessuno vede «Modifica», tranne un ADMIN)
+    @Test
+    void ilGiocatoreSenzaAutore_nellaFormaCompletaHaAutoreVuotoEIdNull() {
+        AnagrafeGiocatore g = new AnagrafeGiocatore();
+        ReflectionTestUtils.setField(g, "id", UUID.randomUUID());
+        g.setNome("Mario");
+        g.setCognome("Rossi");
+        g.setNote("Una nota");
+        g.setModificatoIl(LocalDateTime.now());
+
+        GiocatoreDTO completo = GiocatoreDTO.from(g);
+
+        assertThat(completo.note()).isEqualTo("Una nota");
+        assertThat(completo.autore()).isEmpty();
+        assertThat(completo.autoreId()).isNull();
+    }
+
+    @Test
+    void laSquadraSenzaAutore_nellaFormaCompletaHaAutoreVuotoEIdNull() {
+        AnagrafeSquadra s = new AnagrafeSquadra();
+        ReflectionTestUtils.setField(s, "id", UUID.randomUUID());
+        s.setNome("Roma 3x3");
+        s.setReferente("Luigi Bianchi");
+        s.setModificatoIl(LocalDateTime.now());
+
+        SquadraDTO completa = SquadraDTO.from(s);
+
+        assertThat(completa.referente()).isEqualTo("Luigi Bianchi");
+        assertThat(completa.autore()).isEmpty();
+        assertThat(completa.autoreId()).isNull();
+    }
+
     // Un buco nell'@OrderColumn del roster arriva da Hibernate come un null (AnagrafeIT lo crea con il database vero): le due
     // forme lo saltano invece di cadere con una NullPointerException, e tengono l'ordine degli altri
     @Test

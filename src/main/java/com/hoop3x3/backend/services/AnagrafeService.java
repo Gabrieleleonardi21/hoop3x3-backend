@@ -23,8 +23,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * Anagrafe condivisa del circuito: lettura pubblica, scrittura di autore o ADMIN. Gli elenchi hanno due forme: la completa
- * per chi ha un account e la pubblica, senza i dati personali, per l'ospite (sceglie il controller).
+ * Anagrafe condivisa del circuito: lettura pubblica, scrittura di autore o ADMIN. Una scheda sopravvive al suo autore (V11):
+ * senza autore la modifica solo un ADMIN. Gli elenchi hanno due forme: la completa per chi ha un account e la pubblica, senza
+ * i dati personali, per l'ospite (sceglie il controller).
  */
 @Service
 public class AnagrafeService {
@@ -63,10 +64,10 @@ public class AnagrafeService {
     @Transactional
     public GiocatoreDTO aggiornaGiocatore(Utente utente, UUID id, GiocatoreRequestDTO dto) {
         AnagrafeGiocatore g = trovaGiocatore(id);
-        guard.checkOwner(utente, g.getAutore().getId(), "questa scheda giocatore");
+        guard.checkOwner(utente, idDellAutore(g.getAutore()), "questa scheda giocatore");
         controllaVersione(dto.versione(), g.getVersione(), AnagrafeGiocatore.class, id);
         applica(dto, g);
-        guard.tracciaModifica(utente, g.getAutore().getId(), "giocatore", id);
+        guard.tracciaModifica(utente, idDellAutore(g.getAutore()), "giocatore", id);
         // saveAndFlush: la data di modifica (@PreUpdate) la scrive Hibernate al flush, e senza flush il DTO porterebbe il ts
         // di prima, non quello del salvataggio appena fatto
         return GiocatoreDTO.from(giocatori.saveAndFlush(g));
@@ -75,8 +76,8 @@ public class AnagrafeService {
     @Transactional
     public void eliminaGiocatore(Utente utente, UUID id) {
         AnagrafeGiocatore g = trovaGiocatore(id);
-        guard.checkOwner(utente, g.getAutore().getId(), "questa scheda giocatore");
-        guard.tracciaEliminazione(utente, g.getAutore().getId(), "giocatore", id);
+        guard.checkOwner(utente, idDellAutore(g.getAutore()), "questa scheda giocatore");
+        guard.tracciaEliminazione(utente, idDellAutore(g.getAutore()), "giocatore", id);
         // Toglie il giocatore dai roster che lo contengono (la FK del ponte è ON DELETE CASCADE,
         // ma Hibernate va tenuto allineato per non lasciare buchi nell'@OrderColumn). Si caricano solo quelle squadre,
         // non tutte, e sono già gestite: la modifica del roster la salva la transazione. Un null è un buco già presente
@@ -111,18 +112,18 @@ public class AnagrafeService {
     @Transactional
     public SquadraDTO aggiornaSquadra(Utente utente, UUID id, SquadraRequestDTO dto) {
         AnagrafeSquadra s = trovaSquadra(id);
-        guard.checkOwner(utente, s.getAutore().getId(), "questa squadra");
+        guard.checkOwner(utente, idDellAutore(s.getAutore()), "questa squadra");
         controllaVersione(dto.versione(), s.getVersione(), AnagrafeSquadra.class, id);
         applica(dto, s);
-        guard.tracciaModifica(utente, s.getAutore().getId(), "squadra", id);
+        guard.tracciaModifica(utente, idDellAutore(s.getAutore()), "squadra", id);
         return SquadraDTO.from(squadre.saveAndFlush(s)); // flush: il ts della risposta è quello di adesso (vedi aggiornaGiocatore)
     }
 
     @Transactional
     public void eliminaSquadra(Utente utente, UUID id) {
         AnagrafeSquadra s = trovaSquadra(id);
-        guard.checkOwner(utente, s.getAutore().getId(), "questa squadra");
-        guard.tracciaEliminazione(utente, s.getAutore().getId(), "squadra", id);
+        guard.checkOwner(utente, idDellAutore(s.getAutore()), "questa squadra");
+        guard.tracciaEliminazione(utente, idDellAutore(s.getAutore()), "squadra", id);
         squadre.delete(s);
     }
 
@@ -141,7 +142,16 @@ public class AnagrafeService {
         if (letta != attuale) throw new ObjectOptimisticLockingFailureException(entity, id);
     }
 
-    private AnagrafeGiocatore trovaGiocatore(UUID id) {
+    /**
+     * L'id dell'autore della scheda, o null se l'autore è stato eliminato (V11): con null AccessGuard lascia passare solo un
+     * ADMIN, e la riga del suo intervento dice «di proprietà dell'utente null», cioè di nessuno
+     */
+    private static UUID idDellAutore(Utente autore) {
+        if (autore == null) return null;
+        return autore.getId();
+    }
+
+        private AnagrafeGiocatore trovaGiocatore(UUID id) {
         return giocatori.findById(id).orElseThrow(() -> new NotFoundException("Giocatore non trovato: " + id));
     }
 
