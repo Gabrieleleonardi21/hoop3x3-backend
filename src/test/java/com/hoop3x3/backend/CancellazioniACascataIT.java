@@ -2,6 +2,7 @@ package com.hoop3x3.backend;
 
 import com.hoop3x3.backend.MondoDiProva.Mondo;
 import com.hoop3x3.backend.dto.CampettoRequestDTO;
+import com.hoop3x3.backend.dto.SquadraRequestDTO;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.UtenteRepository;
@@ -26,9 +27,9 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Le cancellazioni a cascata dello schema (ON DELETE CASCADE delle migrazioni V1, V2, V9 e V10, SET NULL della V8) con il
- * database vero: lega → tappe → pubblicazioni, utente → tutto ciò che è suo (non i campetti, che restano senza autore),
- * squadra e giocatore → le righe del roster. Due utenti hanno le stesse cose
+ * Le cancellazioni a cascata dello schema (ON DELETE CASCADE delle migrazioni V1, V2, V9 e V10, SET NULL della V8 e della
+ * V11) con il database vero: lega → tappe → pubblicazioni, utente → tutto ciò che è suo (non i campetti e le schede
+ * dell'anagrafe, che restano senza autore), squadra e giocatore → le righe del roster. Due utenti hanno le stesse cose
  * (MondoDiProva): dopo ogni eliminazione devono restare quelle dell'altro, e non una riga di più o di meno. I test con una
  * DELETE in SQL saltano Hibernate e provano le chiavi esterne dello schema; gli altri passano dai servizi, come l'app.
  */
@@ -92,22 +93,20 @@ class CancellazioniACascataIT {
     /* ── Un utente porta con sé tutto ciò che è suo ── */
 
     @Test
-    void unaDeleteSqlDellUtente_eliminaLeghe_tappe_pubblicazioni_anagrafe_eSessioni() {
+    void unaDeleteSqlDellUtente_eliminaLeghe_tappe_pubblicazioni_eSessioni_maLAnagrafeRestaSenzaAutore() {
+        giocatoreDiMarioAncheNellaSquadraDiLuigi();
+
         jdbc.update("delete from utenti where id = ?", mario.utente().getId());
 
-        // Resta una sola copia di ogni cosa, ed è quella di Luigi
-        assertThat(righe()).isEqualTo(righeDi(1));
-        assertThat(ids("utenti")).containsExactly(luigi.utente().getId());
-        assertThat(ids("leghe")).containsExactly(luigi.lega());
-        assertThat(ids("anagrafe_giocatori")).containsExactly(luigi.giocatore());
-        assertThat(ids("anagrafe_squadre")).containsExactly(luigi.squadra());
+        assertDiMarioRestaSoloLAnagrafe_senzaAutore();
     }
 
     // Il servizio del profilo fa la DELETE della riga e il database il resto, nella stessa transazione: via sessioni, token del
-    // recupero e del cambio email, leghe con tappe e pubblicazioni; il campetto resta, senza autore (V8). Fino alla V11 le
-    // schede dell'anagrafe di Mario spariscono con lui (V1): resta una copia di ogni cosa, quella di Luigi
+    // recupero e del cambio email, leghe con tappe e pubblicazioni; il campetto e le schede dell'anagrafe restano, senza
+    // autore (V8, V11)
     @Test
-    void eliminareLAccountConIlServizio_eliminaLeghe_tappe_pubblicazioni_sessioni_eToken_maNonICampetti() {
+    void eliminareLAccountConIlServizio_eliminaLeghe_tappe_pubblicazioni_sessioni_eToken_maNonICampettiNeLAnagrafe() {
+        giocatoreDiMarioAncheNellaSquadraDiLuigi();
         UUID id = mario.utente().getId();
         UUID campetto = campettoService.crea(mario.utente(), mapper.convertValue(Map.of("nome", "Parco Dora", "lat", 45.08972,
                 "lng", 7.66669, "superficie", "Sintetico", "canestri", 4, "stato", "buono"), CampettoRequestDTO.class)).id();
@@ -120,18 +119,41 @@ class CancellazioniACascataIT {
 
         profiloService.elimina(utenti.findById(id).orElseThrow(), "password-di-mario");
 
-        assertThat(righe()).isEqualTo(righeDi(1));
-        assertThat(ids("utenti")).containsExactly(luigi.utente().getId());
-        assertThat(ids("leghe")).containsExactly(luigi.lega());
+        assertDiMarioRestaSoloLAnagrafe_senzaAutore();
         assertThat(ids("tappe")).containsExactlyInAnyOrderElementsOf(luigi.tappe());
         assertThat(ids("archivio_tappe")).containsExactlyInAnyOrderElementsOf(luigi.tappe());
-        assertThat(ids("anagrafe_giocatori")).containsExactly(luigi.giocatore());
         assertThat(jdbc.queryForList("select utente_id from refresh_tokens", UUID.class)).containsExactly(luigi.utente().getId());
         assertThat(jdbc.queryForList("select utente_id from token_recupero_password", UUID.class))
                 .containsExactly(luigi.utente().getId());
         assertThat(jdbc.queryForList("select utente_id from token_cambio_email", UUID.class)).containsExactly(luigi.utente().getId());
         assertThat(jdbc.queryForList("select id::text || ' ' || coalesce(autore_id::text, 'senza autore') from campetti",
                 String.class)).containsExactly(campetto + " senza autore");
+    }
+
+    /** Il giocatore di Mario entra anche nella squadra di Luigi, dopo il suo: dopo l'eliminazione di Mario deve restarci */
+    private void giocatoreDiMarioAncheNellaSquadraDiLuigi() {
+        anagrafeService.aggiornaSquadra(luigi.utente(), luigi.squadra(), new SquadraRequestDTO("Squadra di Luigi", null, null,
+                null, null, null, null, null, null, List.of(luigi.giocatore(), mario.giocatore()), null));
+    }
+
+    /**
+     * Di Mario restano solo le schede dell'anagrafe, senza autore (V11): le schede sono dati del circuito su persone terze e
+     * stanno nei roster degli altri. Tutto il resto è di Luigi, e il roster della sua squadra non ha perso il giocatore di Mario
+     */
+    private void assertDiMarioRestaSoloLAnagrafe_senzaAutore() {
+        Map<String, Integer> attese = righeDi(1);
+        attese.put("anagrafe_giocatori", 2);
+        attese.put("anagrafe_squadre", 2);
+        attese.put("anagrafe_squadre_roster", 3); // la squadra di Mario con il suo giocatore, quella di Luigi con due
+        assertThat(righe()).isEqualTo(attese);
+        assertThat(ids("utenti")).containsExactly(luigi.utente().getId());
+        assertThat(ids("leghe")).containsExactly(luigi.lega());
+        assertThat(jdbc.queryForList("select id from anagrafe_giocatori where autore_id is null", UUID.class))
+                .containsExactly(mario.giocatore());
+        assertThat(jdbc.queryForList("select id from anagrafe_squadre where autore_id is null", UUID.class))
+                .containsExactly(mario.squadra());
+        assertThat(jdbc.queryForList("select giocatore_id from anagrafe_squadre_roster where squadra_id = ? order by posizione",
+                UUID.class, luigi.squadra())).containsExactly(luigi.giocatore(), mario.giocatore());
     }
 
     /** Un link di recupero password dell'utente, ancora valido, scritto direttamente nel database */

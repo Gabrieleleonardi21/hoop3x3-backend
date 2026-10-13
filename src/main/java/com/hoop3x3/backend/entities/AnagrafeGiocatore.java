@@ -38,8 +38,12 @@ public class AnagrafeGiocatore extends ConDate {
     @Column(nullable = false) private String esperienza = "";
     @Column(nullable = false) private String note = "";
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "autore_id", nullable = false)
+    /**
+     * Null se l'autore è stato eliminato (autore_id ON DELETE SET NULL, V11): la scheda resta, come i campetti, e la modifica
+     * solo un ADMIN
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "autore_id")
     private Utente autore;
 
     /**
