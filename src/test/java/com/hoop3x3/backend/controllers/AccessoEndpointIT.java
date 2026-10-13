@@ -122,6 +122,8 @@ class AccessoEndpointIT {
                 new Endpoint(PATCH, "/api/auth/me", Map.of("name", "Mario")),
                 new Endpoint(POST, "/api/auth/me/password", Map.of("passwordAttuale", "x", "nuovaPassword", "password-nuova-1")),
                 new Endpoint(POST, "/api/auth/me/email", Map.of("nuovaEmail", "nuova@test.it", "password", "x")),
+                // Senza token il 401, prima di guardare la password: il caso buono (204) lo prova ProfiloIT
+                new Endpoint(POST, "/api/auth/me/elimina", Map.of("password", "x")),
                 new Endpoint(GET, "/api/utenti", null),
                 new Endpoint(GET, "/api/leghe", null),
                 new Endpoint(POST, "/api/leghe", Map.of("nome", "Circuito 2027")),

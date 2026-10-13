@@ -307,6 +307,7 @@ class ValidazioneWebTest {
                 arguments(POST, "/api/auth/me/password", Map.of(), List.of("passwordAttuale", "nuovaPassword")),
                 arguments(POST, "/api/auth/me/email", Map.of(), List.of("nuovaEmail", "password")),
                 arguments(POST, "/api/auth/email/conferma", Map.of(), List.of("token")),
+                arguments(POST, "/api/auth/me/elimina", Map.of(), List.of("password")),
                 arguments(POST, "/api/coach/chat", Map.of(), List.of("messages")));
     }
 
@@ -415,6 +416,19 @@ class ValidazioneWebTest {
     @ValueSource(strings = {"non-una-email", "mario@", " "})
     void nuovaEmailNonValida_risponde400ConIlCampo(String indirizzo) throws Exception {
         rifiutata(POST, "/api/auth/me/email", Map.of("nuovaEmail", indirizzo, "password", "password-attuale"), "nuovaEmail");
+    }
+
+    // L'eliminazione chiede la password attuale: vuota o di soli spazi non arriva al servizio
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    void eliminazioneConLaPasswordVuota_risponde400ConIlCampo(String password) throws Exception {
+        rifiutata(POST, "/api/auth/me/elimina", Map.of("password", password), "password");
+    }
+
+    // Con la password il corpo è valido: arriva al servizio e la risposta è 204
+    @Test
+    void eliminazioneConLaPassword_siAccetta_eRisponde204() throws Exception {
+        invia(POST, "/api/auth/me/elimina", Map.of("password", "password-attuale")).andExpect(status().isNoContent());
     }
 
     @Test
