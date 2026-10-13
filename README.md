@@ -131,6 +131,7 @@ La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/cont
 | `PATCH` | `/api/auth/me` | Autenticato | 200 l'utente con il nome nuovo (`{name}`, da 2 a 80 caratteri; vedi «Profilo dell'account») |
 | `POST` | `/api/auth/me/password` | Autenticato | 200 `{token, user}` e nuovo cookie di refresh; le altre sessioni dell'account si chiudono; 400 se la password attuale è sbagliata o la nuova non va bene; 429 oltre il limite per utente |
 | `POST` | `/api/auth/me/email` | Autenticato | 200 `{message}`: il link di conferma parte verso il nuovo indirizzo; 400 password sbagliata o email uguale all'attuale; 409 email già registrata; 403 per l'ADMIN; 429 oltre 3 link in 15 minuti o oltre il limite per utente |
+| `POST` | `/api/auth/me/elimina` | Autenticato | 204 e cookie di refresh cancellato: l'account e i suoi dati sono eliminati (vedi «Profilo dell'account»); 400 password sbagliata; 403 per l'ADMIN; 429 oltre il limite per utente |
 | `POST` | `/api/auth/email/conferma` | Pubblico: con il token del link | 200 `{message}`, email cambiata; 400 se il link non è valido o è scaduto; 409 se nel frattempo l'indirizzo è stato registrato |
 | `GET` | `/api/utenti` | ADMIN | 200 tutti gli utenti, senza password |
 | `GET` | `/api/leghe` | Autenticato | 200 le proprie leghe (anche per un ADMIN) |
@@ -348,7 +349,7 @@ I test non mandano mai email vere: il profilo «test» svuota chiave e mittente,
 
 ## Profilo dell'account
 
-Chi ha un account cambia dal profilo (la pagina `/profilo` del frontend) il suo nome, la sua password e la sua email (`ProfiloController`, `ProfiloService`). Il JWT identifica l'utente per **id**, non per email o nome: cambiarli non invalida il token in corso, e il client aggiorna solo la copia dell'utente che tiene nel browser.
+Chi ha un account cambia dal profilo (la pagina `/profilo` del frontend) il suo nome, la sua password e la sua email, e può eliminare l'account (`ProfiloController`, `ProfiloService`). Il JWT identifica l'utente per **id**, non per email o nome: cambiarli non invalida il token in corso, e il client aggiorna solo la copia dell'utente che tiene nel browser.
 
 - **Nome** — `PATCH /api/auth/me` con `{"name": "..."}`: le regole del nome della registrazione (da 2 a 80 caratteri, senza gli spazi ai lati). Risponde 200 con l'utente aggiornato. È il nome che l'anagrafe, i campetti e l'archivio mostrano come «autore»: le risposte lo leggono dal database, quindi le schede già create mostrano subito quello nuovo.
 - **Password** — `POST /api/auth/me/password` con `{"passwordAttuale": "...", "nuovaPassword": "..."}`. La nuova ha le regole della registrazione (da 8 caratteri a 72 byte in UTF-8, diversa da `admin123`) e non può essere uguale all'attuale. Se va bene la password cambia (BCrypt), **tutte le sessioni dell'account si chiudono** (le sue righe di `refresh_tokens`, come con il recupero) e se ne riapre una per il browser che ha fatto la richiesta: la risposta è 200 `{token, user}` con un nuovo cookie di refresh, come un login. Gli altri dispositivi non rinnovano più la sessione ed escono alla scadenza del loro JWT (al massimo 30 minuti).
@@ -364,7 +365,14 @@ Gli errori della password: 400 «La password attuale non è corretta», «La nuo
 
 Senza `BREVO_API_KEY` (o `MAIL_USERNAME`) la risposta della richiesta è la stessa ma l'email non parte, come per il recupero: lo dice il WARN all'avvio (vedi «Recupero password», «Email»). Nessuna email parte verso l'indirizzo di prima.
 
-**L'ADMIN** non cambia email dall'app: 403 «L'account ADMIN si gestisce dalla configurazione del server (ADMIN_EMAIL)», prima di ogni altro controllo. Il `DataSeeder` lo riconosce da `ADMIN_EMAIL`: con un'email cambiata dall'app, al riavvio nascerebbe un secondo admin. Si gestisce dalla configurazione del server (`ADMIN_EMAIL`, vedi «Avvio», passo 2).
+**Eliminazione** — `POST /api/auth/me/elimina` con `{"password": "..."}` (la password attuale; una `POST` e non una `DELETE`, perché un corpo su una `DELETE` non è garantito attraverso i proxy). Risponde **204** e cancella il cookie di refresh; il JWT lo butta via il client, e se lo rimanda riceve 401 «L'utente associato al token non esiste più». Il server cancella la riga di `utenti` e il database fa il resto con le sue chiavi esterne, nella stessa transazione:
+
+- **vanno via** l'account, le sue sessioni (`refresh_tokens`), i suoi link di recupero password e di cambio email, le sue leghe con le loro tappe e le pubblicazioni in archivio di quelle tappe, e le sue schede dell'anagrafe (giocatori e squadre, `ON DELETE CASCADE` della V1: un suo giocatore esce anche dai roster delle squadre degli altri);
+- **restano** i campetti che ha inserito, senza autore (`autore_id` NULL, `ON DELETE SET NULL` della V8): da allora li modifica solo un ADMIN.
+
+Password sbagliata: 400 «La password attuale non è corretta», e non cambia niente. Il tentativo conta nel limite per utente dei tre endpoint con la password.
+
+**L'ADMIN** non cambia email e non si elimina dall'app: 403 «L'account ADMIN si gestisce dalla configurazione del server (ADMIN_EMAIL)», prima di ogni altro controllo. Il `DataSeeder` lo riconosce da `ADMIN_EMAIL`: con un'email cambiata dall'app, o senza la sua riga, al riavvio nascerebbe un altro admin, e i dati di prova intestati a lui resterebbero senza proprietario. Si gestisce dalla configurazione del server (`ADMIN_EMAIL`, vedi «Avvio», passo 2).
 
 ## Deploy su Render
 
@@ -470,7 +478,7 @@ L'applicazione scrive nei log (console) ciò che serve a capire un problema in p
 - **Login fallito** (WARN) — `Login fallito per mario@x.it`: l'email normalizzata, mai la password. Un'email con CR o LF dentro non arriva fin lì: la validazione la rifiuta con 400.
 - **Registrazione** (INFO) — `Nuovo utente registrato: mario@x.it (id ...)`.
 - **Recupero password** — l'email solo mascherata (le prime due lettere e il dominio), mai il token né la password: INFO `Recupero password: link inviato a ma***@x.it`, `Recupero password per un'email non registrata: ne***@x.it` e `Password reimpostata con il link di recupero: utente <id>`; WARN `Recupero password: già 3 link in 15 minuti per ma***@x.it, nessuna nuova email` e, all'avvio senza chiave, `Recupero password: BREVO_API_KEY mancante, le email non partono` (o senza mittente, `... MAIL_USERNAME mancante (il mittente) ...`); ERROR `Recupero password: email a ma***@x.it non inviata, Brevo ha risposto 401 (Unauthorized)` se Brevo rifiuta l'invio, `... Brevo non raggiungibile (ResourceAccessException)` per un timeout o la rete.
-- **Profilo** (INFO) — `Nome utente cambiato: utente <id>`, `Password cambiata dal profilo: utente <id>`, `Cambio email richiesto: utente <id>, nuovo indirizzo ma***@x.it` ed `Email cambiata: utente <id>`: l'id e l'indirizzo nuovo mascherato, mai il nome (lo scrive l'utente), le password o i token. Le righe di `EmailSenderBrevo` (WARN all'avvio senza chiave, ERROR se Brevo rifiuta un invio) valgono anche per l'email di conferma e cominciano comunque con `Recupero password:`.
+- **Profilo** (INFO) — `Nome utente cambiato: utente <id>`, `Password cambiata dal profilo: utente <id>`, `Cambio email richiesto: utente <id>, nuovo indirizzo ma***@x.it`, `Email cambiata: utente <id>` e `Account eliminato: utente <id>` (solo l'id: l'email non esiste più e non resta nei log): l'id e l'indirizzo nuovo mascherato, mai il nome (lo scrive l'utente), le password o i token. Le righe di `EmailSenderBrevo` (WARN all'avvio senza chiave, ERROR se Brevo rifiuta un invio) valgono anche per l'email di conferma e cominciano comunque con `Recupero password:`.
 - **Intervento di un ADMIN su dati di un altro utente** (INFO) — `Intervento ADMIN: admin@x.it (id ...): modifica lega <id> di proprietà dell'utente <id>`, oppure `eliminazione`. Solo per le modifiche e le eliminazioni di leghe, tappe, schede dell'anagrafe e pubblicazioni, e solo se la richiesta è andata oltre i controlli (una 404, 409 o 400 non lascia niente; fa eccezione un conflitto che si scopre solo al commit, come due eliminazioni insieme della stessa risorsa: la riga è già stata scritta). Né le letture, per esempio un ADMIN che apre la lega di un altro, né i dati propri lasciano una riga. Contiene l'email dell'ADMIN e gli id, mai nomi scritti da altri utenti.
 - **Limite di frequenza superato** (WARN) — `Limite di richieste superato: Troppi tentativi di accesso (massimo 10 al minuto), indirizzo 203.0.113.9`, oppure `... Troppe richieste al Coach AI (massimo 20 al minuto), utente <id>` o `... Troppi tentativi con la password (massimo 10 al minuto), utente <id>`. Una riga sola per indirizzo (o utente) e per finestra, non una per richiesta: chi insiste non riempie i log. Il 429 stesso non lascia altre righe.
 - **Errori 500** (ERROR) — `Errore non gestito su GET /api/leghe`, con lo stack sotto: metodo e percorso della richiesta (senza la query, che può contenere dati personali). Gli errori di Groq li scrive una volta sola il Coach AI (vedi la sezione omonima).
@@ -548,6 +556,8 @@ DELETE FROM seed_eseguiti WHERE nome = 'demo';
 
 4. cancella il segno `demo` (l'SQL qui sopra, `DELETE FROM seed_eseguiti ...`);
 5. riavvia: il seeder rifà il seed con i dati di fantasia.
+
+**Gli utenti di prova** (non l'admin) si eliminano anche dall'app, ognuno dal suo profilo, senza SQL: vedi «Profilo dell'account», «Eliminazione».
 
 Se invece la lega demo era già stata eliminata prima di questa versione, nel database non resta niente da cui riconoscere il seed: con `SEED_DEMO=true` il primo avvio lo rifarebbe una volta (poi il segno lo protegge). Per evitarlo avvia la prima volta con `SEED_DEMO=false`, così la migrazione crea la tabella senza che il seed parta, e scrivi il segno a mano prima di riaccendere `SEED_DEMO`:
 
