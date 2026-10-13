@@ -39,14 +39,16 @@ public class AuthController {
     private final JwtTools jwtTools;
     private final RefreshTokenService refreshTokenService;
     private final AuthCookies cookies;
+    private final Sessioni sessioni;
 
     public AuthController(AuthenticationManager authenticationManager, UtenteService utenteService, JwtTools jwtTools,
-                          RefreshTokenService refreshTokenService, AuthCookies cookies) {
+                          RefreshTokenService refreshTokenService, AuthCookies cookies, Sessioni sessioni) {
         this.authenticationManager = authenticationManager;
         this.utenteService = utenteService;
         this.jwtTools = jwtTools;
         this.refreshTokenService = refreshTokenService;
         this.cookies = cookies;
+        this.sessioni = sessioni;
     }
 
     /** Registrazione: crea l'utente e risponde già con token e cookie, così il client non deve rifare il login */
@@ -55,7 +57,7 @@ public class AuthController {
     public AuthResponseDTO register(@RequestBody @Validated RegisterRequestDTO dto, HttpServletResponse response) {
         Utente utente = utenteService.register(dto);
         log.info("Nuovo utente registrato: {} (id {})", perLog(utente.getEmail()), utente.getId());
-        return accedi(utente, response);
+        return sessioni.apri(utente, response);
     }
 
     @PostMapping("/login")
@@ -71,7 +73,7 @@ public class AuthController {
             log.warn("Login fallito per {}", perLog(email));
             throw e;
         }
-        return accedi((Utente) auth.getPrincipal(), response);
+        return sessioni.apri((Utente) auth.getPrincipal(), response);
     }
 
     /** Scambia il cookie di refresh con un nuovo JWT e un nuovo cookie (rotazione). Qui il Bearer non serve. */
@@ -90,18 +92,12 @@ public class AuthController {
     public void logout(@CookieValue(name = AuthCookies.NOME, required = false) String refreshToken,
                        HttpServletResponse response) {
         if (refreshToken != null && !refreshToken.isBlank()) refreshTokenService.revoca(refreshToken);
-        response.addHeader(HttpHeaders.SET_COOKIE, cookies.cancellazione().toString());
+        sessioni.chiudi(response);
     }
 
     /** Usato all'avvio dell'app per verificare che il token salvato sia ancora valido */
     @GetMapping("/me")
     public UtenteDTO me(@AuthenticationPrincipal Utente utente) {
         return UtenteDTO.from(utente);
-    }
-
-    /** JWT nel corpo (come prima) e nuovo refresh token nel cookie httpOnly */
-    private AuthResponseDTO accedi(Utente utente, HttpServletResponse response) {
-        response.addHeader(HttpHeaders.SET_COOKIE, cookies.diRefresh(refreshTokenService.emetti(utente)).toString());
-        return new AuthResponseDTO(jwtTools.generateToken(utente), UtenteDTO.from(utente));
     }
 }

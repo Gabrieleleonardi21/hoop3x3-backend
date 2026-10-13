@@ -1,6 +1,10 @@
 package com.hoop3x3.backend;
 
+import com.hoop3x3.backend.dto.CambioEmailDTO;
+import com.hoop3x3.backend.dto.CambioNomeDTO;
+import com.hoop3x3.backend.dto.CambioPasswordDTO;
 import com.hoop3x3.backend.dto.CampettoRequestDTO;
+import com.hoop3x3.backend.dto.ConfermaEmailDTO;
 import com.hoop3x3.backend.dto.GiocatoreRequestDTO;
 import com.hoop3x3.backend.dto.LoginRequestDTO;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
@@ -93,7 +97,14 @@ public final class CampiDiTesto {
             // di 64 caratteri) e la nuova password finisce nell'hash, come quella della registrazione
             campo(PasswordDimenticataDTO.class, "email", "utenti.email"),
             campo(ReimpostaPasswordDTO.class, "token"),
-            campo(ReimpostaPasswordDTO.class, "nuovaPassword"));
+            campo(ReimpostaPasswordDTO.class, "nuovaPassword"),
+            // Il profilo: il nome ha la colonna di quello della registrazione, la nuova password finisce nell'hash
+            campo(CambioNomeDTO.class, "name", "utenti.nome"),
+            campo(CambioPasswordDTO.class, "nuovaPassword"),
+            // La nuova email aspetta nel token fino alla conferma, poi diventa l'email dell'account; il token del link non si
+            // salva (in tabella c'è il suo SHA-256), come quello del recupero
+            campo(CambioEmailDTO.class, "nuovaEmail", "utenti.email", "token_cambio_email.email_nuova"),
+            campo(ConfermaEmailDTO.class, "token"));
 
     private static Campo campo(Class<?> dto, String componente, String... colonne) {
         return new Campo(dto, componente, List.of(colonne));

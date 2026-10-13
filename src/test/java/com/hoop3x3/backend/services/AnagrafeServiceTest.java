@@ -1,10 +1,12 @@
 package com.hoop3x3.backend.services;
 
+import com.hoop3x3.backend.dto.GiocatoreRequestDTO;
 import com.hoop3x3.backend.dto.SquadraRequestDTO;
 import com.hoop3x3.backend.entities.AnagrafeGiocatore;
 import com.hoop3x3.backend.entities.AnagrafeSquadra;
 import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
+import com.hoop3x3.backend.exceptions.ForbiddenException;
 import com.hoop3x3.backend.repositories.AnagrafeGiocatoreRepository;
 import com.hoop3x3.backend.repositories.AnagrafeSquadraRepository;
 import org.junit.jupiter.api.Test;
@@ -157,6 +159,52 @@ class AnagrafeServiceTest {
 
         assertThat(squadra.getRoster()).isEmpty();
         verify(giocatori, never()).findById(any());
+    }
+
+    /* ── Schede senza autore (V11): le modifica solo un ADMIN ── */
+
+    // Con la guardia vera: nessun utente è il proprietario di un autore nullo (AccessGuard.checkOwner), l'ADMIN passa e la riga
+    // del suo intervento si scrive anche senza proprietario
+    private final AnagrafeService conLaGuardiaVera = new AnagrafeService(giocatori, squadre, new AccessGuard());
+
+    private void schedeSenzaAutore() {
+        AnagrafeGiocatore g = giocatore(idGiocatore);
+        g.setModificatoIl(LocalDateTime.now());
+        when(giocatori.findById(idGiocatore)).thenReturn(Optional.of(g));
+        when(giocatori.saveAndFlush(any(AnagrafeGiocatore.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
+        squadraDiMario().setAutore(null);
+    }
+
+    private static GiocatoreRequestDTO giocatoreModificato() {
+        return new GiocatoreRequestDTO("Luca", "Neri", null, null, null, null, null, null, null, null, null, null, null, null);
+    }
+
+    @Test
+    void unaSchedaSenzaAutore_unUtenteNonLaModificaNeLaElimina_403() {
+        schedeSenzaAutore();
+
+        assertThatThrownBy(() -> conLaGuardiaVera.aggiornaGiocatore(mario, idGiocatore, giocatoreModificato()))
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> conLaGuardiaVera.eliminaGiocatore(mario, idGiocatore)).isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> conLaGuardiaVera.aggiornaSquadra(mario, idSquadra, modificaDelRoster()))
+                .isInstanceOf(ForbiddenException.class);
+        assertThatThrownBy(() -> conLaGuardiaVera.eliminaSquadra(mario, idSquadra)).isInstanceOf(ForbiddenException.class);
+
+        verify(giocatori, never()).delete(any());
+        verify(squadre, never()).delete(any());
+    }
+
+    @Test
+    void unaSchedaSenzaAutore_lAdminLaModificaELaElimina() {
+        schedeSenzaAutore();
+
+        assertThat(conLaGuardiaVera.aggiornaGiocatore(admin, idGiocatore, giocatoreModificato()).autoreId()).isNull();
+        assertThat(conLaGuardiaVera.aggiornaSquadra(admin, idSquadra, modificaDelRoster()).autore()).isEmpty();
+        conLaGuardiaVera.eliminaGiocatore(admin, idGiocatore);
+        conLaGuardiaVera.eliminaSquadra(admin, idSquadra);
+
+        verify(giocatori).delete(any());
+        verify(squadre).delete(any());
     }
 
     /** Un giocatore con quell'id (l'entity non ha il setter: lo assegna il database) */

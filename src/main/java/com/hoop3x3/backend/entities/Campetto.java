@@ -9,7 +9,7 @@ import java.util.UUID;
 
 /**
  * Un campetto da basket geolocalizzato (migrazione V8): visibile a tutti, lo aggiunge chi ha un account e lo modifica
- * l'autore o un ADMIN. A differenza delle schede dell'anagrafe sopravvive al suo autore (autore_id ON DELETE SET NULL): è un
+ * l'autore o un ADMIN. Come le schede dell'anagrafe (V11) sopravvive al suo autore (autore_id ON DELETE SET NULL): è un
  * dato del territorio, non di una persona. Senza autore lo modifica solo un ADMIN.
  */
 @Entity

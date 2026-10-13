@@ -1,6 +1,7 @@
 package com.hoop3x3.backend.dto;
 
 import com.hoop3x3.backend.entities.AnagrafeGiocatore;
+import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.support.Tempo;
 
 import java.util.UUID;
@@ -18,11 +19,21 @@ public record GiocatoreDTO(
     /** Valore dei campi riservati nella forma pubblica: il frontend nasconde le righe vuote */
     private static final String RISERVATO = "";
 
-    /** La forma completa, per chi ha un account */
+    /**
+     * La forma completa, per chi ha un account. L'autore può essere stato eliminato (autore_id ON DELETE SET NULL, V11): la
+     * scheda resta, con `autore` vuoto e `autoreId` null, come un campetto senza autore
+     */
     public static GiocatoreDTO from(AnagrafeGiocatore g) {
+        String autore = "";
+        UUID autoreId = null;
+        Utente u = g.getAutore();
+        if (u != null) {
+            autore = u.getNome();
+            autoreId = u.getId();
+        }
         return new GiocatoreDTO(g.getId(), g.getNome(), g.getCognome(), g.getSoprannome(), g.getNascita(),
                 g.getCitta(), g.getNazionalita(), g.getAltezza(), g.getPeso(), g.getRuolo(), g.getNumero(),
-                g.getSquadra(), g.getEsperienza(), g.getNote(), g.getAutore().getNome(), g.getAutore().getId(),
+                g.getSquadra(), g.getEsperienza(), g.getNote(), autore, autoreId,
                 Tempo.inMillisecondi(g.getModificatoIl()), g.getVersione());
     }
 

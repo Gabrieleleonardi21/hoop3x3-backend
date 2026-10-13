@@ -2,6 +2,7 @@ package com.hoop3x3.backend.dto;
 
 import com.hoop3x3.backend.entities.AnagrafeGiocatore;
 import com.hoop3x3.backend.entities.AnagrafeSquadra;
+import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.support.Tempo;
 
 import java.util.List;
@@ -21,11 +22,17 @@ public record SquadraDTO(
     /** Valore dei campi riservati nella forma pubblica: il frontend nasconde le righe vuote */
     private static final String RISERVATO = "";
 
-    /** La forma completa, per chi ha un account */
+    /** La forma completa, per chi ha un account. Senza autore (eliminato, V11) `autore` è vuoto e `autoreId` null */
     public static SquadraDTO from(AnagrafeSquadra s) {
+        String autore = "";
+        UUID autoreId = null;
+        Utente u = s.getAutore();
+        if (u != null) {
+            autore = u.getNome();
+            autoreId = u.getId();
+        }
         return new SquadraDTO(s.getId(), s.getNome(), s.getCitta(), s.getAnno(), s.getRank(), s.getReferente(),
-                idDelRoster(s), s.getLogo(), s.getWebsite(), s.getInstagram(), s.getNote(),
-                s.getAutore().getNome(), s.getAutore().getId(),
+                idDelRoster(s), s.getLogo(), s.getWebsite(), s.getInstagram(), s.getNote(), autore, autoreId,
                 Tempo.inMillisecondi(s.getModificatoIl()), s.getVersione());
     }
 
@@ -41,7 +48,7 @@ public record SquadraDTO(
 
     /**
      * Gli id dei giocatori del roster, nell'ordine salvato: uguale nelle due forme, che non possono divergere. I null sono i buchi
-     * dell'@OrderColumn (una riga del ponte cancellata dalla cascata del database, per esempio eliminando un utente in SQL):
+     * dell'@OrderColumn (una riga del ponte cancellata dalla cascata del database, per esempio eliminando un giocatore in SQL):
      * si saltano, altrimenti l'elenco delle squadre cadrebbe con un 500 per tutti
      */
     private static List<UUID> idDelRoster(AnagrafeSquadra s) {

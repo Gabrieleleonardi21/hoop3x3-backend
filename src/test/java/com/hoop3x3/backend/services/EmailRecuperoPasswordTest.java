@@ -13,7 +13,7 @@ class EmailRecuperoPasswordTest {
     private static final String SITO = "https://hoop3x3.onrender.com";
     private static final String LINK = SITO + "/reimposta-password?token=AbC123_-xyz";
 
-    private final EmailRecuperoPassword.Contenuto email = EmailRecuperoPassword.componi(SITO, LINK, 30);
+    private final ModelloEmail.ContenutoEmail email = EmailRecuperoPassword.componi(SITO, LINK, 30);
 
     @Test
     void oggetto() {
@@ -74,7 +74,7 @@ class EmailRecuperoPasswordTest {
     void unTokenConCaratteriSpeciali_vieneEscapatoNellHtml_eRestaComeNelTestoSemplice() {
         String strano = SITO + "/reimposta-password?token=a&b<c>\"d'e";
 
-        EmailRecuperoPassword.Contenuto conStrano = EmailRecuperoPassword.componi(SITO, strano, 30);
+        ModelloEmail.ContenutoEmail conStrano = EmailRecuperoPassword.componi(SITO, strano, 30);
 
         String escapato = SITO + "/reimposta-password?token=a&amp;b&lt;c&gt;&quot;d&#39;e";
         assertThat(conStrano.html()).contains("<a href=\"" + escapato + "\"").contains(">" + escapato + "</a>")
@@ -84,7 +84,7 @@ class EmailRecuperoPasswordTest {
 
     @Test
     void ancheLIndirizzoDelSitoNelLogoVieneEscapato() {
-        EmailRecuperoPassword.Contenuto conSito = EmailRecuperoPassword.componi("https://x.it/\"><script>", LINK, 30);
+        ModelloEmail.ContenutoEmail conSito = EmailRecuperoPassword.componi("https://x.it/\"><script>", LINK, 30);
 
         assertThat(conSito.html()).contains("src=\"https://x.it/&quot;&gt;&lt;script&gt;/logo.png\"").doesNotContain("<script>");
     }

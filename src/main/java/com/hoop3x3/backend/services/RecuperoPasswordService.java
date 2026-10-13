@@ -28,7 +28,8 @@ import static com.hoop3x3.backend.services.RefreshTokenService.sha256;
  *       account. L'email parte su un altro thread (EmailSenderBrevo), quindi nemmeno i tempi lo dicono in modo evidente.</li>
  *   <li>Al massimo 3 link ogni 15 minuti per account, contati sui token del database: oltre, nessuna email e la stessa risposta.
  *       Il limite per indirizzo IP è di LimiteRichiesteFilter.</li>
- *   <li>La password nuova ha le regole della registrazione, e chi la cambia chiude tutte le sessioni dell'account.</li>
+ *   <li>La password nuova ha le regole della registrazione, e chi la cambia chiude tutte le sessioni dell'account e i link
+ *       ancora aperti (ProfiloService.chiudiTuttoDopoIlCambioPassword).</li>
  * </ul>
  * Nei log mai il token, mai la password, e l'email solo mascherata (LogSupport.mascheraEmail).
  */
@@ -42,23 +43,24 @@ public class RecuperoPasswordService {
     /** Un solo messaggio per token sconosciuto, già usato o scaduto: chi prova a indovinare non impara niente */
     public static final String LINK_NON_VALIDO = "Il link non è valido o è scaduto. Richiedine uno nuovo.";
 
-    private static final int DURATA_MINUTI = 30;
-    private static final int MASSIMO_LINK = 3;
-    private static final int FINESTRA_MINUTI = 15;
-    private static final int PULIZIA_DOPO_GIORNI = 1;
+    // Le regole dei link via email, le stesse per la conferma del cambio email (ProfiloService)
+    static final int DURATA_MINUTI = 30;
+    static final int MASSIMO_LINK = 3;
+    static final int FINESTRA_MINUTI = 15;
+    static final int PULIZIA_DOPO_GIORNI = 1;
 
     private final UtenteRepository utenti;
     private final TokenRecuperoPasswordRepository tokens;
-    private final RefreshTokenService sessioni;
+    private final ProfiloService profilo;
     private final PasswordEncoder encoder;
     private final EmailSender email;
     private final String frontendUrl;
 
-    public RecuperoPasswordService(UtenteRepository utenti, TokenRecuperoPasswordRepository tokens, RefreshTokenService sessioni,
+    public RecuperoPasswordService(UtenteRepository utenti, TokenRecuperoPasswordRepository tokens, ProfiloService profilo,
                                    PasswordEncoder encoder, EmailSender email, AppProperties proprieta) {
         this.utenti = utenti;
         this.tokens = tokens;
-        this.sessioni = sessioni;
+        this.profilo = profilo;
         this.encoder = encoder;
         this.email = email;
         // Senza la barra finale: «https://sito/» darebbe un link con «//reimposta-password»
@@ -88,7 +90,7 @@ public class RecuperoPasswordService {
         String token = nuovoToken();
         tokens.save(new TokenRecuperoPassword(utente, sha256(token), adesso.plusMinutes(DURATA_MINUTI)));
         // L'email parte dopo il salvataggio; anche se la transazione fallisse, il link porterebbe solo a «link non valido»
-        EmailRecuperoPassword.Contenuto contenuto =
+        ModelloEmail.ContenutoEmail contenuto =
                 EmailRecuperoPassword.componi(frontendUrl, frontendUrl + "/reimposta-password?token=" + token, DURATA_MINUTI);
         email.invia(utente.getEmail(), contenuto.oggetto(), contenuto.testo(), contenuto.html());
         log.info("Recupero password: link inviato a {}", mascheraEmail(utente.getEmail()));
@@ -107,11 +109,10 @@ public class RecuperoPasswordService {
         // Due richieste insieme con lo stesso link: lo segna solo la prima, l'altra non cambia la password
         if (tokens.segnaUsato(salvato.getId(), adesso) == 0) throw new BadRequestException(LINK_NON_VALIDO);
         Utente utente = salvato.getUtente();
-        tokens.invalidaDellUtente(utente.getId(), adesso);
         utente.setPassword(encoder.encode(nuovaPassword));
         utenti.save(utente);
-        // Chi ha cambiato la password perché qualcuno gliel'ha rubata chiude anche le sessioni di quel qualcuno
-        sessioni.revocaTutte(utente);
+        // Le stesse chiusure del cambio dal profilo, in un punto solo: sessioni, link di cambio email e gli altri link di recupero
+        profilo.chiudiTuttoDopoIlCambioPassword(utente);
         log.info("Password reimpostata con il link di recupero: utente {}", utente.getId());
     }
 }

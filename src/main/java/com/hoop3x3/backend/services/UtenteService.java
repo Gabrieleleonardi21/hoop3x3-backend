@@ -47,11 +47,22 @@ public class UtenteService implements UserDetailsService {
     public Utente register(RegisterRequestDTO dto) {
         controllaPassword(dto.password());
         String email = normalizza(dto.email());
-        if (utenteRepository.existsByEmail(email)) {
-            throw new ConflictException("Email " + email + " già registrata");
-        }
+        controllaEmailLibera(email);
         Utente utente = new Utente(email, passwordEncoder.encode(dto.password()), dto.name().trim(), Ruolo.USER);
         return utenteRepository.save(utente);
+    }
+
+    /**
+     * 409 se l'email (già normalizzata) è di un account: un testo solo per la registrazione e per il cambio email dal profilo
+     * (ProfiloService, alla richiesta e alla conferma)
+     */
+    public void controllaEmailLibera(String emailNormalizzata) {
+        if (utenteRepository.existsByEmail(emailNormalizzata)) throw emailGiaRegistrata(emailNormalizzata);
+    }
+
+    /** Il 409 dell'email già registrata, con il suo testo: lo usa anche ProfiloService quando l'UNIQUE scatta alla flush */
+    public static ConflictException emailGiaRegistrata(String emailNormalizzata) {
+        return new ConflictException("Email " + emailNormalizzata + " già registrata");
     }
 
     /**

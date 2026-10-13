@@ -4,6 +4,7 @@ import com.hoop3x3.backend.LogCatturato;
 import com.hoop3x3.backend.OrologioDiProva;
 import com.hoop3x3.backend.controllers.AuthController;
 import com.hoop3x3.backend.controllers.CoachController;
+import com.hoop3x3.backend.controllers.Sessioni;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ExceptionsHandler;
 import com.hoop3x3.backend.repositories.UtenteRepository;
@@ -66,7 +67,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = {AuthController.class, CoachController.class})
 @Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JwtTools.class, JsonAuthEntryPoint.class,
-        AuthCookies.class, ExceptionsHandler.class, OrologioDiProva.Configurazione.class})
+        AuthCookies.class, Sessioni.class, ExceptionsHandler.class, OrologioDiProva.Configurazione.class})
 @TestPropertySource(properties = {"jwt.secret=0123456789abcdef0123456789abcdef", "cors.origins=http://localhost:5173"})
 class LimiteRichiesteWebTest {
 

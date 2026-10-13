@@ -4,6 +4,7 @@ import com.hoop3x3.backend.controllers.AnagrafeController;
 import com.hoop3x3.backend.controllers.ArchivioController;
 import com.hoop3x3.backend.controllers.AuthController;
 import com.hoop3x3.backend.controllers.LegaController;
+import com.hoop3x3.backend.controllers.Sessioni;
 import com.hoop3x3.backend.controllers.TappaController;
 import com.hoop3x3.backend.entities.AnagrafeGiocatore;
 import com.hoop3x3.backend.entities.AnagrafeSquadra;
@@ -92,7 +93,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = {AuthController.class, AnagrafeController.class, LegaController.class, TappaController.class,
         ArchivioController.class})
-@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class,
+@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class, Sessioni.class,
         ExceptionsHandler.class, UtenteService.class, AnagrafeService.class, LegaService.class, ArchivioService.class,
         AccessGuard.class, JsonSupport.class})
 // I login e le registrazioni di questa classe partono tutti dallo stesso indirizzo e sono quasi quanti ne ammette il limite di

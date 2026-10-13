@@ -5,6 +5,7 @@ import com.hoop3x3.backend.entities.Ruolo;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.AuthCookies;
+import com.hoop3x3.backend.security.JwtTools;
 import com.hoop3x3.backend.services.EmailFinto;
 import com.hoop3x3.backend.services.RefreshTokenService;
 import com.hoop3x3.backend.support.Tempo;
@@ -30,6 +31,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -55,6 +57,7 @@ class RecuperoPasswordIT {
     @Autowired PasswordEncoder encoder;
     @Autowired RefreshTokenService refreshTokenService;
     @Autowired JdbcTemplate jdbc;
+    @Autowired JwtTools jwt;
 
     private Utente mario;
 
@@ -148,6 +151,24 @@ class RecuperoPasswordIT {
     void unTokenInventato_eRifiutatoConLoStessoMessaggio() throws Exception {
         reimposta("token-inventato", "nuova-password").andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value(LINK_NON_VALIDO));
+    }
+
+    // La password reimpostata con il link chiude tutto come il cambio dal profilo (ProfiloService.chiudiTuttoDopoIlCambioPassword):
+    // anche un link di cambio email chiesto prima, magari da chi conosceva la password vecchia, non vale più
+    @Test
+    void dopoIlRecupero_unLinkDiCambioEmailAncoraAperto_nonValePiu() throws Exception {
+        mvc.perform(post("/api/auth/me/email").header(AUTHORIZATION, "Bearer " + jwt.generateToken(mario))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(mapper.writeValueAsString(Map.of("nuovaEmail", "attaccante@test.it", "password", "vecchia-password"))))
+                .andExpect(status().isOk());
+        String linkDelCambioEmail = email.ultimoToken();
+
+        chiediIlLink("mario@test.it");
+        reimposta(email.ultimoToken(), "nuova-password").andExpect(status().isOk());
+
+        invia("/api/auth/email/conferma", Map.of("token", linkDelCambioEmail)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(LINK_NON_VALIDO));
+        assertThat(utenti.findById(mario.getId()).orElseThrow().getEmail()).isEqualTo("mario@test.it");
     }
 
     // La password dell'esempio pubblico non vale per nessun account: il link resta buono per sceglierne un'altra

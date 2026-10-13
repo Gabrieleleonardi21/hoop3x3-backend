@@ -75,11 +75,12 @@ class JwtFilterTest {
         verifyNoInteractions(catena);
     }
 
-    // Accesso, registrazione, rinnovo, uscita e recupero password non usano il Bearer: il filtro non lo esamina e la richiesta prosegue.
+    // Accesso, registrazione, rinnovo, uscita, recupero password e conferma del cambio email non usano il Bearer: il filtro non lo
+    // esamina e la richiesta prosegue.
     // AuthControllerTest controlla rinnovo e uscita nella catena vera; qui ci sono tutti i percorsi
     @ParameterizedTest
     @ValueSource(strings = {"/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/auth/logout",
-            "/api/auth/password/dimenticata", "/api/auth/password/reimposta"})
+            "/api/auth/password/dimenticata", "/api/auth/password/reimposta", "/api/auth/email/conferma"})
     void endpointDiAutenticazione_nonEsaminanoIlBearer(String percorso) throws Exception {
         MockHttpServletRequest richiesta = richiestaConBearer();
         richiesta.setRequestURI(percorso);

@@ -7,9 +7,15 @@ import com.hoop3x3.backend.controllers.AuthController;
 import com.hoop3x3.backend.controllers.CampettoController;
 import com.hoop3x3.backend.controllers.CoachController;
 import com.hoop3x3.backend.controllers.LegaController;
+import com.hoop3x3.backend.controllers.ProfiloController;
 import com.hoop3x3.backend.controllers.RecuperoPasswordController;
+import com.hoop3x3.backend.controllers.Sessioni;
 import com.hoop3x3.backend.controllers.TappaController;
+import com.hoop3x3.backend.dto.CambioEmailDTO;
+import com.hoop3x3.backend.dto.CambioNomeDTO;
+import com.hoop3x3.backend.dto.CambioPasswordDTO;
 import com.hoop3x3.backend.dto.CampettoRequestDTO;
+import com.hoop3x3.backend.dto.ConfermaEmailDTO;
 import com.hoop3x3.backend.dto.GiocatoreRequestDTO;
 import com.hoop3x3.backend.dto.LoginRequestDTO;
 import com.hoop3x3.backend.dto.NuovaLegaDTO;
@@ -35,6 +41,7 @@ import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.CampettoService;
 import com.hoop3x3.backend.services.CoachAiService;
 import com.hoop3x3.backend.services.LegaService;
+import com.hoop3x3.backend.services.ProfiloService;
 import com.hoop3x3.backend.services.RecuperoPasswordService;
 import com.hoop3x3.backend.services.RefreshTokenService;
 import com.hoop3x3.backend.services.UtenteService;
@@ -74,6 +81,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.not;
+import static java.util.Map.entry;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -97,8 +105,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = {LegaController.class, TappaController.class, AnagrafeController.class,
         ArchivioController.class, AuthController.class, CoachController.class, CampettoController.class,
-        RecuperoPasswordController.class})
-@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class,
+        RecuperoPasswordController.class, ProfiloController.class})
+@Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JsonAuthEntryPoint.class, AuthCookies.class, Sessioni.class,
         ExceptionsHandler.class, LimiteDimensioneFilter.class, UtenteService.class})
 // I login e le registrazioni di questa classe partono tutti dallo stesso indirizzo e sono quasi quanti ne ammette il limite di
 // produzione (10 al minuto): un caso in più rischierebbe un 429 che non c'entra (stesso valore di LogApplicativiTest)
@@ -113,6 +121,7 @@ class ValidazioneWebTest {
     @MockitoBean CampettoService campettoService;
     @MockitoBean CoachAiService coachAiService;
     @MockitoBean RecuperoPasswordService recuperoPasswordService;
+    @MockitoBean ProfiloService profiloService;
     @MockitoBean RefreshTokenService refreshTokenService;
     @MockitoBean AuthenticationManager authenticationManager;
     @MockitoBean JwtTools jwtTools;
@@ -130,6 +139,8 @@ class ValidazioneWebTest {
         when(utenteRepository.save(any(Utente.class))).thenAnswer(chiamata -> chiamata.getArgument(0));
         when(refreshTokenService.emetti(any())).thenReturn("refresh");
         when(jwtTools.generateToken(any())).thenReturn("jwt");
+        // Il profilo che riesce: il nome cambiato è quello di mario
+        when(profiloService.cambiaNome(any(), any())).thenReturn(mario);
     }
 
     /* ── Corpi validi: i test cambiano solo il campo che vogliono mettere alla prova ── */
@@ -172,6 +183,10 @@ class ValidazioneWebTest {
         return new LinkedHashMap<>(Map.of("name", "Mario", "email", email, "password", "password-valida"));
     }
 
+    private static Map<String, Object> cambioPassword() {
+        return new LinkedHashMap<>(Map.of("passwordAttuale", "password-attuale", "nuovaPassword", "password-valida"));
+    }
+
     private static List<Map<String, Object>> tappeDiverse(int quante) {
         List<Map<String, Object>> tappe = new ArrayList<>();
         for (int i = 0; i < quante; i++) tappe.add(tappa()); // ogni tappa ha un id casuale diverso
@@ -211,7 +226,7 @@ class ValidazioneWebTest {
         corpoStandard(invia(metodo, url, corpo).andExpect(status().isBadRequest()))
                 .andExpect(jsonPath("$.message", messaggio));
         verifyNoInteractions(legaService, anagrafeService, archivioService, campettoService, coachAiService, authenticationManager,
-                refreshTokenService, utenteRepository, recuperoPasswordService);
+                refreshTokenService, utenteRepository, recuperoPasswordService, profiloService);
     }
 
     /** Il corpo d'errore è solo {message, timestamp}, con il timestamp nel formato ISO di ExceptionsHandler (LocalDateTime) */
@@ -288,6 +303,11 @@ class ValidazioneWebTest {
                 arguments(POST, "/api/auth/register", Map.of(), List.of("name", "email", "password")),
                 arguments(POST, "/api/auth/password/dimenticata", Map.of(), List.of("email")),
                 arguments(POST, "/api/auth/password/reimposta", Map.of(), List.of("token", "nuovaPassword")),
+                arguments(PATCH, "/api/auth/me", Map.of(), List.of("name")),
+                arguments(POST, "/api/auth/me/password", Map.of(), List.of("passwordAttuale", "nuovaPassword")),
+                arguments(POST, "/api/auth/me/email", Map.of(), List.of("nuovaEmail", "password")),
+                arguments(POST, "/api/auth/email/conferma", Map.of(), List.of("token")),
+                arguments(POST, "/api/auth/me/elimina", Map.of(), List.of("password")),
                 arguments(POST, "/api/coach/chat", Map.of(), List.of("messages")));
     }
 
@@ -324,20 +344,27 @@ class ValidazioneWebTest {
     /** Come si scrive ciò che porta un DTO: metodo, indirizzo e un corpo valido, nuovo a ogni richiesta */
     private record Scrittura(HttpMethod metodo, String url, Supplier<Map<String, Object>> corpo) {}
 
-    private static final Map<Class<?>, Scrittura> SCRITTURE_PER_DTO = Map.of(
-            NuovaLegaDTO.class, new Scrittura(POST, "/api/leghe", ValidazioneWebTest::nuovaLega),
+    // Map.ofEntries e non Map.of: Map.of arriva al massimo a 10 coppie
+    private static final Map<Class<?>, Scrittura> SCRITTURE_PER_DTO = Map.ofEntries(
+            entry(NuovaLegaDTO.class, new Scrittura(POST, "/api/leghe", ValidazioneWebTest::nuovaLega)),
             // La rinomina porta lo stesso corpo di una lega nuova: il solo nome
-            PatchLegaDTO.class, new Scrittura(PATCH, "/api/leghe/" + UUID.randomUUID(), ValidazioneWebTest::nuovaLega),
-            TappaDTO.class, new Scrittura(POST, urlNuovaTappa(), ValidazioneWebTest::tappa),
-            GiocatoreRequestDTO.class, new Scrittura(POST, "/api/anagrafe/giocatori", ValidazioneWebTest::giocatore),
-            SquadraRequestDTO.class, new Scrittura(POST, "/api/anagrafe/squadre", ValidazioneWebTest::squadra),
-            CampettoRequestDTO.class, new Scrittura(POST, "/api/campetti", ValidazioneWebTest::campetto),
-            RegisterRequestDTO.class, new Scrittura(POST, "/api/auth/register", () -> registrazione("mario@x.it")),
-            LoginRequestDTO.class, new Scrittura(POST, "/api/auth/login", () -> accesso("mario@x.it")),
-            PasswordDimenticataDTO.class, new Scrittura(POST, "/api/auth/password/dimenticata",
-                    () -> new LinkedHashMap<>(Map.of("email", "mario@x.it"))),
-            ReimpostaPasswordDTO.class, new Scrittura(POST, "/api/auth/password/reimposta",
-                    () -> new LinkedHashMap<>(Map.of("token", "token-del-link", "nuovaPassword", "password-valida"))));
+            entry(PatchLegaDTO.class, new Scrittura(PATCH, "/api/leghe/" + UUID.randomUUID(), ValidazioneWebTest::nuovaLega)),
+            entry(TappaDTO.class, new Scrittura(POST, urlNuovaTappa(), ValidazioneWebTest::tappa)),
+            entry(GiocatoreRequestDTO.class, new Scrittura(POST, "/api/anagrafe/giocatori", ValidazioneWebTest::giocatore)),
+            entry(SquadraRequestDTO.class, new Scrittura(POST, "/api/anagrafe/squadre", ValidazioneWebTest::squadra)),
+            entry(CampettoRequestDTO.class, new Scrittura(POST, "/api/campetti", ValidazioneWebTest::campetto)),
+            entry(RegisterRequestDTO.class, new Scrittura(POST, "/api/auth/register", () -> registrazione("mario@x.it"))),
+            entry(LoginRequestDTO.class, new Scrittura(POST, "/api/auth/login", () -> accesso("mario@x.it"))),
+            entry(PasswordDimenticataDTO.class, new Scrittura(POST, "/api/auth/password/dimenticata",
+                    () -> new LinkedHashMap<>(Map.of("email", "mario@x.it")))),
+            entry(ReimpostaPasswordDTO.class, new Scrittura(POST, "/api/auth/password/reimposta",
+                    () -> new LinkedHashMap<>(Map.of("token", "token-del-link", "nuovaPassword", "password-valida")))),
+            entry(CambioNomeDTO.class, new Scrittura(PATCH, "/api/auth/me", () -> new LinkedHashMap<>(Map.of("name", "Mario")))),
+            entry(CambioPasswordDTO.class, new Scrittura(POST, "/api/auth/me/password", ValidazioneWebTest::cambioPassword)),
+            entry(CambioEmailDTO.class, new Scrittura(POST, "/api/auth/me/email",
+                    () -> new LinkedHashMap<>(Map.of("nuovaEmail", "nuova@x.it", "password", "password-attuale")))),
+            entry(ConfermaEmailDTO.class, new Scrittura(POST, "/api/auth/email/conferma",
+                    () -> new LinkedHashMap<>(Map.of("token", "token-del-link")))));
 
     /** Ogni campo della tabella con l'endpoint che lo riceve, un corpo valido e il suo tetto (letto dal DTO) */
     static Stream<Arguments> campiConUnTetto() {
@@ -377,12 +404,60 @@ class ValidazioneWebTest {
         rifiutata(POST, "/api/auth/register", r, "name");
     }
 
+    // Il nome del profilo ha i limiti di quello della registrazione: vuoto, di soli spazi o di un carattere non basta
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   ", "x"})
+    void nomeDelProfiloVuotoODiUnCarattere_risponde400ConIlCampo(String nome) throws Exception {
+        rifiutata(PATCH, "/api/auth/me", Map.of("name", nome), "name");
+    }
+
+    // La nuova email ha le regole dell'email della registrazione: un indirizzo che non è un'email non arriva al servizio
+    @ParameterizedTest
+    @ValueSource(strings = {"non-una-email", "mario@", " "})
+    void nuovaEmailNonValida_risponde400ConIlCampo(String indirizzo) throws Exception {
+        rifiutata(POST, "/api/auth/me/email", Map.of("nuovaEmail", indirizzo, "password", "password-attuale"), "nuovaEmail");
+    }
+
+    // L'eliminazione chiede la password attuale: vuota o di soli spazi non arriva al servizio
+    @ParameterizedTest
+    @ValueSource(strings = {"", "   "})
+    void eliminazioneConLaPasswordVuota_risponde400ConIlCampo(String password) throws Exception {
+        rifiutata(POST, "/api/auth/me/elimina", Map.of("password", password), "password");
+    }
+
+    // Con la password il corpo è valido: arriva al servizio e la risposta è 204
+    @Test
+    void eliminazioneConLaPassword_siAccetta_eRisponde204() throws Exception {
+        invia(POST, "/api/auth/me/elimina", Map.of("password", "password-attuale")).andExpect(status().isNoContent());
+    }
+
+    @Test
+    void passwordAttualeVuota_risponde400ConIlCampo() throws Exception {
+        Map<String, Object> c = cambioPassword();
+        c.put("passwordAttuale", "");
+
+        rifiutata(POST, "/api/auth/me/password", c, "passwordAttuale");
+    }
+
+    // La nuova password del profilo ha le regole e i messaggi della registrazione (le costanti di RegisterRequestDTO)
+    @Test
+    void nuovaPasswordDelProfiloDi7O73Caratteri_risponde400ConIMessaggiDellaRegistrazione() throws Exception {
+        Map<String, Object> c = cambioPassword();
+        c.put("nuovaPassword", "x".repeat(7));
+        rifiutataConMessaggio(POST, "/api/auth/me/password", c,
+                allOf(containsString("nuovaPassword: " + RegisterRequestDTO.PASSWORD_CORTA), not(containsString("al massimo"))));
+
+        c.put("nuovaPassword", "x".repeat(73));
+        rifiutataConMessaggio(POST, "/api/auth/me/password", c,
+                allOf(containsString("nuovaPassword: " + RegisterRequestDTO.PASSWORD_LUNGA), not(containsString("almeno"))));
+    }
+
     /**
      * Un testo lungo `lunghezza` caratteri: un'email deve restare un'email valida e un indirizzo web un indirizzo valido,
      * altrimenti il 400 non sarebbe per la lunghezza
      */
     private static String testoDi(String campo, int lunghezza) {
-        if (campo.equals("email")) return emailDi(lunghezza);
+        if (campo.equals("email") || campo.equals("nuovaEmail")) return emailDi(lunghezza);
         if (INDIRIZZI_WEB.contains(campo)) return "https://" + "x".repeat(lunghezza - "https://".length());
         return "x".repeat(lunghezza);
     }

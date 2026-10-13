@@ -1,6 +1,7 @@
 package com.hoop3x3.backend.web;
 
 import com.hoop3x3.backend.controllers.AuthController;
+import com.hoop3x3.backend.controllers.Sessioni;
 import com.hoop3x3.backend.exceptions.ExceptionsHandler;
 import com.hoop3x3.backend.repositories.UtenteRepository;
 import com.hoop3x3.backend.security.AuthCookies;
@@ -43,7 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @WebMvcTest(controllers = AuthController.class)
 @Import({SecurityConfig.class, CorsConfig.class, JwtFilter.class, JwtTools.class, JsonAuthEntryPoint.class,
-        AuthCookies.class, ExceptionsHandler.class, LimiteDimensioneFilter.class})
+        AuthCookies.class, Sessioni.class, ExceptionsHandler.class, LimiteDimensioneFilter.class})
 @TestPropertySource(properties = {"jwt.secret=0123456789abcdef0123456789abcdef", "cors.origins=http://localhost:5173"})
 class RegistrazioneFiltriWebTest {
 

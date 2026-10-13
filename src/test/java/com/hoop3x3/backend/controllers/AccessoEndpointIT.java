@@ -118,6 +118,12 @@ class AccessoEndpointIT {
     static Stream<Endpoint> altriEndpointProtetti() {
         return Stream.of(
                 new Endpoint(GET, "/api/auth/me", null),
+                // Il profilo: il corpo è valido, così il 401 è proprio quello della sicurezza (il caso buono lo prova ProfiloIT)
+                new Endpoint(PATCH, "/api/auth/me", Map.of("name", "Mario")),
+                new Endpoint(POST, "/api/auth/me/password", Map.of("passwordAttuale", "x", "nuovaPassword", "password-nuova-1")),
+                new Endpoint(POST, "/api/auth/me/email", Map.of("nuovaEmail", "nuova@test.it", "password", "x")),
+                // Senza token il 401, prima di guardare la password: il caso buono (204) lo prova ProfiloIT
+                new Endpoint(POST, "/api/auth/me/elimina", Map.of("password", "x")),
                 new Endpoint(GET, "/api/utenti", null),
                 new Endpoint(GET, "/api/leghe", null),
                 new Endpoint(POST, "/api/leghe", Map.of("nome", "Circuito 2027")),
@@ -166,6 +172,9 @@ class AccessoEndpointIT {
                 // della richiesta del link e il giro completo li prova RecuperoPasswordIT)
                 new Pubblico(new Endpoint(POST, "/api/auth/password/dimenticata", Map.of()), 400),
                 new Pubblico(new Endpoint(POST, "/api/auth/password/reimposta", Map.of()), 400),
+                // La conferma del cambio email si apre dal link nell'email, anche da un browser senza sessione: senza corpo
+                // valido 400 (il giro completo lo prova ProfiloIT)
+                new Pubblico(new Endpoint(POST, "/api/auth/email/conferma", Map.of()), 400),
                 new Pubblico(new Endpoint(GET, "/api/anagrafe/giocatori", null), 200),
                 new Pubblico(new Endpoint(GET, "/api/anagrafe/squadre", null), 200),
                 new Pubblico(new Endpoint(GET, "/api/archivio", null), 200),
