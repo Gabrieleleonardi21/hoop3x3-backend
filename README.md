@@ -144,12 +144,12 @@ La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/cont
 | `DELETE` | `/api/tappe/{id}` | Proprietario o ADMIN (della lega della tappa) | 204 |
 | `GET` | `/api/anagrafe/giocatori` | Pubblico | 200; forma pubblica senza token, completa con un token valido |
 | `POST` | `/api/anagrafe/giocatori` | Autenticato | 201 |
-| `PUT` | `/api/anagrafe/giocatori/{id}` | Autore della scheda o ADMIN | 200; 409 se il corpo porta una `versione` che non è più quella del database |
-| `DELETE` | `/api/anagrafe/giocatori/{id}` | Autore della scheda o ADMIN | 204 |
+| `PUT` | `/api/anagrafe/giocatori/{id}` | Autore della scheda o ADMIN (solo ADMIN se l'autore è stato eliminato) | 200; 409 se il corpo porta una `versione` che non è più quella del database |
+| `DELETE` | `/api/anagrafe/giocatori/{id}` | Autore della scheda o ADMIN (come la PUT) | 204 |
 | `GET` | `/api/anagrafe/squadre` | Pubblico | 200; due forme come per i giocatori |
 | `POST` | `/api/anagrafe/squadre` | Autenticato | 201 |
-| `PUT` | `/api/anagrafe/squadre/{id}` | Autore della scheda o ADMIN | 200; 409 come per i giocatori |
-| `DELETE` | `/api/anagrafe/squadre/{id}` | Autore della scheda o ADMIN | 204 |
+| `PUT` | `/api/anagrafe/squadre/{id}` | Autore della scheda o ADMIN (solo ADMIN se l'autore è stato eliminato) | 200; 409 come per i giocatori |
+| `DELETE` | `/api/anagrafe/squadre/{id}` | Autore della scheda o ADMIN (come la PUT) | 204 |
 | `GET` | `/api/archivio` | Pubblico | 200 l'elenco sintetico (`VoceArchivioDTO`) |
 | `GET` | `/api/archivio/{tappaId}` | Pubblico | 200 la copia pubblica per intero (`CopiaPubblicaDTO`); 404 se non è in archivio |
 | `PUT` | `/api/archivio/{tappaId}` | Proprietario della lega della tappa o ADMIN (e, se la pubblicazione esiste già, il suo autore o ADMIN) | 200 la copia pubblica; senza corpo; 409 se la tappa non è conclusa |
@@ -233,6 +233,8 @@ ALTER TABLE archivio_tappe VALIDATE CONSTRAINT archivio_tappe_tappa_id_fkey;
 
 Giocatori e squadre dell'anagrafe sono condivisi: leggerli non chiede l'account, ma i **dati personali sono riservati a chi ha un account**. Scrivere (`POST`, `PUT`, `DELETE`) chiede il login, e modifica o elimina solo l'autore della scheda o un ADMIN.
 
+**Una scheda sopravvive al suo autore** (migrazione V11), come un campetto: le schede sono dati del circuito su persone terze, stanno nei roster delle squadre degli altri e nelle loro tappe. Se l'utente che l'ha inserita viene eliminato (dal suo profilo o in SQL), `autore_id` diventa `NULL` (`ON DELETE SET NULL`) e da allora la modifica e la elimina solo un ADMIN, perché nessun utente è il proprietario di un autore nullo (un USER riceve 403). Nelle due forme la scheda senza autore ha `autore` vuoto e `autoreId` `null`: il frontend non scrive «Registrato da …» e non mostra «Modifica» a nessuno, tranne a un ADMIN. Prima della V11 la cancellazione dell'utente portava via anche le sue schede (`ON DELETE CASCADE` della V1), e un suo giocatore usciva dai roster delle squadre degli altri.
+
 - `GET /api/anagrafe/giocatori` e `GET /api/anagrafe/squadre` hanno **due forme con le stesse chiavi JSON**, scelte in base all'utente autenticato. Non esistono GET di dettaglio: gli elenchi sono le uniche letture.
   - **Con un token valido** (un utente qualsiasi, non serve esserne l'autore) la forma completa: tutti i campi.
   - **Senza token** la forma pubblica: i campi riservati sono stringhe vuote (`""`) e `autoreId` è `null`.
@@ -255,7 +257,7 @@ Il `ts` (millisecondi dell'ultima modifica) è lo stesso nelle due forme, e la r
 
 **La ricerca di un luogo** (`GET /api/luoghi?q=firenze`) passa dal backend, che chiama Nominatim, il geocoding di OpenStreetMap, senza chiave: così il browser non parla con Nominatim e la politica d'uso è rispettata da un punto solo. Il server fa al massimo una richiesta al secondo, in tutto (non per utente), e tiene in cache 500 ricerche, anche quelle senza risultato. Dati: © OpenStreetMap contributors (licenza ODbL). Lo User-Agent è `HOOP3X3/1.0 (progetto HOOP 3X3)` (proprietà `nominatim.user-agent`).
 
-I campetti da basket che il frontend mostra su una mappa (tabella `campetti`, migrazione V8). Leggerli è pubblico e non chiede l'account; aggiungerne uno chiede il login; modificarlo o eliminarlo spetta all'autore o a un ADMIN. Un campetto è un dato del territorio e **sopravvive al suo autore**: se l'utente viene eliminato, `autore_id` diventa `NULL` (`ON DELETE SET NULL`, a differenza dell'anagrafe) e da allora lo modifica solo un ADMIN, perché nessun utente è il proprietario di un autore nullo.
+I campetti da basket che il frontend mostra su una mappa (tabella `campetti`, migrazione V8). Leggerli è pubblico e non chiede l'account; aggiungerne uno chiede il login; modificarlo o eliminarlo spetta all'autore o a un ADMIN. Un campetto è un dato del territorio e **sopravvive al suo autore**: se l'utente viene eliminato, `autore_id` diventa `NULL` (`ON DELETE SET NULL`, come le schede dell'anagrafe dalla V11) e da allora lo modifica solo un ADMIN, perché nessun utente è il proprietario di un autore nullo.
 
 **Il campetto** (`CampettoDTO`, le stesse chiavi per tutti; all'ospite, cioè senza token, `autoreId` è sempre `null`, come i dati riservati dell'anagrafe, mentre il nome dell'autore resta): `id`, `nome` (1-120 caratteri), `indirizzo` (fino a 160) e `citta` (fino a 120, mai `null`: vuoti se mancano), `lat` (-90..90) e `lng` (-180..180), `tipo` (`campetto`, `palestra` o `arena`: lo decide il server, le creazioni dall'app sono sempre `campetto`), `superficie` (`Asfalto`, `Cemento`, `Sintetico` o `Altro`), `canestri` (1..8), i sei booleani `illuminato`, `coperto`, `gratuito`, `retine`, `linee` e `fontanella` (assenti nella richiesta valgono `false`), `stato` (`buono`, `discreto` o `da sistemare`), `note` (fino a 2000, vuote se mancano), `autore` (il nome, vuoto se l'autore non esiste più), `autoreId` (`null` se non esiste più), `versione` e `ts` (millisecondi dell'ultima modifica). Il corpo di `POST` e `PUT` ha gli stessi campi senza `id`, `tipo`, `autore`, `autoreId` e `ts` (se ci sono si ignorano) e con una `versione` facoltativa; un campo fuori dai valori ammessi risponde 400 con il nome del campo, come per l'anagrafe, e il `CHECK` della migrazione sulle coordinate è la rete di sicurezza. Le colonne `fonte` e `fonte_id`, per i campetti importati da una fonte esterna (NULL per quelli creati dall'app), non escono dall'API.
 
@@ -367,8 +369,8 @@ Senza `BREVO_API_KEY` (o `MAIL_USERNAME`) la risposta della richiesta è la stes
 
 **Eliminazione** — `POST /api/auth/me/elimina` con `{"password": "..."}` (la password attuale; una `POST` e non una `DELETE`, perché un corpo su una `DELETE` non è garantito attraverso i proxy). Risponde **204** e cancella il cookie di refresh; il JWT lo butta via il client, e se lo rimanda riceve 401 «L'utente associato al token non esiste più». Il server cancella la riga di `utenti` e il database fa il resto con le sue chiavi esterne, nella stessa transazione:
 
-- **vanno via** l'account, le sue sessioni (`refresh_tokens`), i suoi link di recupero password e di cambio email, le sue leghe con le loro tappe e le pubblicazioni in archivio di quelle tappe, e le sue schede dell'anagrafe (giocatori e squadre, `ON DELETE CASCADE` della V1: un suo giocatore esce anche dai roster delle squadre degli altri);
-- **restano** i campetti che ha inserito, senza autore (`autore_id` NULL, `ON DELETE SET NULL` della V8): da allora li modifica solo un ADMIN.
+- **vanno via** l'account, le sue sessioni (`refresh_tokens`), i suoi link di recupero password e di cambio email, le sue leghe con le loro tappe e le pubblicazioni in archivio di quelle tappe;
+- **restano** i campetti e le schede dell'anagrafe (giocatori e squadre) che ha inserito, senza autore (`autore_id` NULL, `ON DELETE SET NULL` della V8 e della V11): da allora li modifica solo un ADMIN, e i suoi giocatori restano nei roster delle squadre degli altri (vedi «Anagrafe del circuito»).
 
 Password sbagliata: 400 «La password attuale non è corretta», e non cambia niente. Il tentativo conta nel limite per utente dei tre endpoint con la password.
 
@@ -492,7 +494,7 @@ env.properties.example          # segreti e impostazioni: copiare in env.propert
 Dockerfile, .dockerignore       # immagine per Render (vedi «Deploy su Render»)
 .github/workflows/ci.yml        # CI: build, test di integrazione con PostgreSQL e docker build (token in sola lettura, un push nuovo annulla la CI in corso)
 .github/dependabot.yml          # aggiornamenti settimanali di dipendenze Maven, azioni di GitHub e immagini Docker
-src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 = archivio legato alle tappe, V3 = segno dei seed eseguiti, V4 = versione delle tappe, V5 = versione delle schede dell'anagrafe, V6 = colonne dell'elenco dell'archivio e indice del roster, V7 = indirizzi web delle squadre a 2048 caratteri, V8 = campetti, V9 = token del recupero password, V10 = token del cambio email), applicate all'avvio
+src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 = archivio legato alle tappe, V3 = segno dei seed eseguiti, V4 = versione delle tappe, V5 = versione delle schede dell'anagrafe, V6 = colonne dell'elenco dell'archivio e indice del roster, V7 = indirizzi web delle squadre a 2048 caratteri, V8 = campetti, V9 = token del recupero password, V10 = token del cambio email, V11 = schede dell'anagrafe senza autore), applicate all'avvio
 src/main/resources/seed/        # estathe25.json e campetti-demo.json (Torino e Roma): i dati di prova (vedi «Dati di prova»)
 src/main/resources/import/      # pick-roll-README.md: fonte, permesso, attribuzione e formato del file dei campetti importati (vedi «Campetti»); il file dei dati non c'è
 src/main/java/com/hoop3x3/backend/
