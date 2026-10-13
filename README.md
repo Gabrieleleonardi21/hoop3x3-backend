@@ -128,6 +128,8 @@ La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/cont
 | `POST` | `/api/auth/password/dimenticata` | Pubblico | 200 `{message}` sempre uguale, registrata o no l'email; se è di un account manda il link (vedi «Recupero password»); 429 oltre il limite per indirizzo |
 | `POST` | `/api/auth/password/reimposta` | Pubblico: con il token del link | 200 `{message}`, password cambiata e sessioni chiuse; 400 se il link non è valido o è scaduto |
 | `GET` | `/api/auth/me` | Autenticato | 200 l'utente del token |
+| `PATCH` | `/api/auth/me` | Autenticato | 200 l'utente con il nome nuovo (`{name}`, da 2 a 80 caratteri; vedi «Profilo dell'account») |
+| `POST` | `/api/auth/me/password` | Autenticato | 200 `{token, user}` e nuovo cookie di refresh; le altre sessioni dell'account si chiudono; 400 se la password attuale è sbagliata o la nuova non va bene; 429 oltre il limite per utente |
 | `GET` | `/api/utenti` | ADMIN | 200 tutti gli utenti, senza password |
 | `GET` | `/api/leghe` | Autenticato | 200 le proprie leghe (anche per un ADMIN) |
 | `POST` | `/api/leghe` | Autenticato | 201; con `tappe` nel corpo è l'import di una lega |
@@ -314,7 +316,7 @@ Su origini diverse l'origine del frontend deve comunque stare in `CORS_ORIGINS`:
 **Limiti noti**
 
 - Il logout revoca il refresh token del browser da cui parte: un JWT già emesso resta valido fino alla sua scadenza (al massimo 30 minuti) e le sessioni aperte su altri dispositivi non vengono toccate.
-- Non c'è rilevamento del riuso di un refresh token già ruotato né un «esci da tutti i dispositivi» (le sessioni si chiudono tutte solo reimpostando la password con il recupero, vedi «Recupero password»): chi ruba il cookie e lo usa per primo ottiene una sessione che si rinnova finché non scade o non viene revocata.
+- Non c'è rilevamento del riuso di un refresh token già ruotato né un «esci da tutti i dispositivi» (le sessioni si chiudono tutte solo cambiando la password, dal profilo o con il recupero: vedi «Profilo dell'account» e «Recupero password»): chi ruba il cookie e lo usa per primo ottiene una sessione che si rinnova finché non scade o non viene revocata.
 - Il vecchio refresh token smette di valere appena il server lo ruota: se la risposta non arriva al browser (pagina chiusa o rete caduta durante il rinnovo), al rinnovo successivo si torna al login. Un periodo di grazia di qualche decina di secondi lo eviterebbe.
 
 ## Recupero password
@@ -341,6 +343,17 @@ Su Render `BREVO_API_KEY` è un **segreto del servizio backend, da impostare a m
 **Limite di Brevo** — il piano gratuito manda al massimo 300 email al giorno; oltre, Brevo rifiuta gli invii fino al giorno dopo (righe ERROR nei log). Per un'app più grande servirebbe un piano a pagamento o un altro servizio: basta un'altra implementazione di `EmailSender`.
 
 I test non mandano mai email vere: il profilo «test» svuota chiave e mittente, `RecuperoPasswordIT` usa un `EmailSender` finto (`EmailFinto`) e `EmailSenderBrevoTest` parla con un Brevo finto locale (`BrevoFinto`).
+
+## Profilo dell'account
+
+Chi ha un account cambia dal profilo (la pagina `/profilo` del frontend) il suo nome e la sua password (`ProfiloController`, `ProfiloService`). Il JWT identifica l'utente per **id**, non per email o nome: cambiarli non invalida il token in corso, e il client aggiorna solo la copia dell'utente che tiene nel browser.
+
+- **Nome** — `PATCH /api/auth/me` con `{"name": "..."}`: le regole del nome della registrazione (da 2 a 80 caratteri, senza gli spazi ai lati). Risponde 200 con l'utente aggiornato. È il nome che l'anagrafe, i campetti e l'archivio mostrano come «autore»: le risposte lo leggono dal database, quindi le schede già create mostrano subito quello nuovo.
+- **Password** — `POST /api/auth/me/password` con `{"passwordAttuale": "...", "nuovaPassword": "..."}`. La nuova ha le regole della registrazione (da 8 caratteri a 72 byte in UTF-8, diversa da `admin123`) e non può essere uguale all'attuale. Se va bene la password cambia (BCrypt), **tutte le sessioni dell'account si chiudono** (le sue righe di `refresh_tokens`, come con il recupero) e se ne riapre una per il browser che ha fatto la richiesta: la risposta è 200 `{token, user}` con un nuovo cookie di refresh, come un login. Gli altri dispositivi non rinnovano più la sessione ed escono alla scadenza del loro JWT (al massimo 30 minuti).
+
+**La password attuale** — le operazioni delicate la chiedono anche a chi ha un JWT valido: un JWT rubato da solo non basta. Se è sbagliata la risposta è **400** «La password attuale non è corretta» e nel database non cambia niente; mai 401, che farebbe tentare al client il rinnovo della sessione e, se fallisse, lo farebbe uscire. I tentativi a raffica li ferma il limite per utente (vedi «Limiti di frequenza»).
+
+Gli errori della password: 400 «La password attuale non è corretta», «La nuova password è uguale a quella attuale», oppure i messaggi della registrazione (`nuovaPassword: la password deve avere almeno 8 caratteri`, `... al massimo 72 caratteri`, `La password supera i 72 byte ...`, `Questa password non è consentita: scegline un'altra`).
 
 ## Deploy su Render
 
@@ -398,6 +411,7 @@ Fanno eccezione le richieste respinte prima di Spring MVC, dal container o dal f
 Il server conta le richieste e, oltre il limite, risponde 429 senza farle arrivare al servizio (niente BCrypt, niente chiamata a Groq). A che cosa serve, e perché il controllo sta dove sta, è scritto nel commento di `LimiteRichiesteFilter`.
 
 - **Login, registrazione, rinnovo del token e richiesta del link di recupero password** (`POST /api/auth/login`, `/api/auth/register`, `/api/auth/refresh` e `/api/auth/password/dimenticata`) — 10 richieste al minuto per indirizzo IP. Ogni endpoint ha il suo contatore: chi sbaglia dieci volte la password non resta senza il rinnovo della sessione. Il recupero ha in più il limite per account del servizio (3 link ogni 15 minuti, vedi «Recupero password»); la nuova password con il token (`/api/auth/password/reimposta`) non è limitata.
+- **Profilo con la password attuale** (`POST /api/auth/me/password`, `/api/auth/me/email` e `/api/auth/me/elimina`) — 10 richieste al minuto per utente (`limite.auth-al-minuto`, l'id dell'account), con **un contatore solo** per i tre: ognuno verifica la password con un BCrypt, e chi ha rubato un JWT non può provarne a raffica. Senza token risponde il 401 e niente si conta; il cambio del nome (`PATCH /api/auth/me`) non è limitato.
 - **Coach AI** (`POST /api/coach/chat`) — 20 richieste al minuto e 300 al giorno per utente (l'id dell'account, da qualunque indirizzo arrivi). Valgono tutte e due. La quota conta ogni richiesta autenticata alla chat, anche quelle che poi falliscono (per esempio con 400 o 413, perché il limite sta prima della validazione e del tetto dei 2 MB); non la consumano solo quelle respinte dal limite del minuto. Senza token risponde il 401 e niente si conta. Lo stato del Coach (`GET /api/coach/status`), il logout e le altre API non sono limitati.
 - **Finestre fisse**, allineate all'orologio: il minuto finisce al secondo 0, il giorno a mezzanotte UTC (le 2 in Italia d'estate, l'1 d'inverno). Chi insiste oltre il limite non allunga l'attesa, ma a cavallo di due finestre si possono fare fino al doppio delle richieste in pochi secondi.
 
@@ -411,11 +425,11 @@ Content-Type: application/json
 {"message":"Troppi tentativi di accesso: riprova tra 40 secondi","timestamp":"2026-10-06T10:00:20.123456"}
 ```
 
-Gli altri messaggi sono «Troppe richieste di registrazione», «Troppi rinnovi della sessione», «Troppe richieste di recupero password», «Troppe richieste al Coach AI» e, per la quota del giorno, «Quota giornaliera del Coach AI esaurita: riprova tra 14 ore». Con il frontend su un'altra origine (`CORS_ORIGINS`) `Retry-After` è tra gli header che `CorsConfig` espone al JavaScript (`Access-Control-Expose-Headers`): il client legge quanto aspettare anche da lì, senza ricavarlo dal messaggio.
+Gli altri messaggi sono «Troppe richieste di registrazione», «Troppi rinnovi della sessione», «Troppe richieste di recupero password», «Troppi tentativi con la password» (il profilo), «Troppe richieste al Coach AI» e, per la quota del giorno, «Quota giornaliera del Coach AI esaurita: riprova tra 14 ore». Con il frontend su un'altra origine (`CORS_ORIGINS`) `Retry-After` è tra gli header che `CorsConfig` espone al JavaScript (`Access-Control-Expose-Headers`): il client legge quanto aspettare anche da lì, senza ricavarlo dal messaggio.
 
 **Proprietà** — in `application.properties`, validate all'avvio (un valore sotto 1 ferma il server e dice quale è sbagliato):
 
-- `limite.auth-al-minuto=10` — login, registrazione, rinnovo e richiesta del link di recupero password, per indirizzo;
+- `limite.auth-al-minuto=10` — login, registrazione, rinnovo e richiesta del link di recupero password, per indirizzo; lo stesso numero, per utente, per i tre endpoint del profilo con la password;
 - `limite.coach-al-minuto=20` e `limite.coach-al-giorno=300` — Coach AI, per utente.
 
 Si cambiano in `env.properties` con il nome della proprietà (`limite.auth-al-minuto=60`) o con le variabili d'ambiente `LIMITE_AUTH_AL_MINUTO`, `LIMITE_COACH_AL_MINUTO` e `LIMITE_COACH_AL_GIORNO` (utile per provare il server con molte richieste dallo stesso computer); il nome in maiuscolo scritto dentro `env.properties` non ha effetto (vedi «Variabili di configurazione»). Il profilo di test li alza a 100000 al minuto e 1000000 al giorno; i test dei limiti scelgono da sé valori bassi e usano un orologio che si sposta a comando.
@@ -445,8 +459,9 @@ L'applicazione scrive nei log (console) ciò che serve a capire un problema in p
 - **Login fallito** (WARN) — `Login fallito per mario@x.it`: l'email normalizzata, mai la password. Un'email con CR o LF dentro non arriva fin lì: la validazione la rifiuta con 400.
 - **Registrazione** (INFO) — `Nuovo utente registrato: mario@x.it (id ...)`.
 - **Recupero password** — l'email solo mascherata (le prime due lettere e il dominio), mai il token né la password: INFO `Recupero password: link inviato a ma***@x.it`, `Recupero password per un'email non registrata: ne***@x.it` e `Password reimpostata con il link di recupero: utente <id>`; WARN `Recupero password: già 3 link in 15 minuti per ma***@x.it, nessuna nuova email` e, all'avvio senza chiave, `Recupero password: BREVO_API_KEY mancante, le email non partono` (o senza mittente, `... MAIL_USERNAME mancante (il mittente) ...`); ERROR `Recupero password: email a ma***@x.it non inviata, Brevo ha risposto 401 (Unauthorized)` se Brevo rifiuta l'invio, `... Brevo non raggiungibile (ResourceAccessException)` per un timeout o la rete.
+- **Profilo** (INFO) — `Nome utente cambiato: utente <id>` e `Password cambiata dal profilo: utente <id>`: l'id, mai il nome (lo scrive l'utente) né le password.
 - **Intervento di un ADMIN su dati di un altro utente** (INFO) — `Intervento ADMIN: admin@x.it (id ...): modifica lega <id> di proprietà dell'utente <id>`, oppure `eliminazione`. Solo per le modifiche e le eliminazioni di leghe, tappe, schede dell'anagrafe e pubblicazioni, e solo se la richiesta è andata oltre i controlli (una 404, 409 o 400 non lascia niente; fa eccezione un conflitto che si scopre solo al commit, come due eliminazioni insieme della stessa risorsa: la riga è già stata scritta). Né le letture, per esempio un ADMIN che apre la lega di un altro, né i dati propri lasciano una riga. Contiene l'email dell'ADMIN e gli id, mai nomi scritti da altri utenti.
-- **Limite di frequenza superato** (WARN) — `Limite di richieste superato: Troppi tentativi di accesso (massimo 10 al minuto), indirizzo 203.0.113.9`, oppure `... Troppe richieste al Coach AI (massimo 20 al minuto), utente <id>`. Una riga sola per indirizzo (o utente) e per finestra, non una per richiesta: chi insiste non riempie i log. Il 429 stesso non lascia altre righe.
+- **Limite di frequenza superato** (WARN) — `Limite di richieste superato: Troppi tentativi di accesso (massimo 10 al minuto), indirizzo 203.0.113.9`, oppure `... Troppe richieste al Coach AI (massimo 20 al minuto), utente <id>` o `... Troppi tentativi con la password (massimo 10 al minuto), utente <id>`. Una riga sola per indirizzo (o utente) e per finestra, non una per richiesta: chi insiste non riempie i log. Il 429 stesso non lascia altre righe.
 - **Errori 500** (ERROR) — `Errore non gestito su GET /api/leghe`, con lo stack sotto: metodo e percorso della richiesta (senza la query, che può contenere dati personali). Gli errori di Groq li scrive una volta sola il Coach AI (vedi la sezione omonima).
 - **Seeder** — ogni volta che non creano i dati lo dicono, con il motivo: INFO se è la configurazione normale (`Admin non creato: ADMIN_EMAIL non è impostata`, `... esiste già un admin con l'email di ADMIN_EMAIL`, `Seed demo saltato: SEED_DEMO non è true e SEED_CAMPETTI nemmeno`, `Seed demo saltato: già eseguito`, `Seed campetti saltato: già eseguito`), WARN se la configurazione non permette ciò che chi l'ha scritta si aspetta (password debole, mancante o oltre i 72 byte, `ADMIN_PASSWORD` impostata con `ADMIN_EMAIL` vuota, `ADMIN_EMAIL` già di un utente con ruolo USER, `SEED_DEMO` acceso senza `ADMIN_EMAIL`, senza l'admin nel database o con `ADMIN_EMAIL` di un utente con ruolo USER, a cui i dati di prova non vengono intestati), e WARN con lo stack se il seed demo fallisce a metà (`Seed demo non riuscito`: il database resta com'era e il server parte lo stesso).
 - **Import dei campetti** (`--importa-campetti`) — un WARN per ogni riga scartata (`Import campetti: riga 7 (pr-007) scartata: lat: ...`), alla fine una riga INFO con i conteggi (`Import campetti completato: inseriti 6, aggiornati 0, scartati 4 (...)`) oppure un ERROR con il motivo se si è fermato (`Import campetti fallito: file non trovato: ...`), e il processo esce con 1. Nel log c'è il `fonteId` della riga, mai altri dati del file.
@@ -462,14 +477,14 @@ src/main/resources/db/migration/  # migrazioni Flyway (V1 = schema iniziale, V2 
 src/main/resources/seed/        # estathe25.json e campetti-demo.json (Torino e Roma): i dati di prova (vedi «Dati di prova»)
 src/main/resources/import/      # pick-roll-README.md: fonte, permesso, attribuzione e formato del file dei campetti importati (vedi «Campetti»); il file dei dati non c'è
 src/main/java/com/hoop3x3/backend/
-├── controllers/  # REST (auth, recupero password, utenti, leghe, tappe, anagrafe, archivio, campetti, coach)
+├── controllers/  # REST (auth, profilo, recupero password, utenti, leghe, tappe, anagrafe, archivio, campetti, coach)
 ├── dto/          # record con validazione Bean Validation; per l'archivio CopiaPubblicaDTO (la tappa pubblicata per intero) e VoceArchivioDTO (la voce dell'elenco)
 ├── entities/     # JPA: Utente, RefreshToken, Lega, Tappa (+Regole), AnagrafeGiocatore/Squadra, ArchivioTappa, Campetto, SeedEseguito, TokenRecuperoPassword
 ├── exceptions/   # eccezioni tipizzate + ExceptionsHandler (corpo uniforme {message, timestamp})
 ├── repositories/ # Spring Data JPA
 ├── runners/      # DataSeeder (admin iniziale), DemoSeeder (dati di prova da resources/seed/, una volta sola per seed), ImportCampetti (il comando --importa-campetti), SeedProperties
 ├── security/     # SecurityConfig, JwtFilter, JwtTools (emette e verifica il JWT) con JwtJson (il suo JSON, con Jackson 3 e un mapper privato) e JwtProperties (secret e durata del JWT, validati all'avvio), AuthCookies con AuthProperties, CorsConfig con CorsProperties, JsonAuthEntryPoint, LimiteDimensioneFilter (413 oltre 2 MB), LimiteRichiesteFilter (429 oltre i limiti di frequenza) con LimiteRichieste (il contatore) e LimiteRichiesteProperties
-├── services/     # logica: proprietà (AccessGuard), JSON delle tappe (JsonSupport), campetti (CampettoService: ricerca per raggio e per testo), proxy Groq (CoachAiService, GroqProperties), refresh token (RefreshTokenService), recupero password (RecuperoPasswordService, AppProperties) con l'invio delle email (EmailSender, EmailSenderBrevo), log sicuri (LogSupport)
+├── services/     # logica: proprietà (AccessGuard), JSON delle tappe (JsonSupport), campetti (CampettoService: ricerca per raggio e per testo), proxy Groq (CoachAiService, GroqProperties), refresh token (RefreshTokenService), profilo dell'account (ProfiloService), recupero password (RecuperoPasswordService, AppProperties) con l'invio delle email (EmailSender, EmailSenderBrevo), log sicuri (LogSupport)
 ├── support/      # Tempo (le date sempre in UTC), Testo
 └── validation/   # IndirizzoWeb: la regola degli indirizzi web scritti dagli utenti (logo, sito, Instagram, url dei video)
 src/test/         # test unitari e *IT (vedi «Test»); resources/svuota.sql svuota il database di prova
