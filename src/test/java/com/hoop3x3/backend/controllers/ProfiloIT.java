@@ -227,6 +227,22 @@ class ProfiloIT {
         assertThat(emailDiMario()).isEqualTo("a@test.it");
     }
 
+    // Il link di recupero era stato mandato all'indirizzo di prima, che potrebbe non essere più nelle mani dell'utente: dopo la
+    // conferma del cambio email non vale più
+    @Test
+    void unLinkDiRecuperoMandatoPrimaDelCambioEmail_nonValePiuDopoLaConferma() throws Exception {
+        mvc.perform(post("/api/auth/password/dimenticata").contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("email", "mario@test.it")))).andExpect(status().isOk());
+        String linkDelRecupero = email.ultimoToken();
+        richiediEmail(mario, "mario.nuovo@test.it", VECCHIA).andExpect(status().isOk());
+        conferma(email.ultimoToken()).andExpect(status().isOk());
+
+        mvc.perform(post("/api/auth/password/reimposta").contentType(MediaType.APPLICATION_JSON)
+                        .content(json(Map.of("token", linkDelRecupero, "nuovaPassword", "nuova-password"))))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.message").value(LINK_NON_VALIDO));
+        login("mario.nuovo@test.it", VECCHIA).andExpect(status().isOk());
+    }
+
     @Test
     void unLinkNuovo_invalidaQuelloPrecedente() throws Exception {
         richiediEmail(mario, "prima@test.it", VECCHIA).andExpect(status().isOk());

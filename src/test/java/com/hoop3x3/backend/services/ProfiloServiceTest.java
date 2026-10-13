@@ -270,6 +270,8 @@ class ProfiloServiceTest {
         verify(tokens).segnaUsato(eq(token.getId()), any(LocalDateTime.class));
         verify(tokens).invalidaDellUtente(eq(mario.getId()), any(LocalDateTime.class));
         verify(utenti).save(mario);
+        // I link di recupero ancora aperti erano stati mandati all'indirizzo di prima: non valgono più
+        verify(tokenDelRecupero).invalidaDellUtente(eq(mario.getId()), any(LocalDateTime.class));
         verifyNoInteractions(sessioni);
         assertThat(log.righe()).containsExactly("Email cambiata: utente " + mario.getId());
     }

@@ -172,6 +172,8 @@ public class ProfiloService {
         utenteService.controllaEmailLibera(salvato.getEmailNuova());
         utente.setEmail(salvato.getEmailNuova());
         Utente aggiornato = utenti.save(utente);
+        // I link di recupero ancora aperti sono andati all'indirizzo di prima, che potrebbe non essere più dell'utente
+        tokenDelRecupero.invalidaDellUtente(utente.getId(), adesso);
         log.info("Email cambiata: utente {}", utente.getId());
         return aggiornato;
     }
