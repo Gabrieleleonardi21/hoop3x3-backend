@@ -42,10 +42,11 @@ public class RecuperoPasswordService {
     /** Un solo messaggio per token sconosciuto, già usato o scaduto: chi prova a indovinare non impara niente */
     public static final String LINK_NON_VALIDO = "Il link non è valido o è scaduto. Richiedine uno nuovo.";
 
-    private static final int DURATA_MINUTI = 30;
-    private static final int MASSIMO_LINK = 3;
-    private static final int FINESTRA_MINUTI = 15;
-    private static final int PULIZIA_DOPO_GIORNI = 1;
+    // Le regole dei link via email, le stesse per la conferma del cambio email (ProfiloService)
+    static final int DURATA_MINUTI = 30;
+    static final int MASSIMO_LINK = 3;
+    static final int FINESTRA_MINUTI = 15;
+    static final int PULIZIA_DOPO_GIORNI = 1;
 
     private final UtenteRepository utenti;
     private final TokenRecuperoPasswordRepository tokens;
