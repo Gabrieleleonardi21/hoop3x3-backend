@@ -88,7 +88,7 @@ public class RecuperoPasswordService {
         String token = nuovoToken();
         tokens.save(new TokenRecuperoPassword(utente, sha256(token), adesso.plusMinutes(DURATA_MINUTI)));
         // L'email parte dopo il salvataggio; anche se la transazione fallisse, il link porterebbe solo a «link non valido»
-        EmailRecuperoPassword.Contenuto contenuto =
+        ModelloEmail.ContenutoEmail contenuto =
                 EmailRecuperoPassword.componi(frontendUrl, frontendUrl + "/reimposta-password?token=" + token, DURATA_MINUTI);
         email.invia(utente.getEmail(), contenuto.oggetto(), contenuto.testo(), contenuto.html());
         log.info("Recupero password: link inviato a {}", mascheraEmail(utente.getEmail()));
