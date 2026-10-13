@@ -86,9 +86,10 @@ class AnagrafeIT {
 
     /* ── Roster con buchi: una riga del ponte cancellata dalla cascata del database, senza passare da Hibernate ── */
 
-    // Cancellare un utente in SQL (README, pulizia dei dati demo) elimina i suoi giocatori e, con ON DELETE CASCADE, le loro
-    // righe nei roster delle squadre di altri: le posizioni restano con un buco e Hibernate lo legge come un null nella lista.
-    // Gli elenchi (GET /api/anagrafe/squadre, per tutti) non devono cadere con un 500: il buco si salta
+    // Cancellare un giocatore in SQL (README, pulizia dei dati demo) elimina, con ON DELETE CASCADE, le sue righe nei roster
+    // delle squadre di altri: le posizioni restano con un buco e Hibernate lo legge come un null nella lista. Prima della V11
+    // lo faceva anche la cancellazione del suo autore. Gli elenchi (GET /api/anagrafe/squadre, per tutti) non devono cadere
+    // con un 500: il buco si salta
     @Test
     void unRosterConUnBuco_gliElenchiSaltanoIlBuco() {
         Utente mario = utenti.save(new Utente("mario@test.it", "hash", "Mario", Ruolo.USER));
@@ -97,7 +98,7 @@ class AnagrafeIT {
         UUID suo = giocatori.save(giocatore(mario, "Suo")).getId();
         anagrafeService.creaSquadra(mario, richiesta(List.of(diLuigi, suo)));
 
-        jdbc.update("delete from utenti where id = ?", luigi.getId()); // il buco è in posizione 0
+        jdbc.update("delete from anagrafe_giocatori where id = ?", diLuigi); // il buco è in posizione 0
 
         assertThat(anagrafeService.tutteSquadre().getFirst().roster()).containsExactly(suo);
         assertThat(anagrafeService.tutteSquadrePubbliche().getFirst().roster()).containsExactly(suo);
@@ -112,7 +113,7 @@ class AnagrafeIT {
         UUID suo = giocatori.save(giocatore(mario, "Suo")).getId();
         UUID altro = giocatori.save(giocatore(mario, "Altro")).getId();
         SquadraDTO creata = anagrafeService.creaSquadra(mario, richiesta(List.of(diLuigi, suo, altro)));
-        jdbc.update("delete from utenti where id = ?", luigi.getId());
+        jdbc.update("delete from anagrafe_giocatori where id = ?", diLuigi);
 
         anagrafeService.eliminaGiocatore(mario, suo);
 

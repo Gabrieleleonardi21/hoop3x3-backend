@@ -48,7 +48,7 @@ public record SquadraDTO(
 
     /**
      * Gli id dei giocatori del roster, nell'ordine salvato: uguale nelle due forme, che non possono divergere. I null sono i buchi
-     * dell'@OrderColumn (una riga del ponte cancellata dalla cascata del database, per esempio eliminando un utente in SQL):
+     * dell'@OrderColumn (una riga del ponte cancellata dalla cascata del database, per esempio eliminando un giocatore in SQL):
      * si saltano, altrimenti l'elenco delle squadre cadrebbe con un 500 per tutti
      */
     private static List<UUID> idDelRoster(AnagrafeSquadra s) {

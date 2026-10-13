@@ -17,6 +17,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -26,8 +27,12 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -38,6 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  *   <li>La versione (migrazione V5): due dispositivi dello stesso autore, o l'autore e un ADMIN, aperti sulla stessa scheda
  *   si sovrascrivevano in silenzio. Ora ogni scheda porta una `versione` e il client può rimandarla con la PUT: se non è più
  *   quella del database, 409 e niente salvato. Senza versione nel corpo la PUT passa come prima: i client di prima non cambiano.</li>
+ *   <li>Le schede senza autore (V11): le modifica e le elimina solo un ADMIN, e gli elenchi le mostrano senza autore.</li>
  * </ul>
  */
 @TestDiIntegrazione
@@ -141,7 +147,45 @@ class AnagrafeAggiornamentoIT {
         assertThat(risposta.get("versione").asLong()).isEqualTo(2);
     }
 
+    /* ── Schede senza autore (V11): l'autore eliminato le lascia con autore_id NULL ── */
+
+    // Nessun utente è il proprietario di un autore nullo, nemmeno chi l'aveva creata: la modifica e la elimina solo un ADMIN.
+    // Gli elenchi, con e senza token, la mostrano senza autore (il frontend non scrive «Registrato da» e non offre «Modifica»)
+    @Test
+    void unaSchedaSenzaAutore_laModificaSoloUnAdmin_eGliElenchiLaMostranoSenzaAutore() throws Exception {
+        jdbc.update("update anagrafe_giocatori set autore_id = null where id = ?", giocatore);
+        jdbc.update("update anagrafe_squadre set autore_id = null where id = ?", squadra);
+        Utente luigi = utenti.save(new Utente("luigi@test.it", "hash", "Luigi", Ruolo.USER));
+        Utente admin = utenti.save(new Utente("admin@test.it", "hash", "Admin", Ruolo.ADMIN));
+
+        for (Utente utente : List.of(luigi, mario)) {
+            invia(put("/api/anagrafe/giocatori/" + giocatore), utente, giocatore("Bianchi")).andExpect(status().isForbidden());
+            invia(put("/api/anagrafe/squadre/" + squadra), utente, squadra("Roma 3x3 Elite")).andExpect(status().isForbidden());
+            invia(delete("/api/anagrafe/giocatori/" + giocatore), utente, null).andExpect(status().isForbidden());
+        }
+
+        invia(get("/api/anagrafe/giocatori"), luigi, null).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].autore").value("")).andExpect(jsonPath("$[0].autoreId").value(nullValue()));
+        invia(get("/api/anagrafe/squadre"), luigi, null).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].autore").value("")).andExpect(jsonPath("$[0].autoreId").value(nullValue()));
+        invia(get("/api/anagrafe/giocatori"), null, null).andExpect(status().isOk()).andExpect(jsonPath("$[0].autore").value(""));
+        invia(get("/api/anagrafe/squadre"), null, null).andExpect(status().isOk()).andExpect(jsonPath("$[0].autore").value(""));
+
+        invia(put("/api/anagrafe/giocatori/" + giocatore), admin, giocatore("Bianchi")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.cognome").value("Bianchi")).andExpect(jsonPath("$.autoreId").value(nullValue()));
+        invia(put("/api/anagrafe/squadre/" + squadra), admin, squadra("Roma 3x3 Elite")).andExpect(status().isOk());
+        invia(delete("/api/anagrafe/squadre/" + squadra), admin, null).andExpect(status().isNoContent());
+        invia(delete("/api/anagrafe/giocatori/" + giocatore), admin, null).andExpect(status().isNoContent());
+    }
+
     /* ── Richieste e dati di prova ── */
+
+    /** La richiesta di `chi` (null: senza token), con il corpo se c'è */
+    private ResultActions invia(MockHttpServletRequestBuilder richiesta, Utente chi, Object corpo) throws Exception {
+        if (chi != null) richiesta.header(AUTHORIZATION, "Bearer " + jwt.generateToken(chi));
+        if (corpo != null) richiesta.contentType(MediaType.APPLICATION_JSON).content(mapper.writeValueAsString(corpo));
+        return mvc.perform(richiesta);
+    }
 
     /** Un giocatore con quel cognome, senza versione: nome e cognome sono gli unici campi obbligatori */
     private static GiocatoreRequestDTO giocatore(String cognome) {
