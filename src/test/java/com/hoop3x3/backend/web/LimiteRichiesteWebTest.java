@@ -17,6 +17,7 @@ import com.hoop3x3.backend.security.LimiteDimensioneFilter;
 import com.hoop3x3.backend.security.LimiteRichiesteFilter;
 import com.hoop3x3.backend.security.SecurityConfig;
 import com.hoop3x3.backend.services.CoachAiService;
+import com.hoop3x3.backend.services.FoglioService;
 import com.hoop3x3.backend.services.RefreshTokenService;
 import com.hoop3x3.backend.services.UtenteService;
 import jakarta.servlet.http.Cookie;
@@ -84,6 +85,7 @@ class LimiteRichiesteWebTest {
     @MockitoBean UtenteService utenteService;
     @MockitoBean RefreshTokenService refreshTokenService;
     @MockitoBean CoachAiService coachAiService;
+    @MockitoBean FoglioService foglioService;
     @MockitoBean UtenteRepository utenteRepository;
 
     private final Utente mario = conId("mario@x.it");

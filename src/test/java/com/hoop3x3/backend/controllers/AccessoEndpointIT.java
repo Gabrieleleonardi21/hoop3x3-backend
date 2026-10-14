@@ -131,7 +131,9 @@ class AccessoEndpointIT {
                 new Endpoint(POST, "/api/anagrafe/squadre", Map.of("nome", "Lupi")),
                 new Endpoint(POST, "/api/campetti", campetto()),
                 new Endpoint(GET, "/api/coach/status", null),
-                new Endpoint(POST, "/api/coach/chat", Map.of("messages", List.of())));
+                new Endpoint(POST, "/api/coach/chat", Map.of("messages", List.of())),
+                // Anche la lettura dei fogli: un'immagine qualsiasi, il 401 arriva prima di guardarla
+                new Endpoint(POST, "/api/coach/foglio", Map.of("immagine", "x")));
     }
 
     static Stream<Endpoint> endpointProtetti() {
@@ -393,6 +395,22 @@ class AccessoEndpointIT {
                 .andExpect(jsonPath("$", hasSize(3)))
                 .andExpect(jsonPath("$[*].email", hasItem("luigi@test.it")))
                 .andExpect(jsonPath("$[*].password").isEmpty());
+    }
+
+    // Nel profilo di test la lettura dei fogli è spenta (ai.lettore-foglio vuoto): lo stato lo dice e una foto risponde 503, senza
+    // nessuna chiamata a un fornitore
+    @Test
+    void loStatoDelCoachDiceCheLaLetturaDeiFogliESpenta() throws Exception {
+        invia(new Endpoint(GET, "/api/coach/status", null), mario).andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(false))
+                .andExpect(jsonPath("$.foglio").value(false));
+    }
+
+    @Test
+    void conLaLetturaSpenta_unaFotoRisponde503() throws Exception {
+        invia(new Endpoint(POST, "/api/coach/foglio", Map.of("immagine", "data:image/jpeg;base64,/9j/4AAQ")), mario)
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.message").value("Lettura dei fogli non configurata sul server (AI_LETTORE_FOGLIO)"));
     }
 
     /* ── Richieste ── */
