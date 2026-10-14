@@ -250,7 +250,9 @@ TEST_DB_URL=jdbc:postgresql://localhost:5432/hoop3x3_test TEST_DB_USERNAME=postg
   ./mvnw verify -Pintegrazione
 ```
 
-Il database di prova si crea una volta, vuoto: all'avvio dei test lo schema lo creano le migrazioni di Flyway (un database di prova che ha già le tabelle, create a mano prima di Flyway, viene riconosciuto come versione 1). L'utente dei test (`TEST_DB_USERNAME`) deve poter creare schemi nel database di prova, per esempio perché ne è il proprietario: `MigrazioniIT` prova le migrazioni su schemi temporanei, e senza il permesso i suoi test che li creano falliscono con «permission denied». Il profilo «test» (`src/test/resources/application-test.properties`) alza i limiti di frequenza (vedi «Limiti di frequenza»): gli IT fanno più accessi insieme dallo stesso indirizzo e con i valori di produzione verrebbero respinti con 429.
+Il database di prova si crea una volta, vuoto: all'avvio dei test lo schema lo creano le migrazioni di Flyway (un database di prova che ha già le tabelle, create a mano prima di Flyway, viene riconosciuto come versione 1). L'utente dei test (`TEST_DB_USERNAME`) deve poter creare schemi nel database di prova, per esempio perché ne è il proprietario: `MigrazioniIT` prova le migrazioni su schemi temporanei, e senza il permesso i suoi test che li creano falliscono con «permission denied».
+
+Il profilo «test» (`src/test/resources/application-test.properties`) alza i limiti di frequenza (vedi «Limiti di frequenza»): gli IT fanno più accessi insieme dallo stesso indirizzo e con i valori di produzione verrebbero respinti con 429.
 
 La CI (`.github/workflows/ci.yml`) fa lo stesso a ogni push su `main` e a ogni pull request: un PostgreSQL 18 come servizio, il database `hoop3x3_test` e `./mvnw -B verify -Pintegrazione` con le tre variabili `TEST_DB_*`.
 
@@ -270,7 +272,21 @@ Al 14 ottobre 2026 le migrazioni vanno da V1 a V11 (l'elenco di ciò che fa ognu
 
 ## Endpoint
 
-La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/controllers/`), che dichiara endpoint per endpoint chi può chiamarlo, in tre liste: `endpointSuUnaRisorsa()`, `altriEndpointProtetti()` (le prime due insieme sono `endpointProtetti()`) e `endpointPubblici()`. Il test le prova con il database e la catena di sicurezza veri: 401 senza token, 403 a chi non è il proprietario, 404 se la risorsa non esiste, esito positivo per il proprietario e per un ADMIN. `ogniEndpointDellApplicazioneStaInUnaDelleListe` confronta le liste con le mappature vere dei controller: un endpoint nuovo che non sta in nessuna lista fa cadere i test di integrazione. `ogniEndpointProtettoConUnaVariabileDiPercorsoStaTraQuelliSuUnaRisorsa` aggiunge la regola per gli endpoint protetti con una variabile nel percorso: devono stare tra quelli «su una risorsa», cioè con il 403 e il 404 provati. Il README non lo controlla nessun test: se cambia una lista, cambia anche questa tabella.
+La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/controllers/`), che dichiara endpoint per endpoint chi può chiamarlo, in tre liste: `endpointSuUnaRisorsa()`, `altriEndpointProtetti()` (le prime due insieme sono `endpointProtetti()`) e `endpointPubblici()`.
+
+Il test le prova con il database e la catena di sicurezza veri:
+
+- 401 senza token;
+- 403 a chi non è il proprietario;
+- 404 se la risorsa non esiste;
+- esito positivo per il proprietario e per un ADMIN.
+
+Due controlli tengono le liste complete:
+
+- `ogniEndpointDellApplicazioneStaInUnaDelleListe` confronta le liste con le mappature vere dei controller: un endpoint nuovo che non sta in nessuna lista fa cadere i test di integrazione;
+- `ogniEndpointProtettoConUnaVariabileDiPercorsoStaTraQuelliSuUnaRisorsa` aggiunge la regola per gli endpoint protetti con una variabile nel percorso: devono stare tra quelli «su una risorsa», cioè con il 403 e il 404 provati.
+
+L'elenco degli endpoint di questo README non lo controlla nessun test (`ReadmeTest` controlla percorsi, indice e migrazioni): se cambia una lista, cambia anche questa tabella.
 
 - **Pubblico** — senza token. Un `Authorization: Bearer` presente ma scaduto o non valido dà comunque 401 (`JwtFilter`), tranne su login, registrazione, rinnovo, uscita, recupero password e conferma del cambio email, che non passano dal filtro.
 - **Autenticato** — serve un JWT valido, di qualsiasi utente; senza, 401. Ogni percorso che non è tra i pubblici lo chiede (`anyRequest().authenticated()` in `SecurityConfig`).
@@ -406,7 +422,9 @@ ALTER TABLE archivio_tappe VALIDATE CONSTRAINT archivio_tappe_tappa_id_fkey;
 
 Giocatori e squadre dell'anagrafe sono condivisi: leggerli non chiede l'account, ma i **dati personali sono riservati a chi ha un account**. Scrivere (`POST`, `PUT`, `DELETE`) chiede il login, e modifica o elimina solo l'autore della scheda o un ADMIN.
 
-**Una scheda sopravvive al suo autore** (migrazione V11), come un campetto: le schede sono dati del circuito su persone terze, stanno nei roster delle squadre degli altri e nelle loro tappe. Se l'utente che l'ha inserita viene eliminato (dal suo profilo o in SQL), `autore_id` diventa `NULL` (`ON DELETE SET NULL`) e da allora la modifica e la elimina solo un ADMIN, perché nessun utente è il proprietario di un autore nullo (un USER riceve 403). Nelle due forme la scheda senza autore ha `autore` vuoto e `autoreId` `null`: il frontend non scrive «Registrato da …» e non mostra «Modifica» a nessuno, tranne a un ADMIN. Prima della V11 la cancellazione dell'utente portava via anche le sue schede (`ON DELETE CASCADE` della V1), e un suo giocatore usciva dai roster delle squadre degli altri.
+**Una scheda sopravvive al suo autore** (migrazione V11), come un campetto: le schede sono dati del circuito su persone terze, stanno nei roster delle squadre degli altri e nelle loro tappe. Se l'utente che l'ha inserita viene eliminato (dal suo profilo o in SQL), `autore_id` diventa `NULL` (`ON DELETE SET NULL`) e da allora la modifica e la elimina solo un ADMIN, perché nessun utente è il proprietario di un autore nullo (un USER riceve 403).
+
+Nelle due forme la scheda senza autore ha `autore` vuoto e `autoreId` `null`: il frontend non scrive «Registrato da …» e non mostra «Modifica» a nessuno, tranne a un ADMIN. Prima della V11 la cancellazione dell'utente portava via anche le sue schede (`ON DELETE CASCADE` della V1), e un suo giocatore usciva dai roster delle squadre degli altri.
 
 - `GET /api/anagrafe/giocatori` e `GET /api/anagrafe/squadre` hanno **due forme con le stesse chiavi JSON**, scelte in base all'utente autenticato. Non esistono GET di dettaglio: gli elenchi sono le uniche letture.
   - **Con un token valido** (un utente qualsiasi, non serve esserne l'autore) la forma completa: tutti i campi.
@@ -432,7 +450,20 @@ Il `ts` (millisecondi dell'ultima modifica) è lo stesso nelle due forme, e la r
 
 I campetti da basket che il frontend mostra su una mappa (tabella `campetti`, migrazione V8). Leggerli è pubblico e non chiede l'account; aggiungerne uno chiede il login; modificarlo o eliminarlo spetta all'autore o a un ADMIN. Un campetto è un dato del territorio e **sopravvive al suo autore**: se l'utente viene eliminato, `autore_id` diventa `NULL` (`ON DELETE SET NULL`, come le schede dell'anagrafe dalla V11) e da allora lo modifica solo un ADMIN, perché nessun utente è il proprietario di un autore nullo.
 
-**Il campetto** (`CampettoDTO`, le stesse chiavi per tutti; all'ospite, cioè senza token, `autoreId` è sempre `null`, come i dati riservati dell'anagrafe, mentre il nome dell'autore resta): `id`, `nome` (1-120 caratteri), `indirizzo` (fino a 160) e `citta` (fino a 120, mai `null`: vuoti se mancano), `lat` (-90..90) e `lng` (-180..180), `tipo` (`campetto`, `palestra` o `arena`: lo decide il server, le creazioni dall'app sono sempre `campetto`), `superficie` (`Asfalto`, `Cemento`, `Sintetico` o `Altro`), `canestri` (1..8), i sei booleani `illuminato`, `coperto`, `gratuito`, `retine`, `linee` e `fontanella` (assenti nella richiesta valgono `false`), `stato` (`buono`, `discreto` o `da sistemare`), `note` (fino a 2000, vuote se mancano), `autore` (il nome, vuoto se l'autore non esiste più), `autoreId` (`null` se non esiste più), `versione` e `ts` (millisecondi dell'ultima modifica). Il corpo di `POST` e `PUT` ha gli stessi campi senza `id`, `tipo`, `autore`, `autoreId` e `ts` (se ci sono si ignorano) e con una `versione` facoltativa; un campo fuori dai valori ammessi risponde 400 con il nome del campo, come per l'anagrafe, e il `CHECK` della migrazione sulle coordinate è la rete di sicurezza. Le colonne `fonte` e `fonte_id`, per i campetti importati da una fonte esterna (NULL per quelli creati dall'app), non escono dall'API.
+**Il campetto** (`CampettoDTO`, le stesse chiavi per tutti; all'ospite, cioè senza token, `autoreId` è sempre `null`, come i dati riservati dell'anagrafe, mentre il nome dell'autore resta) ha questi campi:
+
+- `id`; `nome` (1-120 caratteri), `indirizzo` (fino a 160) e `citta` (fino a 120, mai `null`: vuoti se mancano);
+- `lat` (-90..90) e `lng` (-180..180);
+- `tipo` (`campetto`, `palestra` o `arena`: lo decide il server, le creazioni dall'app sono sempre `campetto`);
+- `superficie` (`Asfalto`, `Cemento`, `Sintetico` o `Altro`), `canestri` (1..8) e `stato` (`buono`, `discreto` o `da sistemare`);
+- i sei booleani `illuminato`, `coperto`, `gratuito`, `retine`, `linee` e `fontanella` (assenti nella richiesta valgono `false`);
+- `note` (fino a 2000, vuote se mancano);
+- `autore` (il nome, vuoto se l'autore non esiste più) e `autoreId` (`null` se non esiste più);
+- `versione` e `ts` (millisecondi dell'ultima modifica).
+
+Il corpo di `POST` e `PUT` ha gli stessi campi senza `id`, `tipo`, `autore`, `autoreId` e `ts` (se ci sono si ignorano) e con una `versione` facoltativa; un campo fuori dai valori ammessi risponde 400 con il nome del campo, come per l'anagrafe, e il `CHECK` della migrazione sulle coordinate è la rete di sicurezza.
+
+Le colonne `fonte` e `fonte_id`, per i campetti importati da una fonte esterna (NULL per quelli creati dall'app), non escono dall'API.
 
 **`GET /api/campetti`** ha due modi, e risponde sempre al massimo **200** campetti:
 
@@ -442,16 +473,38 @@ I campetti da basket che il frontend mostra su una mappa (tabella `campetti`, mi
 
 **Modifiche da più dispositivi.** Come per l'anagrafe: la `versione` è in ogni risposta, parte da 0 e sale a ogni salvataggio; la `PUT` può rimandarla e, se non è più quella del database, risponde **409** `{"message": "I dati sono stati modificati o eliminati da un'altra richiesta: ricarica", ...}` senza salvare niente; senza `versione` nel corpo salva come sempre.
 
-**Dati di prova.** Con `SEED_DEMO=true` o `SEED_CAMPETTI=true` entrano i campetti di esempio di `resources/seed/campetti-demo.json`, intestati all'admin: sei di Torino e tre di Roma, a lotti, ognuno con il suo segno in `seed_eseguiti` (`campetti` per Torino, `campetti-roma` per Roma; vedi «Dati di prova»). Sono campetti di esempio per provare la mappa: caratteristiche e coordinate sono da verificare sul posto prima di usarle come dati veri. Le coordinate di Torino sono i centroidi delle aree verdi letti da OpenStreetMap via Nominatim; quelle di Roma sono i centroidi della geometria letti da OpenStreetMap via Overpass (licenza ODbL, **© OpenStreetMap contributors**), letti tra il 9 e il 12 ottobre 2026. Indicano il parco o la geometria, non sempre il campo. La fonte è scritta anche in testa al file.
+### Campetti di esempio e loro fonte
 
-**Import da Pick-Roll.** I campetti con `fonte = 'pick-roll'` vengono dall'app Pick-Roll, con il permesso verbale del suo proprietario (9 ottobre 2026) per i soli dati dei campi: fonte, permesso, attribuzione e la tabella di mappatura stanno in `src/main/resources/import/pick-roll-README.md`. Dove compaiono va mostrata l'attribuzione **«Campetti: dati di Pick-Roll»**. Il file dei dati lo produce uno strumento di estrazione che sta fuori da git e **non entra nel repository**: è un array JSON di oggetti con `fonteId` (l'id del campo in Pick-Roll), `nome`, `lat`, `lng`, `tipo` (`campetto`, `palestra` o `arena`) e, facoltativi, `indirizzo`, `citta`, `superficie`, `canestri`, i sei booleani, `stato` e `note`, con gli stessi valori ammessi di `POST /api/campetti` (il formato per esteso è nel file sopra). Si carica con il comando, non con un endpoint:
+Con `SEED_DEMO=true` o `SEED_CAMPETTI=true` entrano i campetti di esempio di `resources/seed/campetti-demo.json`, intestati all'admin: sei di Torino e tre di Roma, a lotti, ognuno con il suo segno in `seed_eseguiti` (`campetti` per Torino, `campetti-roma` per Roma; vedi «Dati di prova»). Sono campetti di esempio per provare la mappa: caratteristiche e coordinate sono da verificare sul posto prima di usarle come dati veri.
+
+Le coordinate vengono da OpenStreetMap (licenza ODbL, **© OpenStreetMap contributors**), letti tra il 9 e il 12 ottobre 2026:
+
+- quelle di Torino sono i centroidi delle aree verdi, letti via Nominatim;
+- quelle di Roma sono i centroidi della geometria, letti via Overpass.
+
+Indicano il parco o la geometria, non sempre il campo. La fonte è scritta anche in testa al file.
+
+### Import da Pick-Roll
+
+I campetti con `fonte = 'pick-roll'` vengono dall'app Pick-Roll, con il permesso verbale del suo proprietario (9 ottobre 2026) per i soli dati dei campi: fonte, permesso, attribuzione e la tabella di mappatura stanno in `src/main/resources/import/pick-roll-README.md`. Dove compaiono va mostrata l'attribuzione **«Campetti: dati di Pick-Roll»**.
+
+Il file dei dati lo produce uno strumento di estrazione che sta fuori da git e **non entra nel repository**: è un array JSON di oggetti con:
+
+- `fonteId` (l'id del campo in Pick-Roll), `nome`, `lat`, `lng` e `tipo` (`campetto`, `palestra` o `arena`);
+- facoltativi, `indirizzo`, `citta`, `superficie`, `canestri`, i sei booleani, `stato` e `note`, con gli stessi valori ammessi di `POST /api/campetti` (il formato per esteso è nel file sopra).
+
+Si carica con il comando, non con un endpoint:
 
 ```bash
 DB_HOST=... DB_PORT=5432 DB_NAME=hoop3x3 DB_USERNAME=postgres DB_PASSWORD=... JWT_SECRET=... ADMIN_EMAIL=admin@esempio.it \
   java -jar target/hoop-3x3-backend-1.0.0.jar --importa-campetti=/percorso/campetti.json
 ```
 
-Servono le stesse variabili del server (il comando avvia l'applicazione, quindi anche `JWT_SECRET`). L'admin di `ADMIN_EMAIL` deve esistere, perché i campetti importati si intestano a lui e da allora li modifica solo un ADMIN, così restano allineati alla fonte: con anche `ADMIN_PASSWORD` impostata lo crea il `DataSeeder` nello stesso avvio (con le regole del passo 2 di «Avvio»), altrimenti deve già essere nel database. Il processo apre il server su una porta libera qualsiasi (non quella di `PORT`: su Render il server vero la sta già usando), fa l'import e termina: codice d'uscita 0 se è andato bene, 1 se si è fermato, con il motivo nel log. Nel log, alla fine, `Import campetti completato: inseriti N, aggiornati N, scartati N (motivo: N, ...)`. Le regole:
+Servono le stesse variabili del server (il comando avvia l'applicazione, quindi anche `JWT_SECRET`).
+
+L'admin di `ADMIN_EMAIL` deve esistere, perché i campetti importati si intestano a lui e da allora li modifica solo un ADMIN, così restano allineati alla fonte: con anche `ADMIN_PASSWORD` impostata lo crea il `DataSeeder` nello stesso avvio (con le regole del passo 2 di «Avvio»), altrimenti deve già essere nel database.
+
+Il processo apre il server su una porta libera qualsiasi (non quella di `PORT`: su Render il server vero la sta già usando), fa l'import e termina: codice d'uscita 0 se è andato bene, 1 se si è fermato, con il motivo nel log. Nel log, alla fine, `Import campetti completato: inseriti N, aggiornati N, scartati N (motivo: N, ...)`. Le regole:
 
 - ogni riga passa dalla validazione di `POST /api/campetti` (stesso `CampettoRequestDTO`): una riga che non la supera (coordinate fuori intervallo, nome mancante...), senza `fonteId` o con un `tipo` diverso da `campetto` (palestre e arene restano fuori) viene **scartata** con un avviso nel log che dice la riga e il motivo; le altre entrano. I campi che mancano prendono un valore predefinito (`superficie` `Altro`, `canestri` 2, `stato` `discreto`, booleani `false`, testi vuoti); i campi sconosciuti si ignorano;
 - un **errore di schema** (file assente, JSON malformato, non un array, un campo con il tipo sbagliato come `"lat": "nord"`) ferma l'import **prima di scrivere qualsiasi riga**, con un messaggio chiaro: il file non ha il formato concordato;
@@ -508,7 +561,17 @@ Chi ha dimenticato la password la reimposta con un link che riceve per email. Le
 
 **Il token** — vive solo nell'email e nella pagina del frontend, che lo manda nel corpo della richiesta: mai nelle risposte, nei log o nel database, che ne ha lo SHA-256. Si cerca con un'uguaglianza sull'indice unico dell'hash e non con un confronto a tempo costante, e va bene così: dai tempi si potrebbe al massimo indovinare qualche carattere dell'hash di un token di 256 bit casuali, e questo non aiuta a trovare un token che lo produca. Nel link il token è nella query string: il sito statico del frontend può scrivere l'indirizzo nei suoi log di accesso, ma il token vale una volta sola e per 30 minuti.
 
-**Email** — l'API HTTP di Brevo (`POST https://api.brevo.com/v3/smtp/email`, porta 443, 10 secondi di timeout), oggetto «Reimposta la password di HOOP 3X3». L'email (`EmailRecuperoPassword`) parte in HTML e in testo semplice, la riserva per i client che non mostrano l'HTML: il logo servito dal sito (`{APP_FRONTEND_URL}/logo.png`, non un allegato né un data URI, che Gmail blocca), il bottone «Reimposta la password» con il link, il link in chiaro sotto, la scadenza, «Se non l'hai chiesto tu, ignora questa email» e «Questo è un messaggio automatico: non rispondere a questa email.»; nient'altro dell'account. Brevo riceve anche `replyTo` con `MAIL_USERNAME`: una risposta mandata comunque arriva al mittente e non si perde. L'HTML è fatto per i client di posta: tabelle, stili in linea, al massimo 560 px, i colori del tema del sito (scuro, dichiarato con `color-scheme` così la modalità scura non lo inverte), e ogni valore escapato. Niente SMTP né porte da aprire: su Render, piano gratuito, le porte SMTP (25, 465, 587) sono bloccate, e l'invio con Gmail SMTP falliva con `MailSendException`. Il mittente è `MAIL_USERNAME`, cioè un indirizzo Gmail verificato in Brevo come mittente: è una scelta consapevole per un progetto di queste dimensioni (nessun dominio da configurare), con il nome «HOOP 3X3». Servono tre variabili:
+**Email** — l'API HTTP di Brevo (`POST https://api.brevo.com/v3/smtp/email`, porta 443, 10 secondi di timeout), oggetto «Reimposta la password di HOOP 3X3».
+
+L'email (`EmailRecuperoPassword`) parte in HTML e in testo semplice, la riserva per i client che non mostrano l'HTML: il logo servito dal sito (`{APP_FRONTEND_URL}/logo.png`, non un allegato né un data URI, che Gmail blocca), il bottone «Reimposta la password» con il link, il link in chiaro sotto, la scadenza, «Se non l'hai chiesto tu, ignora questa email» e «Questo è un messaggio automatico: non rispondere a questa email.»; nient'altro dell'account.
+
+Brevo riceve anche `replyTo` con `MAIL_USERNAME`: una risposta mandata comunque arriva al mittente e non si perde.
+
+L'HTML è fatto per i client di posta: tabelle, stili in linea, al massimo 560 px, i colori del tema del sito (scuro, dichiarato con `color-scheme` così la modalità scura non lo inverte), e ogni valore escapato.
+
+Niente SMTP né porte da aprire: su Render, piano gratuito, le porte SMTP (25, 465, 587) sono bloccate, e l'invio con Gmail SMTP falliva con `MailSendException`.
+
+Il mittente è `MAIL_USERNAME`, cioè un indirizzo Gmail verificato in Brevo come mittente: è una scelta consapevole per un progetto di queste dimensioni (nessun dominio da configurare), con il nome «HOOP 3X3». Servono tre variabili:
 
 | Variabile | A che cosa serve |
 |---|---|
@@ -516,7 +579,9 @@ Chi ha dimenticato la password la reimposta con un link che riceve per email. Le
 | `MAIL_USERNAME` | il mittente: l'indirizzo Gmail verificato in Brevo (Senders) |
 | `APP_FRONTEND_URL` | l'indirizzo pubblico del frontend, per il link: `https://hoop3x3.onrender.com` su Render; di base `http://localhost:5173` |
 
-Su Render `BREVO_API_KEY` è un **segreto del servizio backend, da impostare a mano** (Environment del servizio): non sta nel repository né nel `render.yaml`; lo stesso vale per `MAIL_USERNAME`. In locale vanno in `env.properties`. Se una delle due manca il server parte lo stesso: un WARN all'avvio lo dice («Recupero password: BREVO_API_KEY mancante, le email non partono», oppure «… MAIL_USERNAME mancante (il mittente) …») e l'endpoint risponde come se avesse inviato. Un errore di Brevo finisce in una riga ERROR con l'indirizzo mascherato, lo stato HTTP e il tipo dell'errore (401 = chiave sbagliata o revocata, 400 = per esempio mittente non verificato), mai il corpo della risposta né la chiave; un timeout o un errore di rete, con il solo tipo. Il client ha già avuto la sua risposta.
+Su Render `BREVO_API_KEY` è un **segreto del servizio backend, da impostare a mano** (Environment del servizio): non sta nel repository né nel `render.yaml`; lo stesso vale per `MAIL_USERNAME`. In locale vanno in `env.properties`.
+
+Se una delle due manca il server parte lo stesso: un WARN all'avvio lo dice («Recupero password: BREVO_API_KEY mancante, le email non partono», oppure «… MAIL_USERNAME mancante (il mittente) …») e l'endpoint risponde come se avesse inviato. Un errore di Brevo finisce in una riga ERROR con l'indirizzo mascherato, lo stato HTTP e il tipo dell'errore (401 = chiave sbagliata o revocata, 400 = per esempio mittente non verificato), mai il corpo della risposta né la chiave; un timeout o un errore di rete, con il solo tipo. Il client ha già avuto la sua risposta.
 
 **Limite di Brevo** — il piano gratuito manda al massimo 300 email al giorno; oltre, Brevo rifiuta gli invii fino al giorno dopo (righe ERROR nei log). Per un'app più grande servirebbe un piano a pagamento o un altro servizio: basta un'altra implementazione di `EmailSender`.
 
@@ -609,7 +674,14 @@ Il server conta le richieste e, oltre il limite, risponde 429 senza farle arriva
 - **Coach AI** (`POST /api/coach/chat`) — 20 richieste al minuto e 300 al giorno per utente (l'id dell'account, da qualunque indirizzo arrivi). Valgono tutte e due. La quota conta ogni richiesta autenticata alla chat, anche quelle che poi falliscono (per esempio con 400 o 413, perché il limite sta prima della validazione e del tetto dei 2 MB); non la consumano solo quelle respinte dal limite del minuto. Senza token risponde il 401 e niente si conta. Lo stato del Coach (`GET /api/coach/status`), il logout e le altre API non sono limitati.
 - **Finestre fisse**, allineate all'orologio: il minuto finisce al secondo 0, il giorno a mezzanotte UTC (le 2 in Italia d'estate, l'1 d'inverno). Chi insiste oltre il limite non allunga l'attesa, ma a cavallo di due finestre si possono fare fino al doppio delle richieste in pochi secondi.
 
-**Risposta oltre il limite** — 429 con lo stesso corpo `{message, timestamp}` degli altri errori e l'intestazione `Retry-After`, cioè i secondi fino all'inizio della finestra successiva: da 1 alla lunghezza della finestra. Può superarla di poco in due casi: anche a orologio a posto, di 1 o 2 secondi, per la richiesta che ha letto l'ora un attimo prima dello scoccare del minuto e arriva dopo che il minuto nuovo è già aperto (conta in quello); e di al massimo 60 secondi se l'orologio del server è tornato indietro di poco. Se è tornato indietro di molto (una macchina virtuale ripristinata, la data cambiata a mano) il contatore riparte da una finestra vuota, invece di tenere gli indirizzi bloccati per ore. Il messaggio dice l'attesa a parole:
+**Risposta oltre il limite** — 429 con lo stesso corpo `{message, timestamp}` degli altri errori e l'intestazione `Retry-After`, cioè i secondi fino all'inizio della finestra successiva: da 1 alla lunghezza della finestra.
+
+Può superarla di poco in due casi:
+
+- di 1 o 2 secondi, anche a orologio a posto, per la richiesta che ha letto l'ora un attimo prima dello scoccare del minuto e arriva dopo che il minuto nuovo è già aperto (conta in quello);
+- di al massimo 60 secondi se l'orologio del server è tornato indietro di poco.
+
+Se è tornato indietro di molto (una macchina virtuale ripristinata, la data cambiata a mano) il contatore riparte da una finestra vuota, invece di tenere gli indirizzi bloccati per ore. Il messaggio dice l'attesa a parole:
 
 ```http
 HTTP/1.1 429
@@ -633,7 +705,11 @@ Si cambiano in `env.properties` con il nome della proprietà (`limite.auth-al-mi
 1. impostare `server.forward-headers-strategy=native` (in `env.properties` o come variabile d'ambiente `SERVER_FORWARD_HEADERS_STRATEGY=native`);
 2. far mandare al proxy l'indirizzo del cliente in `X-Forwarded-For`, accodandolo a ciò che c'è già (nginx: `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`).
 
-Con `native` Tomcat sostituisce l'indirizzo del proxy con quello di `X-Forwarded-For` solo se la richiesta arriva da un proxy di cui si fida (`server.tomcat.remoteip.internal-proxies`: di base gli indirizzi locali e privati; un proxy con un indirizzo pubblico va elencato lì) e prende l'ultimo indirizzo che non è un proxy fidato, cioè quello che ha visto il proxy: ciò che il cliente ha scritto prima non conta. Il backend non legge mai `X-Forwarded-For` da sé, perché chi parla con il server può scriverci quello che vuole e basterebbe un valore diverso a ogni richiesta per non incontrare mai il limite. Per lo stesso motivo `server.forward-headers-strategy=framework` non basta: Spring prende il primo indirizzo dell'intestazione, quello che scrive il cliente, a meno che il proxy non la sostituisca invece di accodarsi. `LimiteRichiesteProxyIT` prova questi comportamenti su un server vero.
+Con `native` Tomcat sostituisce l'indirizzo del proxy con quello di `X-Forwarded-For` solo se la richiesta arriva da un proxy di cui si fida (`server.tomcat.remoteip.internal-proxies`: di base gli indirizzi locali e privati; un proxy con un indirizzo pubblico va elencato lì) e prende l'ultimo indirizzo che non è un proxy fidato, cioè quello che ha visto il proxy: ciò che il cliente ha scritto prima non conta.
+
+Il backend non legge mai `X-Forwarded-For` da sé, perché chi parla con il server può scriverci quello che vuole e basterebbe un valore diverso a ogni richiesta per non incontrare mai il limite.
+
+Per lo stesso motivo `server.forward-headers-strategy=framework` non basta: Spring prende il primo indirizzo dell'intestazione, quello che scrive il cliente, a meno che il proxy non la sostituisca invece di accodarsi. `LimiteRichiesteProxyIT` prova questi comportamenti su un server vero.
 
 **Su Render** — il browser parla con il sito statico, che inoltra `/api/*` a questo servizio con una regola di rewrite: quale indirizzo arriva al servizio non è ancora verificato, e il filtro non cambia (legge sempre `getRemoteAddr()`). Quindi, dopo il primo deploy con `SERVER_FORWARD_HEADERS_STRATEGY=native`:
 
@@ -687,13 +763,44 @@ src/test/         # test unitari e *IT (vedi «Test»); resources/svuota.sql svu
 
 ## Dati di prova
 
-**La differenza tra le due variabili:** `SEED_DEMO=true` carica il circuito Estathé 2025 (anagrafe con persone di fantasia, lega con 4 tappe, archivio) e anche i campetti; `SEED_CAMPETTI=true` carica solo i campetti di esempio, senza circuito, lega né persone. Con `SEED_DEMO=true` (e `ADMIN_EMAIL` di un admin che esiste) il primo avvio carica il circuito Estathé 2025 (`resources/seed/estathe25.json`) intestandolo all'admin. Le squadre, le tappe e i risultati sono quelli del circuito, ma **le persone sono di fantasia**: nome, cognome, soprannome, data di nascita, altezza, peso, città e note dei 32 giocatori e il referente delle 8 squadre sono inventati, e la nazionalità è rimescolata (i giocatori italiani restano italiani, gli stranieri sono stati spostati su altri giocatori), in modo coerente in tutto il file (anagrafe, squadre delle tappe, referenti; le statistiche richiamano i giocatori per id). Restano quelli del circuito le squadre, le tappe e i risultati, e di ogni giocatore il ruolo, la squadra e il numero: senza nome, data, misure, città e note non dicono più chi è. Il file sta nel jar anche con `SEED_DEMO=false`, quindi non deve contenere dati di persone reali: `DatiDiProvaTest` controlla che i nomi siano gli stessi ovunque compaiano e che nessun valore originale (cognomi, altezza, peso, città, nazionalità straniere) rientri nel file, confrontando le impronte SHA-256 di `src/test/resources/dati-di-prova-originali.sha256`, così i dati veri non tornano in chiaro nel repository. Si carica **una volta sola**: alla fine il seeder scrive il segno `demo` nella tabella `seed_eseguiti` (migrazione V3) e gli avvii successivi lo riconoscono da lì, anche se nel frattempo hai eliminato la lega demo (perché serve il segno lo spiega il commento di `SeedEseguito`). Il segno è il nome dell'operazione e non dipende dai dati inseriti, quindi vale anche dopo il cambio dei nomi dei dati demo.
+### Le due variabili
 
-Un database seminato prima del segno non ce l'ha, ma ha ancora la lega demo (una lega dell'admin con il nome del file, «Estathé 3x3 Italia Streetbasket Circuit 2025»): al primo avvio **con `SEED_DEMO=true`** il seeder la riconosce, non inserisce niente e scrive il segno (con `SEED_DEMO=false` il seeder non fa niente e il segno non arriva). Quindi **prima di eliminare o rinominare la lega demo, avvia una volta con `SEED_DEMO=true`**. Gli id delle tappe demo sono casuali, come quelli che genera l'app (prima erano derivati dal file e quindi prevedibili: chiunque poteva creare una tappa con quell'id e bloccare il seed), e non servono a riconoscere niente.
+`SEED_DEMO=true` carica il circuito Estathé 2025 (anagrafe con persone di fantasia, lega con 4 tappe, archivio) e anche i campetti; `SEED_CAMPETTI=true` carica solo i campetti di esempio, senza circuito, lega né persone. Con `SEED_DEMO=true` (e `ADMIN_EMAIL` di un admin che esiste) il primo avvio carica il circuito Estathé 2025 (`resources/seed/estathe25.json`) intestandolo all'admin.
+
+### Persone di fantasia
+
+Le squadre, le tappe e i risultati sono quelli del circuito, ma **le persone sono di fantasia**:
+
+- sono inventati nome, cognome, soprannome, data di nascita, altezza, peso, città e note dei 32 giocatori e il referente delle 8 squadre;
+- la nazionalità è rimescolata (i giocatori italiani restano italiani, gli stranieri sono stati spostati su altri giocatori), in modo coerente in tutto il file (anagrafe, squadre delle tappe, referenti; le statistiche richiamano i giocatori per id);
+- restano quelli del circuito le squadre, le tappe e i risultati, e di ogni giocatore il ruolo, la squadra e il numero: senza nome, data, misure, città e note non dicono più chi è.
+
+Il file sta nel jar anche con `SEED_DEMO=false`, quindi non deve contenere dati di persone reali: `DatiDiProvaTest` controlla che i nomi siano gli stessi ovunque compaiano e che nessun valore originale (cognomi, altezza, peso, città, nazionalità straniere) rientri nel file, confrontando le impronte SHA-256 di `src/test/resources/dati-di-prova-originali.sha256`, così i dati veri non tornano in chiaro nel repository.
+
+### Si carica una volta sola
+
+Si carica **una volta sola**: alla fine il seeder scrive il segno `demo` nella tabella `seed_eseguiti` (migrazione V3) e gli avvii successivi lo riconoscono da lì, anche se nel frattempo hai eliminato la lega demo (perché serve il segno lo spiega il commento di `SeedEseguito`). Il segno è il nome dell'operazione e non dipende dai dati inseriti, quindi vale anche dopo il cambio dei nomi dei dati demo.
+
+### Un database seminato prima del segno
+
+Un database seminato prima del segno non ce l'ha, ma ha ancora la lega demo (una lega dell'admin con il nome del file, «Estathé 3x3 Italia Streetbasket Circuit 2025»): al primo avvio **con `SEED_DEMO=true`** il seeder la riconosce, non inserisce niente e scrive il segno (con `SEED_DEMO=false` il seeder non fa niente e il segno non arriva). Quindi **prima di eliminare o rinominare la lega demo, avvia una volta con `SEED_DEMO=true`**.
+
+Gli id delle tappe demo sono casuali, come quelli che genera l'app (prima erano derivati dal file e quindi prevedibili: chiunque poteva creare una tappa con quell'id e bloccare il seed), e non servono a riconoscere niente.
+
+### Se il seed fallisce
 
 Il seed gira in una transazione sua e **non ferma mai l'avvio**: se fallisce (un vincolo, il database che cade a metà) il database resta com'era, il server parte senza i dati di prova e nei log c'è un avviso `Seed demo non riuscito` con la causa; il prossimo avvio riprova.
 
-**I campetti di esempio.** Nella stessa transazione, con le stesse condizioni (`SEED_DEMO=true` o `SEED_CAMPETTI=true`, e l'admin), entrano i campetti di `resources/seed/campetti-demo.json`, a lotti: il lotto di Torino (sei campetti, segno `campetti`) e quello di Roma (tre campetti, segno `campetti-roma`). Ogni lotto entra una sola volta, così un campetto eliminato dall'app non rinasce al riavvio, e un database che ha già il segno `demo` o il lotto di Torino riceve solo quello che manca: un lotto nuovo entra anche dove gli altri ci sono già, e un campetto con lo stesso nome e la stessa città non si raddoppia. Le coordinate vengono da OpenStreetMap (© OpenStreetMap contributors, licenza ODbL; la fonte e la data sono in testa al file) e vanno verificate sul posto: vedi «Campetti». Per rifare un lotto: `DELETE FROM seed_eseguiti WHERE nome = 'campetti-roma';` (o `'campetti'`) e, se non lo si vuole doppio, si eliminano prima i suoi campetti dell'admin.
+### I lotti dei campetti
+
+Nella stessa transazione, con le stesse condizioni (`SEED_DEMO=true` o `SEED_CAMPETTI=true`, e l'admin), entrano i campetti di `resources/seed/campetti-demo.json`, a lotti: il lotto di Torino (sei campetti, segno `campetti`) e quello di Roma (tre campetti, segno `campetti-roma`).
+
+- Ogni lotto entra una sola volta, così un campetto eliminato dall'app non rinasce al riavvio.
+- Un database che ha già il segno `demo` o il lotto di Torino riceve solo quello che manca: un lotto nuovo entra anche dove gli altri ci sono già, e un campetto con lo stesso nome e la stessa città non si raddoppia.
+- Le coordinate vengono da OpenStreetMap (© OpenStreetMap contributors, licenza ODbL; la fonte e la data sono in testa al file) e vanno verificate sul posto: vedi «Campetti».
+- Per rifare un lotto: `DELETE FROM seed_eseguiti WHERE nome = 'campetti-roma';` (o `'campetti'`) e, se non lo si vuole doppio, si eliminano prima i suoi campetti dell'admin.
+
+### Rifare il seed
 
 Per rifare il seed su un database che l'ha già eseguito si cancellano il segno **e la lega demo** (dall'app, come ogni lega dell'admin): finché l'admin ha una lega con quel nome il seed risulta fatto, e il seeder riscrive il segno. I giocatori e le squadre demo restano nell'anagrafe: cancellali se non li vuoi doppi. Il segno si cancella così:
 
