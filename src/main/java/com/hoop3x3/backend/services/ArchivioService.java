@@ -46,6 +46,16 @@ public class ArchivioService {
                 .toList();
     }
 
+    /**
+     * Tutte le copie pubbliche intere, dalla pubblicazione più vecchia: servono al frontend per le statistiche dei giocatori,
+     * che somma i tabellini con la sua regola (una sola, in statGiocatori). Porta decine di KB per tappa: va bene per le decine
+     * di tappe di un circuito, con centinaia servirà una paginazione o l'aggregazione nel server
+     */
+    @Transactional(readOnly = true)
+    public List<CopiaPubblicaDTO> tutteLeTappe() {
+        return repo.tutteConAutore().stream().map(this::toDto).toList();
+    }
+
     @Transactional(readOnly = true)
     public CopiaPubblicaDTO una(UUID tappaId) {
         return toDto(trova(tappaId));

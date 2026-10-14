@@ -28,6 +28,15 @@ public class ArchivioController {
         return archivioService.tutte();
     }
 
+    /**
+     * Tutte le tappe pubblicate per intero, dalla più vecchia (pubblico, come le altre GET dell'archivio). Il percorso letterale
+     * `/tappe` vince su `/{tappaId}` (e «tappe» non è un UUID)
+     */
+    @GetMapping("/tappe")
+    public List<CopiaPubblicaDTO> tappe() {
+        return archivioService.tutteLeTappe();
+    }
+
     @GetMapping("/{tappaId}")
     public CopiaPubblicaDTO una(@PathVariable UUID tappaId) {
         return archivioService.una(tappaId);

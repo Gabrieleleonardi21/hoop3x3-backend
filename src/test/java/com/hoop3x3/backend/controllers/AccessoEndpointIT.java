@@ -178,6 +178,8 @@ class AccessoEndpointIT {
                 new Pubblico(new Endpoint(GET, "/api/anagrafe/giocatori", null), 200),
                 new Pubblico(new Endpoint(GET, "/api/anagrafe/squadre", null), 200),
                 new Pubblico(new Endpoint(GET, "/api/archivio", null), 200),
+                // Tutte le tappe pubblicate per intero: le statistiche dei giocatori del frontend, per chiunque
+                new Pubblico(new Endpoint(GET, "/api/archivio/tappe", null), 200),
                 new Pubblico(new Endpoint(GET, "/api/archivio/{tappa}", null), 200),
                 // Senza parametri la ricerca risponde 400 con il suo messaggio: la sicurezza ha lasciato passare (il 200 con i
                 // parametri lo prova CampettoIT)

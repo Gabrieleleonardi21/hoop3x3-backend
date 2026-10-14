@@ -58,6 +58,11 @@ class ArchivioIT {
     private static final String PARTITE = "[{\"id\":\"m1\",\"a\":\"s1\",\"b\":\"s2\",\"sa\":21,\"sb\":17,\"done\":true}]";
     private static final String TRE_SQUADRE = "[{\"id\":\"s1\",\"nome\":\"Team Rome\"},{\"id\":\"s2\",\"nome\":\"Team Milan\"},"
             + "{\"id\":\"s3\",\"nome\":\"Team Turin\"}]";
+    // Le stesse squadre con i giocatori, e la partita con i tabellini (pa e pb: punti di ogni giocatore, per lato)
+    private static final String SQUADRE_CON_GIOCATORI = "[{\"id\":\"s1\",\"nome\":\"Team Rome\",\"giocatori\":[{\"id\":\"g1\",\"nome\":\"Rossi\"}]},"
+            + "{\"id\":\"s2\",\"nome\":\"Team Milan\",\"giocatori\":[{\"id\":\"g2\",\"nome\":\"Bianchi\"}]}]";
+    private static final String PARTITE_CON_TABELLINI = "[{\"id\":\"m1\",\"a\":\"s1\",\"b\":\"s2\",\"sa\":21,\"sb\":17,\"done\":true,"
+            + "\"pa\":{\"g1\":{\"pts\":12}},\"pb\":{\"g2\":{\"pts\":9}}}]";
 
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
@@ -405,6 +410,55 @@ class ArchivioIT {
         });
     }
 
+    /* ── Tutte le tappe pubblicate, per intero: le statistiche dei giocatori del frontend, per chiunque ── */
+
+    // Senza token e con il token di chiunque: ogni pubblicazione con la tappa intera (tabellini compresi), dalla più vecchia.
+    // Luigi pubblica per primo, ma la tappa di Mario è di ieri: l'ordine è quello della pubblicazione, non dell'inserimento
+    @Test
+    void leTappePubblicate_siLeggonoSenzaToken_intereEInOrdineDiPubblicazione() throws Exception {
+        TappaDTO diMario = tappaDto(UUID.randomUUID(), "Tappa di Roma", "Roma", "2026-06-14", SQUADRE_CON_GIOCATORI, true,
+                PARTITE_CON_TABELLINI);
+        TappaDTO diLuigi = tappaDto(UUID.randomUUID(), "Finale di Milano", "Milano", "2026-07-05", TRE_SQUADRE, true, PARTITE);
+        lega(mario, "Circuito 2026", diMario);
+        lega(luigi, "Altro circuito", diLuigi);
+        pubblica(diLuigi.id(), luigi).andExpect(status().isOk());
+        pubblica(diMario.id(), mario).andExpect(status().isOk());
+        LocalDateTime ieri = Tempo.adesso().minusDays(1).truncatedTo(ChronoUnit.SECONDS);
+        pubblicataIl(diMario.id(), ieri);
+
+        JsonNode tutte = tutteLeTappe(null);
+
+        assertThat(tutte).hasSize(2);
+        JsonNode primaVoce = tutte.get(0);
+        assertThat(primaVoce.at("/tappa/id").asString()).isEqualTo(diMario.id().toString());
+        assertThat(primaVoce.at("/tappa/partite")).isEqualTo(mapper.readTree(PARTITE_CON_TABELLINI));
+        assertThat(primaVoce.at("/tappa/partite/0/pa/g1/pts").asInt()).isEqualTo(12);
+        assertThat(primaVoce.get("lega").asString()).isEqualTo("Circuito 2026");
+        assertThat(primaVoce.get("autore").asString()).isEqualTo("Mario");
+        assertThat(primaVoce.get("autoreId").asString()).isEqualTo(mario.getId().toString());
+        assertThat(primaVoce.get("ts").asLong()).isEqualTo(millis(ieri));
+        JsonNode secondaVoce = tutte.get(1);
+        assertThat(secondaVoce.at("/tappa/id").asString()).isEqualTo(diLuigi.id().toString());
+        assertThat(secondaVoce.get("autore").asString()).isEqualTo("Luigi");
+        // Ogni voce è la stessa copia pubblica di GET /api/archivio/{tappaId}
+        assertThat(primaVoce).isEqualTo(letta(diMario.id()));
+        assertThat(secondaVoce).isEqualTo(letta(diLuigi.id()));
+        // Con un token qualsiasi la risposta è la stessa
+        assertThat(tutteLeTappe(luigi)).isEqualTo(tutte);
+
+        mvc.perform(delete("/api/archivio/" + diMario.id()).header(AUTHORIZATION, bearer(mario)))
+                .andExpect(status().isNoContent());
+
+        assertThat(tutteLeTappe(null)).singleElement()
+                .satisfies(voce -> assertThat(voce.at("/tappa/id").asString()).isEqualTo(diLuigi.id().toString()));
+    }
+
+    @Test
+    void conLArchivioVuoto_risponde200ConUnElencoVuoto() throws Exception {
+        assertThat(tutteLeTappe(null).isArray()).isTrue();
+        assertThat(tutteLeTappe(null)).isEmpty();
+    }
+
     /* ── Pulizia: la pubblicazione segue la sua tappa (V2) ── */
 
     @Test
@@ -453,7 +507,11 @@ class ArchivioIT {
     }
 
     private TappaDTO tappaDto(UUID id, String nome, String luogo, String data, String squadre, boolean conclusa) {
-        return TappaDiProva.tappa().id(id).nome(nome).luogo(luogo).data(data).squadre(squadre).partite(PARTITE)
+        return tappaDto(id, nome, luogo, data, squadre, conclusa, PARTITE);
+    }
+
+    private TappaDTO tappaDto(UUID id, String nome, String luogo, String data, String squadre, boolean conclusa, String partite) {
+        return TappaDiProva.tappa().id(id).nome(nome).luogo(luogo).data(data).squadre(squadre).partite(partite)
                 .conclusa(conclusa).build();
     }
 
@@ -543,6 +601,13 @@ class ArchivioIT {
     /** L'elenco dell'archivio: la GET è pubblica, senza token */
     private JsonNode elenco() throws Exception {
         return mapper.readTree(corpo(mvc.perform(get("/api/archivio")).andExpect(status().isOk())));
+    }
+
+    /** Tutte le tappe pubblicate: senza token se `chi` è null, altrimenti con il suo */
+    private JsonNode tutteLeTappe(Utente chi) throws Exception {
+        var richiesta = get("/api/archivio/tappe");
+        if (chi != null) richiesta.header(AUTHORIZATION, bearer(chi));
+        return mapper.readTree(corpo(mvc.perform(richiesta).andExpect(status().isOk())));
     }
 
     /** Ciò che chiunque legge dall'archivio: la GET è pubblica, senza token */
