@@ -1,5 +1,7 @@
 package com.hoop3x3.backend.services;
 
+import tools.jackson.databind.JsonNode;
+
 /**
  * Le istruzioni al modello e la forma della bozza, uguali per Groq e Anthropic: cambia solo il formato della chiamata. Sono
  * quelle della prova OCR (piano-miglioramento/prototipi/ocr-foglio, prompt.txt e schema.json): chi le ritocca qui le ritocca
@@ -72,4 +74,14 @@ final class SchemaFoglio {
             """;
 
     private SchemaFoglio() {}
+
+    /**
+     * La risposta del modello ha la forma minima di una bozza: un oggetto con squadre, partite e dubbi elenchi. Il resto
+     * (testi lunghi, punteggi fuori scala, campi strani) lo sistema FoglioService.ripulisci; senza questa forma non c'è
+     * niente da ripulire
+     */
+    static boolean haLaForma(JsonNode bozza) {
+        return bozza != null && bozza.isObject() && bozza.path("squadre").isArray() && bozza.path("partite").isArray()
+                && bozza.path("dubbi").isArray();
+    }
 }
