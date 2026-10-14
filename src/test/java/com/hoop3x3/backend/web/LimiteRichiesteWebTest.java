@@ -5,6 +5,7 @@ import com.hoop3x3.backend.OrologioDiProva;
 import com.hoop3x3.backend.controllers.AuthController;
 import com.hoop3x3.backend.controllers.CoachController;
 import com.hoop3x3.backend.controllers.Sessioni;
+import com.hoop3x3.backend.dto.BozzaFoglioDTO;
 import com.hoop3x3.backend.entities.Utente;
 import com.hoop3x3.backend.exceptions.ExceptionsHandler;
 import com.hoop3x3.backend.repositories.UtenteRepository;
@@ -43,6 +44,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 
 import static com.hoop3x3.backend.UtenteDiProva.conId;
@@ -63,7 +65,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * I limiti di frequenza dentro la catena vera: filtro di sicurezza, JwtFilter, controller e ExceptionsHandler veri, servizi
  * simulati, i valori di produzione (10 accessi al minuto per indirizzo, per il Coach 20 al minuto e 300 al giorno per
- * utente) e un orologio che si sposta a comando. Una richiesta respinta non deve arrivare al servizio: niente BCrypt,
+ * utente, per le foto dei fogli 5 al minuto e 30 al giorno) e un orologio che si sposta a comando. Una richiesta respinta non deve arrivare al servizio: niente BCrypt,
  * niente chiamata a Groq.
  */
 @WebMvcTest(controllers = {AuthController.class, CoachController.class})
@@ -112,6 +114,8 @@ class LimiteRichiesteWebTest {
         when(refreshTokenService.emetti(any())).thenReturn("refresh");
         when(refreshTokenService.ruota("vecchio")).thenReturn(new RefreshTokenService.Rinnovo(mario, "nuovo"));
         when(coachAiService.chat(any())).thenReturn(mapper.createObjectNode());
+        when(foglioService.leggi(any(), any()))
+                .thenReturn(new BozzaFoglioDTO(null, null, null, List.of(), null, List.of(), List.of()));
         // Il JwtFilter riconosce gli utenti dei token dal database: qui sono questi due
         when(utenteRepository.findById(mario.getId())).thenReturn(Optional.of(mario));
         when(utenteRepository.findById(luca.getId())).thenReturn(Optional.of(luca));
@@ -148,6 +152,11 @@ class LimiteRichiesteWebTest {
     private ResultActions chat(Utente chi) throws Exception {
         return mvc.perform(post("/api/coach/chat").header("Authorization", "Bearer " + jwt.generateToken(chi))
                 .contentType(MediaType.APPLICATION_JSON).content("{\"messages\":[{\"role\":\"user\",\"content\":\"ciao\"}]}"));
+    }
+
+    private ResultActions foto(Utente chi) throws Exception {
+        return mvc.perform(post("/api/coach/foglio").header("Authorization", "Bearer " + jwt.generateToken(chi))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"immagine\":\"data:image/jpeg;base64,/9j/4AAQ\"}"));
     }
 
     private void ilLoginPassa(int quante, String indirizzo) throws Exception {
@@ -375,5 +384,27 @@ class LimiteRichiesteWebTest {
         }
 
         laChatPassa(20, mario);
+    }
+
+    /* ── Foto dei fogli ── */
+
+    @Test
+    void sestaFotoNelMinuto_risponde429SenzaChiamareIlLettore() throws Exception {
+        for (int i = 0; i < 5; i++) foto(mario).andExpect(status().isOk());
+
+        assert429(foto(mario), 40, "Troppe foto in poco tempo: riprova tra 40 secondi");
+        verify(foglioService, times(5)).leggi(any(), any());
+    }
+
+    // Contatori separati: la quota delle foto finita non tocca la chat, e la chat non consuma le foto
+    @Test
+    void leFotoELaChat_nonSiConsumanoAVicenda() throws Exception {
+        laChatPassa(20, mario);
+        for (int i = 0; i < 5; i++) foto(mario).andExpect(status().isOk());
+        assert429(foto(mario), 40, "Troppe foto in poco tempo: riprova tra 40 secondi");
+        assert429(chat(mario), 40, MESSAGGIO_COACH);
+
+        for (int i = 0; i < 5; i++) foto(luca).andExpect(status().isOk());
+        laChatPassa(20, luca);
     }
 }
