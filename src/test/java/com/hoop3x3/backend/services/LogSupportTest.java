@@ -73,4 +73,12 @@ class LogSupportTest {
                 arguments("senza-chiocciola", "***"),     // non è un'email: niente di ciò che c'è scritto
                 arguments("ma\nrio@x.it ", "ma***@x.it\\u2028")); // e il dominio passa da perLog
     }
+
+    // I corpi dei fornitori (Groq, Anthropic) entrano nei log con al massimo 500 caratteri: un errore lungo non riempie i log
+    @Test
+    void tronca_lasciaIPrimi500CaratteriEUnSegno() {
+        assertThat(LogSupport.tronca(null)).isEmpty();
+        assertThat(LogSupport.tronca("a".repeat(500))).isEqualTo("a".repeat(500));
+        assertThat(LogSupport.tronca("a".repeat(500) + "#")).isEqualTo("a".repeat(500) + "…");
+    }
 }

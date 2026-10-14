@@ -25,6 +25,7 @@ import java.time.Duration;
 import java.util.Set;
 
 import static com.hoop3x3.backend.services.LogSupport.perLog;
+import static com.hoop3x3.backend.services.LogSupport.tronca;
 
 /**
  * Proxy verso Groq per il Coach AI: la chiave resta sul server e non arriva mai al browser.
@@ -187,12 +188,5 @@ public class CoachAiService {
                 throw new BadRequestException("Ogni strumento deve essere una funzione del Coach (type function e un nome tra quelli dell'app)");
             }
         }
-    }
-
-    /** Nei log il corpo di Groq entra al massimo con 500 caratteri */
-    private static String tronca(String s) {
-        if (s == null) return "";
-        if (s.length() <= 500) return s;
-        return s.substring(0, 500) + "…";
     }
 }
