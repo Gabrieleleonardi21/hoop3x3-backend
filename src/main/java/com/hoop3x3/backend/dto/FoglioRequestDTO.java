@@ -7,4 +7,15 @@ import jakarta.validation.constraints.NotBlank;
  * caratteri di base64) e il formato li controlla FoglioService, che dà i messaggi del contratto. Con un @Size il campo
  * entrerebbe nella tabella CampiDiTesto, che prova a mandare "x" ripetuto fino al tetto: non è un'immagine
  */
-public record FoglioRequestDTO(@NotBlank String immagine) {}
+public record FoglioRequestDTO(@NotBlank String immagine) {
+
+    /**
+     * Il toString() automatico scriverebbe tutta la foto: un log di debug, un messaggio di Mockito o di un errore la
+     * porterebbero nei log. Qui solo quanti caratteri ha
+     */
+    @Override
+    public String toString() {
+        if (immagine == null) return "FoglioRequestDTO[immagine=assente]";
+        return "FoglioRequestDTO[immagine=" + immagine.length() + " caratteri]";
+    }
+}

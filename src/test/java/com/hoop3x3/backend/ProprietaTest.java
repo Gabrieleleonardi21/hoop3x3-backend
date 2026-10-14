@@ -1,5 +1,6 @@
 package com.hoop3x3.backend;
 
+import com.hoop3x3.backend.dto.FoglioRequestDTO;
 import com.hoop3x3.backend.runners.SeedProperties;
 import com.hoop3x3.backend.security.AuthProperties;
 import com.hoop3x3.backend.security.CorsProperties;
@@ -112,5 +113,8 @@ class ProprietaTest {
                 .doesNotContain("chiave-anthropic-di-prova");
         assertThat(new AppProperties("http://localhost:5173", new AppProperties.Brevo("xkeysib-di-prova"),
                 new AppProperties.Mail("hoop3x3@gmail.com")).toString()).doesNotContain("xkeysib-di-prova");
+        // La foto di un foglio: un log di debug con il DTO non deve portare l'immagine, solo quanti caratteri ha
+        assertThat(new FoglioRequestDTO("data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ").toString())
+                .doesNotContain("/9j/4AAQSkZJRgABAQ").isEqualTo("FoglioRequestDTO[immagine=41 caratteri]");
     }
 }
