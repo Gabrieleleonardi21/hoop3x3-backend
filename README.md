@@ -39,7 +39,7 @@ Il frontend in sviluppo inoltra `/api` verso `http://localhost:3001` tramite il 
 
 ## Variabili di configurazione
 
-I valori di base sono in `src/main/resources/application.properties`. Le variabili si scrivono in `env.properties` (una riga `NOME=valore`) oppure si impostano nell'ambiente del sistema (Render, `docker run -e`). Le proprietà con un prefisso le raccolgono i record `JwtProperties`, `AuthProperties`, `CorsProperties`, `GroqProperties`, `SeedProperties`, `AppProperties` (frontend, Brevo e mittente) e `LimiteRichiesteProperties`; quelle di `jwt.*`, `auth.*` e `limite.*` sono validate all'avvio: un valore non valido ferma il server e dice quale.
+I valori di base sono in `src/main/resources/application.properties`. Le variabili si scrivono in `env.properties` (una riga `NOME=valore`) oppure si impostano nell'ambiente del sistema (Render, `docker run -e`). Le proprietà con un prefisso le raccolgono i record `JwtProperties`, `AuthProperties`, `CorsProperties`, `GroqProperties`, `AiProperties`, `AnthropicProperties`, `SeedProperties`, `AppProperties` (frontend, Brevo e mittente) e `LimiteRichiesteProperties`; quelle di `jwt.*`, `auth.*` e `limite.*` sono validate all'avvio: un valore non valido ferma il server e dice quale.
 
 | Variabile | Proprietà | Valore di base | A che cosa serve |
 |---|---|---|---|
@@ -53,6 +53,10 @@ I valori di base sono in `src/main/resources/application.properties`. Le variabi
 | `GROQ_API_KEY` | `groq.api.key` | vuota | chiave Groq del Coach AI; vuota = Coach disattivato |
 | `GROQ_MODEL` | `groq.model` | `openai/gpt-oss-120b` | modello del Coach AI |
 | `GROQ_REASONING_EFFORT` | `groq.reasoning-effort` | `low` | quanto il modello ragiona prima di rispondere (`reasoning_effort`); vuota = il campo non si manda, per un modello che non lo accetta (vedi «Coach AI») |
+| `AI_LETTORE_FOGLIO` | `ai.lettore-foglio` | vuota | chi legge le foto dei fogli di tappa: `groq` o `anthropic`; vuota = lettura spenta, `POST /api/coach/foglio` risponde 503 (vedi «Lettura dei fogli (foto)») |
+| `GROQ_MODELLO_VISIONE` | `groq.modello-visione` | `qwen/qwen3.8-27b` | il modello con immagini di Groq che legge i fogli (con `AI_LETTORE_FOGLIO=groq` e la chiave `GROQ_API_KEY`) |
+| `ANTHROPIC_API_KEY` | `anthropic.api.key` | vuota | chiave Anthropic per la lettura dei fogli (con `AI_LETTORE_FOGLIO=anthropic`); un segreto, come quella di Groq |
+| `ANTHROPIC_MODEL` | `anthropic.model` | `claude-haiku-5-5` | il modello Anthropic che legge i fogli: deve accettare uno strumento forzato (`tool_choice`), come Haiku 5.5 |
 | `BREVO_API_KEY` | `app.brevo.api-key` | vuota | la chiave dell'API di Brevo che manda le email del recupero password; vuota = le email non partono (vedi «Recupero password») |
 | `MAIL_USERNAME` | `app.mail.mittente` | vuota | il mittente delle email del recupero password, un indirizzo verificato in Brevo; vuota = le email non partono |
 | `APP_FRONTEND_URL` | `app.frontend-url` | `http://localhost:5173` | indirizzo pubblico del frontend, con cui si costruisce il link dell'email di recupero; su Render `https://hoop3x3.onrender.com` |
@@ -160,8 +164,9 @@ La tabella viene da `AccessoEndpointIT` (`src/test/java/com/hoop3x3/backend/cont
 | `POST` | `/api/campetti` | Autenticato | 201 |
 | `PUT` | `/api/campetti/{id}` | Autore del campetto o ADMIN (solo ADMIN se l'autore è stato eliminato) | 200; 409 se il corpo porta una `versione` che non è più quella del database |
 | `DELETE` | `/api/campetti/{id}` | Autore del campetto o ADMIN (come la PUT) | 204 |
-| `GET` | `/api/coach/status` | Autenticato | 200 `{available}` |
+| `GET` | `/api/coach/status` | Autenticato | 200 `{available, foglio}`: il Coach ha la chiave Groq, la lettura dei fogli è accesa |
 | `POST` | `/api/coach/chat` | Autenticato | 200 la risposta di Groq (fuori tema: la frase fissa, vedi «La regola del contesto»); 429 oltre i limiti di frequenza |
+| `POST` | `/api/coach/foglio` | Autenticato | 200 la bozza letta dalla foto di un foglio (`BozzaFoglioDTO`, vedi «Lettura dei fogli (foto)»); 400 immagine non valida o oltre 1,5 MB; 429 oltre i limiti di frequenza; 502 errore del lettore; 503 lettura spenta |
 
 `GET /actuator/health` e `GET /actuator/health/liveness` sono pubblici ma non sono controller dell'applicazione, quindi non stanno nelle liste del test: li prova `SaluteIT`. Rispondono 200 `{"status":"UP"}` o 503 `{"status":"DOWN"}`, senza dettagli: il primo include il database, il secondo solo il processo (vedi «Deploy su Render»).
 
@@ -192,6 +197,50 @@ Il Coach risponde solo su basket e HOOP 3X3. La regola la aggiunge il server (`s
 Ogni utente può fare 20 richieste al minuto e 300 al giorno: oltre, il server risponde 429 (vedi «Limiti di frequenza»).
 
 Gli errori di Groq arrivano al client senza dettagli interni: 429 se Groq limita le richieste, 400 se rifiuta la richiesta (anche perché troppo lunga), 502 per tutto il resto (errore di Groq, chiave non valida, rete, timeout, risposta che non è un oggetto JSON), 503 se la chiave manca. Nei log del server ogni 502 e 503 ha la sua riga `WARN` con la causa: stato e corpo della risposta di Groq (troncato a 500 caratteri e su una riga sola: a capo e caratteri di controllo sono scritti per esteso) oppure l'eccezione di rete. La chiave non viene mai scritta nei log.
+
+## Lettura dei fogli (foto)
+
+`POST /api/coach/foglio` (autenticato, come la chat) legge la foto di un foglio di tappa scritto a mano con un modello con immagini e restituisce una **bozza**: nome, luogo, data, squadre con i giocatori, gironi, partite con i punti e i dubbi del modello. Il frontend la trasforma nel JSON di una lega e la importa come un file («Importa file»); il server non salva niente e non decide niente della lega. È un endpoint a parte e non la chat perché la chat ha un tetto di 100.000 caratteri e un modello di solo testo, mentre la foto va a un modello con immagini, con uno schema di risposta fisso e senza strumenti.
+
+**Richiesta.** `{"immagine": "data:image/jpeg;base64,..."}`: un data URL JPEG, PNG o WebP, con al massimo 1.500.000 caratteri di base64 (circa 1,1 MB di foto: il frontend la riduce prima di mandarla). Il server controlla il prefisso, il tetto (sul base64, prima di decodificare) e i primi byte dopo la decodifica (JPEG `FF D8 FF`, PNG `89 50 4E 47 0D 0A 1A 0A`, WebP `RIFF`…`WEBP`): un prefisso JPEG su un PNG, un PDF o un testo è un 400, e il fornitore non viene chiamato. Un corpo oltre 2 MB lo ferma prima il filtro della dimensione (413, vedi «Limiti dell'API»).
+
+**Risposta** (`BozzaFoglioDTO`; `nome`, `luogo`, `data` e `gironi` possono essere `null`, gli elenchi mai):
+
+```json
+{
+  "nome": "Tappa di Roma", "luogo": "Campo X", "data": "2026-06-14",
+  "squadre": [{ "nome": "Alfa", "giocatori": ["Mario Rossi", "Luca Bianchi", "Anna Verdi"] }],
+  "gironi": [["Alfa", "Beta", "Gamma"], ["Delta", "Epsilon", "Zeta"]],
+  "partite": [{ "a": "Alfa", "b": "Beta", "puntiA": 21, "puntiB": 15 }, { "a": "Gamma", "b": "Alfa", "puntiA": null, "puntiB": 12 }],
+  "dubbi": ["Partita Gamma-Alfa: il punteggio di Gamma non si legge"]
+}
+```
+
+**Limiti della bozza.** Prima di rispondere il server ripulisce ciò che ha scritto il modello (`FoglioService.ripulisci`): testi senza spazi ai lati e troncati (`nome` 120 caratteri, `luogo` 160, nomi di squadre e giocatori 120, dubbi 300); `data` solo se è `aaaa-mm-gg` e una data vera, altrimenti `null` con il dubbio «Data non letta»; squadre senza nome e partite senza una delle due squadre scartate; al massimo 64 squadre, 6 giocatori per squadra (il frontend ne tiene 4), 32 gironi, 500 partite e 50 dubbi; punteggi solo interi da 0 a 999, altrimenti `null`. Le squadre dei gironi o delle partite che non sono nell'elenco restano com'è: le risolve il frontend. Una risposta che non è un oggetto con `squadre`, `partite` e `dubbi` elenchi è un 502.
+
+**Fornitori.** Lo sceglie `AI_LETTORE_FOGLIO`: `groq` (il modello `GROQ_MODELLO_VISIONE`, con la chiave del Coach `GROQ_API_KEY`) oppure `anthropic` (il modello `ANTHROPIC_MODEL`, con `ANTHROPIC_API_KEY`). Vuota, o con un altro valore (un WARN all'avvio lo dice), la lettura è spenta; lo è anche se manca la chiave del fornitore scelto. Prompt e schema sono gli stessi per i due (`services/SchemaFoglio`, copiati dalla prova OCR del piano di miglioramento); cambia solo il formato della chiamata:
+
+- **Groq** (`LettoreFoglioGroq`, formato OpenAI): un messaggio con il prompt e l'immagine (`image_url`), `temperature` 0, `max_tokens` 4000, `response_format` con lo schema e `strict: true`; la bozza è il JSON in `choices[0].message.content`. Niente `reasoning_effort` né strumenti.
+- **Anthropic** (`LettoreFoglioAnthropic`, Messages API, `anthropic-version: 2023-06-01`): l'immagine prima del testo, `max_tokens` 4000 e lo strumento `foglio_tappa` forzato con `tool_choice`; la bozza è l'`input` del blocco `tool_use`. Un modello che non accetta lo strumento forzato risponde 400, cioè un 502 al client.
+
+Come per il Coach, il fornitore ha 5 secondi per accettare la connessione e 60 per la risposta.
+
+**Che cosa va al fornitore e che cosa resta.** La foto va ai server del fornitore scelto (negli Stati Uniti) e contiene nomi di persone. Sul nostro server non si salva e non si logga: vive per la durata della richiesta, non finisce in un'eccezione né in un messaggio d'errore, e se un errore del fornitore la riportasse nel corpo, nel log tutto ciò che segue `base64,` resta fuori. Per ogni lettura riuscita c'è una riga INFO con l'id dell'utente, la dimensione in KB, la durata e i numeri della bozza (`Foglio letto: utente …, 412 KB, 5230 ms, 8 squadre, 16 partite, 2 dubbi`), mai i nomi letti. La chiave non viene mai scritta nei log.
+
+**Errori** (i testi sono un contratto con il frontend, in `FoglioService` e `LettoreFoglio`):
+
+| Stato | Messaggio | Quando |
+|---|---|---|
+| 400 | «L'immagine deve essere un data URL JPEG, PNG o WebP» | prefisso mancante o di un altro tipo, base64 non valido, primi byte di un altro formato |
+| 400 | «L'immagine supera 1,5 MB: riducila prima di mandarla» | oltre 1.500.000 caratteri di base64 |
+| 413 | «La richiesta è troppo grande: il limite è di 2 MB» | corpo oltre 2 MB (filtro, prima del controller) |
+| 429 | «Limite del lettore dei fogli raggiunto, riprova tra poco» | il fornitore limita le richieste |
+| 502 | «Il lettore dei fogli non è disponibile in questo momento» | qualunque altro errore del fornitore, **anche un suo 400** (schema rifiutato, modello dismesso, chiave non valida): è configurazione del server, non colpa della foto |
+| 502 | «Lettore dei fogli non raggiungibile» | rete, timeout, risposta interrotta |
+| 502 | «Il lettore dei fogli ha dato una risposta non valida» | la risposta non contiene una bozza nella forma minima |
+| 503 | «Lettura dei fogli non configurata sul server (AI_LETTORE_FOGLIO)» | lettura spenta o chiave del fornitore mancante |
+
+Ogni 502 e 503 lascia una riga WARN con la causa: stato e corpo della risposta del fornitore (troncato a 500 caratteri, su una riga) oppure l'eccezione di rete.
 
 ## Tappe e modifiche da più dispositivi
 
