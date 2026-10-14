@@ -84,7 +84,7 @@ class CoachAiServiceTest {
     }
 
     private CoachAiService nuovoServizio(Duration timeoutRisposta, String chiave, String reasoningEffort) {
-        GroqProperties proprieta = new GroqProperties(new GroqProperties.Api(chiave), "modello-di-test", reasoningEffort);
+        GroqProperties proprieta = new GroqProperties(new GroqProperties.Api(chiave), "modello-di-test", reasoningEffort, "visione-di-test");
         return new CoachAiService(mapper, proprieta, groq.url(), Duration.ofSeconds(5), timeoutRisposta);
     }
 
