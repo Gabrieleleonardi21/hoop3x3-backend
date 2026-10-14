@@ -132,7 +132,20 @@ class LettoreFoglioGroqTest {
         groq.rispondi(200, rispostaCon(content));
 
         assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessage(LettoreFoglio.RISPOSTA_NON_VALIDA);
-        assertThat(unicaRigaDiLog()).contains(content);
+        assertThat(unicaRigaDiLog()).contains(content.length() + " caratteri");
+    }
+
+    // Una bozza a metà porta i nomi letti dal foglio, cioè persone: nel log vanno solo la lunghezza, le chiavi di primo
+    // livello e il motivo della fine della risposta, mai il contenuto
+    @Test
+    void unaBozzaNonValida_nelLogNonPortaINomiLetti() {
+        String content = "{\"squadre\":[{\"nome\":\"Alfa\",\"giocatori\":[\"Mario Rossi\"]}],\"dubbi\":[\"Anna Verdi\"]}";
+        groq.rispondi(200, mapper.createObjectNode().set("choices", mapper.createArrayNode().add(mapper.createObjectNode()
+                .put("finish_reason", "length").set("message", mapper.createObjectNode().put("content", content)))).toString());
+
+        assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessage(LettoreFoglio.RISPOSTA_NON_VALIDA);
+        assertThat(unicaRigaDiLog()).contains(content.length() + " caratteri").contains("[squadre, dubbi]").contains("length")
+                .doesNotContain("Mario Rossi").doesNotContain("Anna Verdi").doesNotContain("Alfa");
     }
 
     // La risposta di Groq stessa non ha un content di testo, o non è JSON
@@ -142,7 +155,7 @@ class LettoreFoglioGroqTest {
         groq.rispondi(200, corpo);
 
         assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessage(LettoreFoglio.RISPOSTA_NON_VALIDA);
-        assertThat(unicaRigaDiLog()).contains(corpo);
+        assertThat(unicaRigaDiLog()).contains(corpo.length() + " caratteri");
     }
 
     @Test

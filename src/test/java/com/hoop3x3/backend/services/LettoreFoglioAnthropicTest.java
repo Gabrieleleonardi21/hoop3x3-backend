@@ -141,6 +141,27 @@ class LettoreFoglioAnthropicTest {
         assertThat(unicaRigaDiLog()).contains("non valida");
     }
 
+    // Lo strumento con una bozza a metà porta i nomi letti: nel log solo lunghezza, chiavi di primo livello e stop_reason
+    @Test
+    void unaBozzaNonValida_nelLogNonPortaINomiLetti() {
+        String input = "{\"squadre\":[{\"nome\":\"Alfa\",\"giocatori\":[\"Mario Rossi\"]}],\"dubbi\":[\"Anna Verdi\"]}";
+        anthropic.rispondi(200, "{\"type\":\"message\",\"stop_reason\":\"max_tokens\",\"content\":[" + strumento(input) + "]}");
+
+        assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessage(LettoreFoglio.RISPOSTA_NON_VALIDA);
+        assertThat(unicaRigaDiLog()).contains(input.length() + " caratteri").contains("[squadre, dubbi]").contains("max_tokens")
+                .doesNotContain("Mario Rossi").doesNotContain("Anna Verdi").doesNotContain("Alfa");
+    }
+
+    // Una risposta senza lo strumento: il testo del modello (che può citare il foglio) non va nel log
+    @Test
+    void unaRispostaSoloTesto_nelLogNonPortaIlTesto() {
+        anthropic.rispondi(200, rispostaCon("{\"type\":\"text\",\"text\":\"Leggo Mario Rossi e Anna Verdi\"}"));
+
+        assertFallisceCon(HttpStatus.BAD_GATEWAY).hasMessage(LettoreFoglio.RISPOSTA_NON_VALIDA);
+        assertThat(unicaRigaDiLog()).contains("[type, stop_reason, content]").contains("tool_use")
+                .doesNotContain("Mario Rossi").doesNotContain("Anna Verdi");
+    }
+
     @Test
     void anthropic429_risponde429ConIlLimiteDelLettore() {
         anthropic.rispondi(429, CORPO_DI_ERRORE);

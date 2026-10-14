@@ -243,7 +243,7 @@ Come per il Coach, il fornitore ha 5 secondi per accettare la connessione e 60 p
 | 502 | «Il lettore dei fogli ha dato una risposta non valida» | la risposta non contiene una bozza nella forma minima |
 | 503 | «Lettura dei fogli non configurata sul server (AI_LETTORE_FOGLIO)» | lettura spenta o chiave del fornitore mancante |
 
-Ogni 502 e 503 lascia una riga WARN con la causa: stato e corpo della risposta del fornitore (troncato a 500 caratteri, su una riga) oppure l'eccezione di rete.
+Ogni 502 e 503 lascia una riga WARN con la causa: per un errore HTTP lo stato e il corpo della risposta del fornitore (troncato a 500 caratteri, su una riga), per un errore di rete l'eccezione. Per una risposta non valida invece solo la lunghezza, le chiavi di primo livello e il motivo della fine (`finish_reason` di Groq, `stop_reason` di Anthropic): una bozza a metà contiene i nomi letti dal foglio, e nel log non vanno.
 
 ## Tappe e modifiche da più dispositivi
 

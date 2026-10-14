@@ -77,9 +77,9 @@ public class LettoreFoglioAnthropic implements LettoreFoglio {
         for (JsonNode blocco : risposta.path("content")) {
             if ("tool_use".equals(blocco.path("type").asString(""))
                     && SchemaFoglio.NOME_STRUMENTO.equals(blocco.path("name").asString(""))) {
-                return chiamata.bozza(blocco.path("input"));
+                return chiamata.bozza(blocco.path("input"), risposta);
             }
         }
-        throw chiamata.nonValida(risposta.toString());
+        throw chiamata.nonValida(risposta.toString(), risposta);
     }
 }

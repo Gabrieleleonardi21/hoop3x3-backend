@@ -16,6 +16,7 @@ import tools.jackson.databind.node.ObjectNode;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.function.Consumer;
 
 import static com.hoop3x3.backend.services.LettoreFoglio.FORNITORE_NON_DISPONIBILE;
@@ -76,27 +77,50 @@ final class ChiamataFornitore {
             throw new UpstreamException(HttpStatus.BAD_GATEWAY, FORNITORE_NON_RAGGIUNGIBILE);
         }
         JsonNode json = json(risposta);
-        if (json == null || !json.isObject()) throw nonValida(risposta);
+        if (json == null || !json.isObject()) throw nonValida(risposta, null);
         return json;
     }
 
-    /** La bozza scritta dal modello come testo JSON (il content di Groq) */
-    JsonNode bozza(String testo) {
+    /** La bozza scritta dal modello come testo JSON (il content di Groq); `risposta` è quella intera del fornitore */
+    JsonNode bozza(String testo, JsonNode risposta) {
         JsonNode letta = json(testo);
-        if (!SchemaFoglio.haLaForma(letta)) throw nonValida(testo);
+        if (!SchemaFoglio.haLaForma(letta)) throw nonValida(testo, risposta);
         return letta;
     }
 
     /** La bozza scritta dal modello come oggetto JSON (l'input dello strumento di Anthropic) */
-    JsonNode bozza(JsonNode letta) {
-        if (!SchemaFoglio.haLaForma(letta)) throw nonValida(String.valueOf(letta));
+    JsonNode bozza(JsonNode letta, JsonNode risposta) {
+        if (!SchemaFoglio.haLaForma(letta)) throw nonValida(String.valueOf(letta), risposta);
         return letta;
     }
 
-    /** 502 «risposta non valida», con ciò che è arrivato nei log */
-    UpstreamException nonValida(String arrivato) {
-        log.warn("Risposta di {} non valida per la lettura di un foglio: {}", fornitore, corpoPerLog(arrivato));
+    /**
+     * 502 «risposta non valida». Ciò che è arrivato può contenere i nomi letti dal foglio (persone): nel log vanno solo la
+     * lunghezza, le chiavi di primo livello (se è un oggetto JSON) e il motivo della fine della risposta (finish_reason di
+     * Groq, stop_reason di Anthropic), che basta a capire una risposta tagliata o senza lo strumento. `risposta` è la risposta
+     * intera del fornitore, null se non è JSON
+     */
+    UpstreamException nonValida(String arrivato, JsonNode risposta) {
+        int lunghezza = 0;
+        if (arrivato != null) lunghezza = arrivato.length();
+        log.warn("Risposta di {} non valida per la lettura di un foglio: {} caratteri, chiavi {}, fine {}", fornitore, lunghezza,
+                chiavi(json(arrivato)), motivoDellaFine(risposta));
         return new UpstreamException(HttpStatus.BAD_GATEWAY, RISPOSTA_NON_VALIDA);
+    }
+
+    /** Le chiavi di primo livello di un oggetto JSON («[squadre, dubbi]»), su una riga; «nessuna» per tutto il resto */
+    private static String chiavi(JsonNode nodo) {
+        if (nodo == null || !nodo.isObject()) return "nessuna";
+        return LogSupport.perLog(tronca(new ArrayList<>(nodo.propertyNames()).toString()));
+    }
+
+    /** finish_reason di Groq o stop_reason di Anthropic, se la risposta li ha */
+    private static String motivoDellaFine(JsonNode risposta) {
+        if (risposta == null) return "assente";
+        JsonNode motivo = risposta.at("/choices/0/finish_reason");
+        if (!motivo.isString()) motivo = risposta.path("stop_reason");
+        if (!motivo.isString()) return "assente";
+        return LogSupport.perLog(tronca(motivo.asString()));
     }
 
     /** Il testo come JSON, o null se non lo è (anche un corpo assente) */

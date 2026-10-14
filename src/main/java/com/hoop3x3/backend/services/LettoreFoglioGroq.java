@@ -71,7 +71,7 @@ public class LettoreFoglioGroq implements LettoreFoglio {
 
         JsonNode risposta = chiamata.invia(intestazioni -> intestazioni.setBearerAuth(apiKey), corpo);
         JsonNode content = risposta.at("/choices/0/message/content");
-        if (!content.isString()) throw chiamata.nonValida(risposta.toString());
-        return chiamata.bozza(content.asString());
+        if (!content.isString()) throw chiamata.nonValida(risposta.toString(), risposta);
+        return chiamata.bozza(content.asString(), risposta);
     }
 }
