@@ -11,6 +11,7 @@ import static com.hoop3x3.backend.services.AmbitoCoach.REGOLA;
 import static com.hoop3x3.backend.services.AmbitoCoach.RIPETIZIONE;
 import static com.hoop3x3.backend.services.AmbitoCoach.RISPOSTA_FUORI_CONTESTO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** La regola del contesto del Coach: classe pura, senza Spring e senza Groq */
 class AmbitoCoachTest {
@@ -68,19 +69,14 @@ class AmbitoCoachTest {
         assertThat(ricevuti).isEqualTo(messaggi(json));
     }
 
-    // Il formato OpenAI a parti (content come elenco): il testo del client non si tocca e la regola va in un system nuovo
-    @Test
-    void unSystemConContentNonTestuale_restaComEELaRegolaVaInTesta() {
-        ArrayNode ricevuti = messaggi("""
-                [{"role":"system","content":[{"type":"text","text":"Sei Coach AI"}]},{"role":"user","content":"ciao"}]""");
+    // Un system con content non testuale (il formato OpenAI a parti, null, un numero) lo respinge CoachAiService.valida con 400:
+    // se arrivasse qui, la regola andrebbe in un system a parte e quello del client avrebbe l'ultima parola. Meglio un errore
+    @ParameterizedTest
+    @ValueSource(strings = {"[{\"type\":\"text\",\"text\":\"Sei Coach AI\"}]", "null", "42"})
+    void unSystemConContentNonTestuale_eUnErrore(String content) {
+        ArrayNode ricevuti = messaggi("[{\"role\":\"system\",\"content\":" + content + "},{\"role\":\"user\",\"content\":\"ciao\"}]");
 
-        ArrayNode inviati = AmbitoCoach.conRegola(ricevuti);
-
-        assertThat(inviati).hasSize(3);
-        assertThat(inviati.get(0).path("role").asString()).isEqualTo("system");
-        assertThat(inviati.get(0).path("content").asString()).isEqualTo(REGOLA);
-        assertThat(inviati.get(1)).isEqualTo(ricevuti.get(0));
-        assertThat(inviati.get(2)).isEqualTo(ricevuti.get(1));
+        assertThatThrownBy(() -> AmbitoCoach.conRegola(ricevuti)).isInstanceOf(IllegalArgumentException.class);
     }
 
     /* ── filtra ── */

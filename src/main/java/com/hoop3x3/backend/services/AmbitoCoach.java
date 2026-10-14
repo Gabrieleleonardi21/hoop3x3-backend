@@ -38,18 +38,22 @@ public final class AmbitoCoach {
 
     /**
      * I messaggi da mandare al modello: la regola entra nel primo `system` del client (prima e dopo il suo testo), così resta un
-     * solo `system` e non si dipende da come il fornitore ne tratta più d'uno; senza `system` di testo diventa un `system` nuovo
-     * in testa. L'elenco ricevuto non si tocca: si lavora su una copia
+     * solo `system` e non si dipende da come il fornitore ne tratta più d'uno; senza `system` diventa un `system` nuovo in testa.
+     * L'elenco ricevuto non si tocca: si lavora su una copia
+     *
+     * @throws IllegalArgumentException se il primo `system` non ha un `content` di testo (CoachAiService.valida lo respinge prima
+     *                                  con 400): la regola finirebbe in un `system` a parte e l'ultima parola l'avrebbe il client
      */
     public static ArrayNode conRegola(ArrayNode messages) {
         ArrayNode risultato = messages.deepCopy();
         JsonNode primo = risultato.path(0);
-        if (SYSTEM.equals(primo.path("role").asString("")) && primo.path("content").isString()) {
+        if (SYSTEM.equals(primo.path("role").asString(""))) {
+            if (!primo.path("content").isString()) throw new IllegalArgumentException("Il messaggio system deve avere un content di testo");
             String testo = REGOLA + "\n\n" + primo.path("content").stringValue() + "\n\n" + RIPETIZIONE;
             ((ObjectNode) primo).put("content", testo);
             return risultato;
         }
-        // Content non testuale (il formato a parti) o nessun system: il messaggio del client resta com'è
+        // Nessun system: la regola è l'unico, in testa
         ObjectNode regola = JsonNodeFactory.instance.objectNode();
         regola.put("role", SYSTEM);
         regola.put("content", REGOLA);

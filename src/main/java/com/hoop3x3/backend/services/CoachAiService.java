@@ -167,6 +167,11 @@ public class CoachAiService {
             if (i > 0 && !RUOLI_DOPO_IL_PRIMO.contains(m.path("role").asString())) {
                 throw new BadRequestException("Solo il primo messaggio può avere il ruolo system");
             }
+            // Il system dev'essere testo: la regola del contesto (AmbitoCoach) va prima e dopo il suo testo, nello stesso messaggio.
+            // Con il formato a parti finirebbe in un system a parte e l'ultima parola l'avrebbe il client
+            if (SYSTEM.equals(m.path("role").asString()) && !m.path("content").isString()) {
+                throw new BadRequestException("Il messaggio system deve avere un content di testo");
+            }
         }
         if (messaggi.toString().length() > MAX_CARATTERI_MESSAGGI) {
             throw new BadRequestException("Conversazione troppo lunga: cancella la chat e riprova");
