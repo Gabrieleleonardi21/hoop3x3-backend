@@ -20,11 +20,17 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 // Il database lo scelgono solo le variabili TEST_DB_*: le proprietà del test prevalgono anche su
-// SPRING_DATASOURCE_* esportate nel terminale, che porterebbero i test su un database non di prova
+// SPRING_DATASOURCE_* esportate nel terminale, che porterebbero i test su un database non di prova.
+// Per lo stesso motivo il Coach e la lettura dei fogli restano spenti anche con AI_LETTORE_FOGLIO, GROQ_API_KEY o
+// ANTHROPIC_API_KEY esportate: le variabili d'ambiente prevalgono su application-test.properties, queste proprietà no, e
+// nessun test chiama Groq o Anthropic per davvero (FornitoriSpentiIT)
 @SpringBootTest(properties = {
         "spring.datasource.url=${TEST_DB_URL:" + TestDiIntegrazione.URL_PREDEFINITO + "}",
         "spring.datasource.username=${TEST_DB_USERNAME:${DB_USERNAME:postgres}}",
-        "spring.datasource.password=${TEST_DB_PASSWORD:${DB_PASSWORD:}}"})
+        "spring.datasource.password=${TEST_DB_PASSWORD:${DB_PASSWORD:}}",
+        "ai.lettore-foglio=",
+        "groq.api.key=",
+        "anthropic.api.key="})
 @ActiveProfiles("test")
 // svuota.sql contiene un blocco DO con dei «;»: si esegue come un'unica istruzione, senza dividerlo
 @Sql(scripts = "classpath:svuota.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD,
