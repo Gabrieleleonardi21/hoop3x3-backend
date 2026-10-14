@@ -273,8 +273,23 @@ class FoglioServiceTest {
         assertThat(bozza.dubbi()).containsExactly("Data non letta", "Un dubbio del modello");
     }
 
+    // Non solo un testo scritto male: un numero, un oggetto, un elenco, un booleano o un testo vuoto non sono una data, e il
+    // contratto vuole il dubbio per tutto ciò che non è null o assente
+    @ParameterizedTest
+    @ValueSource(strings = {"20260614", "{\"giorno\":14}", "[\"2026-06-14\"]", "true", "\"\"", "\"  \""})
+    void unaDataCheNonEUnTesto_diventaNullConIlDubbioDataNonLetta(String data) {
+        ObjectNode b = bozza();
+        b.set("data", mapper.readTree(data));
+
+        BozzaFoglioDTO bozza = letta(b);
+
+        assertThat(bozza.data()).isNull();
+        assertThat(bozza.dubbi()).containsExactly("Data non letta");
+    }
+
     @Test
-    void unaDataAssente_restaNullSenzaDubbi() {
+    void unaDataNullOAssente_restaNullSenzaDubbi() {
+        assertThat(letta(BOZZA_MINIMA).dubbi()).isEmpty();
         ObjectNode b = bozza();
         b.putNull("data");
 

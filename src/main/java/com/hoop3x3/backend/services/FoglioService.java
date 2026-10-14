@@ -187,11 +187,14 @@ public class FoglioService {
                 gironi, partite, dubbi);
     }
 
-    /** La data se è aaaa-mm-gg e una data vera; scritta in un altro modo diventa null, con il dubbio «Data non letta» */
+    /**
+     * La data se è aaaa-mm-gg e una data vera. Null o assente resta null; qualunque altra cosa (scritta in un altro modo, un
+     * numero, un oggetto, un testo vuoto) diventa null con il dubbio «Data non letta»
+     */
     private static String dataIso(JsonNode nodo, List<String> dubbi) {
+        if (nodo.isNull() || nodo.isMissingNode()) return null;
         String data = testo(nodo, Integer.MAX_VALUE);
-        if (data == null) return null;
-        if (DATA_ISO.matcher(data).matches()) {
+        if (data != null && DATA_ISO.matcher(data).matches()) {
             try {
                 LocalDate.parse(data);
                 return data;
