@@ -323,6 +323,21 @@ class LettureEfficientiIT {
                 () -> assertThat(caricate(ArchivioTappa.class)).as("pubblicazioni caricate").isZero());
     }
 
+    // Tutte le tappe pubblicate (GET /api/archivio/tappe): una query con l'autore in join fetch, non una in più per autore
+    @Test
+    void tutteLeTappePubblicateSiLeggonoConUnaQuery_ilNumeroNonCresceConGliAutori() {
+        pubblicaTappe(1);
+        long conUna = misura(archivioService::tutteLeTappe).query();
+
+        pubblicaTappe(4); // ognuna di un autore diverso
+        var conCinque = misura(archivioService::tutteLeTappe);
+
+        assertThat(conCinque.risultato()).hasSize(5);
+        assertAll(
+                () -> assertThat(conCinque.query()).as("query con 5 pubblicazioni di 5 autori").isEqualTo(conUna),
+                () -> assertThat(conCinque.query()).as("query di tutte le tappe pubblicate").isEqualTo(1));
+    }
+
     /* ── Campetti: 5.000 campetti sparsi in Italia, le ricerche fanno una query ciascuna (il tempo non si asserisce: in CI è fragile) ── */
 
     // La ricerca per raggio chiede al database un riquadro di coordinate (indice su lat, lng) e calcola la distanza in Java:

@@ -17,6 +17,7 @@ import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.net.http.HttpClient;
@@ -28,7 +29,7 @@ import static com.hoop3x3.backend.services.LogSupport.perLog;
 /**
  * Proxy verso Groq per il Coach AI: la chiave resta sul server e non arriva mai al browser.
  * Il corpo (messages + tools nel formato OpenAI) è inoltrato dopo un controllo di forma e dimensione;
- * modello e limite di token li fissa il server.
+ * modello e limite di token li fissa il server. La regola del contesto (AmbitoCoach) entra nei messaggi e filtra la risposta.
  */
 @Service
 @EnableConfigurationProperties(GroqProperties.class)
@@ -102,7 +103,9 @@ public class CoachAiService {
         body.put("max_tokens", 1200);
         // Solo se configurato: un modello che non accetta il campo risponderebbe 400 a ogni richiesta (groq.reasoning-effort vuoto)
         if (!reasoningEffort.isBlank()) body.put("reasoning_effort", reasoningEffort);
-        body.set("messages", req.messages());
+        // La regola del contesto si aggiunge dopo valida(): i limiti si misurano sui messaggi del client, così una richiesta
+        // al limite dei 100.000 caratteri non diventa 400 per colpa della regola (valida() garantisce che sia un elenco)
+        body.set("messages", AmbitoCoach.conRegola((ArrayNode) req.messages()));
         if (req.tools() != null && !req.tools().isEmpty()) {
             body.set("tools", req.tools());
             body.put("tool_choice", "auto");
@@ -129,7 +132,11 @@ public class CoachAiService {
             log.warn("Groq non raggiungibile o risposta interrotta", e);
             throw new UpstreamException(HttpStatus.BAD_GATEWAY, "Servizio AI non raggiungibile");
         }
-        return leggiRisposta(risposta);
+        JsonNode letta = leggiRisposta(risposta);
+        JsonNode filtrata = AmbitoCoach.filtra(letta);
+        // Solo il fatto, per contare i rifiuti: mai la domanda né la risposta
+        if (filtrata != letta) log.info("Coach: risposta fuori contesto");
+        return filtrata;
     }
 
     /** La risposta di Groq è un oggetto JSON: altro (pagina HTML, corpo vuoto o a metà) è un guasto a monte, con il corpo nei log */
@@ -159,6 +166,11 @@ public class CoachAiService {
             // conversazione, è un client che prova a riscriverle
             if (i > 0 && !RUOLI_DOPO_IL_PRIMO.contains(m.path("role").asString())) {
                 throw new BadRequestException("Solo il primo messaggio può avere il ruolo system");
+            }
+            // Il system dev'essere testo: la regola del contesto (AmbitoCoach) va prima e dopo il suo testo, nello stesso messaggio.
+            // Con il formato a parti finirebbe in un system a parte e l'ultima parola l'avrebbe il client
+            if (SYSTEM.equals(m.path("role").asString()) && !m.path("content").isString()) {
+                throw new BadRequestException("Il messaggio system deve avere un content di testo");
             }
         }
         if (messaggi.toString().length() > MAX_CARATTERI_MESSAGGI) {

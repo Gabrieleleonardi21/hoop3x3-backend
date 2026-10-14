@@ -35,4 +35,12 @@ public interface ArchivioTappaRepository extends JpaRepository<ArchivioTappa, UU
             order by a.pubblicatoIl desc
             """)
     List<VoceElenco> elenco();
+
+    /**
+     * Tutte le pubblicazioni intere, dalla più vecchia: il `join fetch` evita una query per autore quando si costruisce la copia
+     * pubblica (il nome dell'autore), e l'ordine dal più vecchio conta perché il frontend mostra la grafia dell'ultima tappa
+     * dell'elenco. A parità di data decide l'id, così l'ordine non cambia da una richiesta all'altra
+     */
+    @Query("select a from ArchivioTappa a join fetch a.autore order by a.pubblicatoIl asc, a.tappaId asc")
+    List<ArchivioTappa> tutteConAutore();
 }
