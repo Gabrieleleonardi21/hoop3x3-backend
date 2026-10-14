@@ -27,8 +27,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Il filtro da solo, senza Spring: richieste finte, orologio finto che si sposta a comando, e un resolver finto che
- * ricorda gli errori che il filtro gli affida. Con i limiti abbassati: 3 accessi al minuto, e per
- * il Coach 2 al minuto e 4 al giorno. La stessa regola dentro la catena vera, con i valori di produzione, è in
+ * ricorda gli errori che il filtro gli affida. Con i limiti abbassati: 3 accessi al minuto, per
+ * il Coach 2 al minuto e 4 al giorno, per le foto dei fogli 2 al minuto e 3 al giorno. La stessa regola dentro la catena vera, con i valori di produzione, è in
  * LimiteRichiesteWebTest.
  */
 class LimiteRichiesteFilterTest {
@@ -38,6 +38,7 @@ class LimiteRichiesteFilterTest {
     private static final String RINNOVO = "/api/auth/refresh";
     private static final String RECUPERO = "/api/auth/password/dimenticata";
     private static final String COACH = "/api/coach/chat";
+    private static final String FOGLIO = "/api/coach/foglio";
     private static final String PASSWORD_DEL_PROFILO = "/api/auth/me/password";
     private static final String EMAIL_DEL_PROFILO = "/api/auth/me/email";
     private static final String ELIMINAZIONE = "/api/auth/me/elimina";
@@ -49,7 +50,8 @@ class LimiteRichiesteFilterTest {
         errori.add(errore);
         return new ModelAndView();
     };
-    private final LimiteRichiesteFilter filtro = new LimiteRichiesteFilter(new LimiteRichiesteProperties(3, 2, 4), orologio, resolver);
+    private final LimiteRichiesteFilter filtro = new LimiteRichiesteFilter(new LimiteRichiesteProperties(3, 2, 4, 2, 3), orologio,
+            resolver);
     private int arrivateAValle;
     private final FilterChain catena = (richiesta, risposta) -> arrivateAValle++;
 
@@ -271,6 +273,77 @@ class LimiteRichiesteFilterTest {
         orologio.avanza(Duration.ofMinutes(1));
         assertThat(postPassa(COACH, INDIRIZZO)).as("la quota è consumata dalle sole 4 passate").isFalse();
         assertThat(ultimoRifiuto().getMessage()).startsWith("Quota giornaliera del Coach AI esaurita");
+    }
+
+    /* ── Foto dei fogli: per utente, con contatori loro, separati da quelli della chat ── */
+
+    // Ogni foto è una chiamata a un modello con immagini, pagata con la chiave del server: si ferma qui, prima del fornitore
+    @Test
+    void laTerzaFotoNelMinuto_nonProseguePerLaStradaDegliErrori() throws Exception {
+        accediComeUtente(conId("mario@x.it"));
+        postPassano(FOGLIO, INDIRIZZO, 2);
+
+        assertThat(postPassa(FOGLIO, INDIRIZZO)).isFalse();
+
+        assertThat(arrivateAValle).isEqualTo(2);
+        assertThat(ultimoRifiuto().getSecondiAttesa()).isEqualTo(40);
+        assertThat(ultimoRifiuto().getMessage()).isEqualTo("Troppe foto in poco tempo: riprova tra 40 secondi");
+    }
+
+    @Test
+    void laQuotaGiornalieraDelleFoto_finisceAMezzanotteUtc() throws Exception {
+        accediComeUtente(conId("mario@x.it"));
+        postPassano(FOGLIO, INDIRIZZO, 2);
+        orologio.avanza(Duration.ofMinutes(1));
+        assertThat(postPassa(FOGLIO, INDIRIZZO)).isTrue(); // la terza del giorno, l'ultima
+
+        assertThat(postPassa(FOGLIO, INDIRIZZO)).as("il minuto ha ancora posto, la quota del giorno no").isFalse();
+
+        TroppeRichiesteException rifiuto = ultimoRifiuto();
+        assertThat(rifiuto.getMessage()).isEqualTo("Quota giornaliera di lettura dei fogli esaurita: riprova tra 14 ore");
+        orologio.avanza(Duration.ofSeconds(rifiuto.getSecondiAttesa())); // mezzanotte UTC
+        postPassano(FOGLIO, INDIRIZZO, 2);
+    }
+
+    @Test
+    void leFotoDiUtentiDiversi_hannoContatoriSeparati() throws Exception {
+        accediComeUtente(conId("mario@x.it"));
+        postPassano(FOGLIO, INDIRIZZO, 2);
+        assertThat(postPassa(FOGLIO, INDIRIZZO)).isFalse();
+
+        accediComeUtente(conId("luca@x.it"));
+        postPassano(FOGLIO, INDIRIZZO, 2);
+    }
+
+    // La chat e le foto hanno contatori loro: chi ha finito le foto può ancora parlare con il Coach, e viceversa
+    @Test
+    void laChatENonConsumaLeFoto_eLeFotoNonConsumanoLaChat() throws Exception {
+        accediComeUtente(conId("mario@x.it"));
+        postPassano(COACH, INDIRIZZO, 2);
+        assertThat(postPassa(COACH, INDIRIZZO)).isFalse();
+        postPassano(FOGLIO, INDIRIZZO, 2);
+
+        accediComeUtente(conId("luca@x.it"));
+        postPassano(FOGLIO, INDIRIZZO, 2);
+        assertThat(postPassa(FOGLIO, INDIRIZZO)).isFalse();
+        postPassano(COACH, INDIRIZZO, 2);
+    }
+
+    @Test
+    void senzaUtente_leFotoNonSiContano() throws Exception {
+        postPassano(FOGLIO, INDIRIZZO, 10);
+        assertThat(errori).isEmpty();
+    }
+
+    @Test
+    void leFoto_nelLogHannoLUtenteELaQuotaSuperata() throws Exception {
+        Utente mario = conId("mario@x.it");
+        accediComeUtente(mario);
+        postPassano(FOGLIO, INDIRIZZO, 2);
+        assertThat(postPassa(FOGLIO, INDIRIZZO)).isFalse();
+
+        assertThat(log.righe()).containsExactly(
+                "Limite di richieste superato: Troppe foto in poco tempo (massimo 2 al minuto), utente " + mario.getId());
     }
 
     /* ── Profilo: i tre endpoint con la password, per utente e con un contatore solo ── */

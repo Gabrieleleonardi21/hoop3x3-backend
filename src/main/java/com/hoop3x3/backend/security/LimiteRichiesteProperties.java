@@ -15,11 +15,15 @@ import org.springframework.validation.annotation.Validated;
  *                       chiedono la password attuale (cambio della password e dell'email, eliminazione), con un contatore solo
  * @param coachAlMinuto  Coach AI, per utente
  * @param coachAlGiorno  Coach AI, per utente: il giorno finisce a mezzanotte UTC
+ * @param foglioAlMinuto foto dei fogli lette (POST /api/coach/foglio), per utente, con contatori separati da quelli del Coach
+ * @param foglioAlGiorno foto dei fogli lette, per utente: il giorno finisce a mezzanotte UTC
  */
 @ConfigurationProperties(prefix = "limite")
 @Validated
 public record LimiteRichiesteProperties(
         @DefaultValue("10") @Min(value = 1, message = "limite.auth-al-minuto deve essere almeno 1") int authAlMinuto,
         @DefaultValue("20") @Min(value = 1, message = "limite.coach-al-minuto deve essere almeno 1") int coachAlMinuto,
-        @DefaultValue("300") @Min(value = 1, message = "limite.coach-al-giorno deve essere almeno 1") int coachAlGiorno
+        @DefaultValue("300") @Min(value = 1, message = "limite.coach-al-giorno deve essere almeno 1") int coachAlGiorno,
+        @DefaultValue("5") @Min(value = 1, message = "limite.foglio-al-minuto deve essere almeno 1") int foglioAlMinuto,
+        @DefaultValue("30") @Min(value = 1, message = "limite.foglio-al-giorno deve essere almeno 1") int foglioAlGiorno
 ) {}

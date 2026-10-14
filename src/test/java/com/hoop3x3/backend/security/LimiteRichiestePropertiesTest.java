@@ -65,7 +65,9 @@ class LimiteRichiestePropertiesTest {
             assertThat(ctx.getEnvironment().getProperty("limite.auth-al-minuto")).isEqualTo("10");
             assertThat(ctx.getEnvironment().getProperty("limite.coach-al-minuto")).isEqualTo("20");
             assertThat(ctx.getEnvironment().getProperty("limite.coach-al-giorno")).isEqualTo("300");
-            assertThat(ctx.getBean(LimiteRichiesteProperties.class)).isEqualTo(new LimiteRichiesteProperties(10, 20, 300));
+            assertThat(ctx.getEnvironment().getProperty("limite.foglio-al-minuto")).isEqualTo("5");
+            assertThat(ctx.getEnvironment().getProperty("limite.foglio-al-giorno")).isEqualTo("30");
+            assertThat(ctx.getBean(LimiteRichiesteProperties.class)).isEqualTo(new LimiteRichiesteProperties(10, 20, 300, 5, 30));
         });
     }
 
@@ -77,6 +79,8 @@ class LimiteRichiestePropertiesTest {
             assertThat(limiti.authAlMinuto()).isGreaterThanOrEqualTo(ALTI);
             assertThat(limiti.coachAlMinuto()).isGreaterThanOrEqualTo(ALTI);
             assertThat(limiti.coachAlGiorno()).isGreaterThanOrEqualTo(ALTI);
+            assertThat(limiti.foglioAlMinuto()).isGreaterThanOrEqualTo(ALTI);
+            assertThat(limiti.foglioAlGiorno()).isGreaterThanOrEqualTo(ALTI);
         });
     }
 
@@ -85,7 +89,7 @@ class LimiteRichiestePropertiesTest {
     void senzaProprieta_valgonoIValoriDiProduzione() {
         new ApplicationContextRunner().withUserConfiguration(Config.class).withBean(LocalValidatorFactoryBean.class).run(ctx -> {
             assertThat(ctx).hasNotFailed();
-            assertThat(ctx.getBean(LimiteRichiesteProperties.class)).isEqualTo(new LimiteRichiesteProperties(10, 20, 300));
+            assertThat(ctx.getBean(LimiteRichiesteProperties.class)).isEqualTo(new LimiteRichiesteProperties(10, 20, 300, 5, 30));
         });
     }
 
@@ -98,7 +102,9 @@ class LimiteRichiestePropertiesTest {
             "limite.coach-al-minuto, 0",
             "limite.coach-al-minuto, -1",
             "limite.coach-al-giorno, 0",
-            "limite.coach-al-giorno, -1"
+            "limite.coach-al-giorno, -1",
+            "limite.foglio-al-minuto, 0",
+            "limite.foglio-al-giorno, 0"
     })
     void unLimiteDaZeroONegativo_ilServerNonParte(String proprieta, String valore) {
         runner.withPropertyValues(proprieta + "=" + valore).run(ctx -> {
