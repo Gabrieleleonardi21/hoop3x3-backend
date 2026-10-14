@@ -2,7 +2,146 @@
 
 API REST del gestionale [Hoop 3x3](https://github.com/Gabrieleleonardi21/Hoops-3x3): Spring Boot 4 (Java 25), Spring Security + JWT, JPA/Hibernate, PostgreSQL. Porta `3001`.
 
+> Per capire il sistema nel suo insieme (architettura, come funziona una sessione, glossario) parti dal [README del frontend](https://github.com/Gabrieleleonardi21/Hoops-3x3#readme). Questo README è il riferimento tecnico del server.
+
 Servono Java 25 e un PostgreSQL (la CI usa la 18). Maven non va installato: c'è il Maven Wrapper, `./mvnw` (`mvnw.cmd` su Windows).
+
+## Indice
+
+- [Tecnologie e scelte, con il perché](#tecnologie-e-scelte-con-il-perché)
+  - [Le tecnologie](#le-tecnologie)
+  - [Le scelte del server](#le-scelte-del-server)
+- [Avvio](#avvio)
+- [Variabili di configurazione](#variabili-di-configurazione)
+- [Test](#test)
+- [Migrazioni del database](#migrazioni-del-database)
+- [Endpoint](#endpoint)
+- [Coach AI](#coach-ai)
+- [Tappe e modifiche da più dispositivi](#tappe-e-modifiche-da-più-dispositivi)
+- [Archivio circuito](#archivio-circuito)
+- [Anagrafe del circuito](#anagrafe-del-circuito)
+- [Campetti](#campetti)
+- [Sessioni e refresh token](#sessioni-e-refresh-token)
+- [Recupero password](#recupero-password)
+- [Profilo dell'account](#profilo-dellaccount)
+- [Deploy su Render](#deploy-su-render)
+- [Limiti dell'API](#limiti-dellapi)
+- [Limiti di frequenza](#limiti-di-frequenza)
+- [Log](#log)
+- [Struttura](#struttura)
+- [Dati di prova](#dati-di-prova)
+
+## Tecnologie e scelte, con il perché
+
+Questa sezione dice, per ogni tecnologia e per ogni scelta importante del server, che cos'è, a che cosa serve qui, perché è stata scelta e che cosa costa. Dove il perché non è scritto in nessun punto del codice o dei documenti del progetto, la tabella dice «scelta di partenza del progetto»: nessuna motivazione è inventata.
+
+- **Versioni.** Lette da `pom.xml` e dall'albero delle dipendenze (`./mvnw dependency:tree`) il 14 ottobre 2026.
+- **Percorsi.** Nella colonna «Dove» i file Java sono relativi a `src/main/java/com/hoop3x3/backend/`; `ReadmeTest` controlla che esistano.
+- **Il sistema nel suo insieme.** Architettura, glossario e percorsi raccontati passo per passo (una sessione, il viaggio di un risultato, il Coach) sono nel README del frontend, che ha anche le tecnologie del browser.
+
+### Le tecnologie
+
+| Tecnologia | Che cos'è | A che cosa serve qui | Perché questa | Prezzo o alternativa scartata |
+|---|---|---|---|---|
+| **Java 25** (Temurin 25.0.3 sul computer di sviluppo) | Linguaggio di programmazione e macchina virtuale (JVM) che esegue il programma | Tutto il codice di `src/main/java`; la versione è in `pom.xml` (`java.version`) e nel `Dockerfile` | È la versione a supporto lungo (LTS) più recente e Spring Boot 4.1 la supporta; dà i thread virtuali (vedi «Esecuzione e deploy») | Chi compila deve avere un JDK 25 e il jar non parte su versioni precedenti |
+| **Spring Boot 4.1.1** (Spring MVC 7.0.9, Tomcat 11.0.24 incorporato) | Framework Java che mette insieme server web, sicurezza, accesso al database, validazione, migrazioni e controlli di salute, configurati per proprietà | `pom.xml` (genitore e starter: webmvc, security, data-jpa, validation, actuator, flyway) e `src/main/resources/application.properties` | Perché Spring e non un altro framework: scelta di partenza del progetto. Quello che dà: le parti che servono sono già integrate e si regolano con le proprietà | Molta configurazione implicita da conoscere; non c'è un server da installare, ma il jar contiene Tomcat |
+| **Spring Security 7.1.1** | La parte di Spring che decide chi può chiamare che cosa, con una catena di filtri | `security/SecurityConfig.java` (regole per percorso, API senza sessione), `security/JwtFilter.java` | Filtri e regole per percorso già pronti, invece di scriverli a mano | Il CSRF è spento di proposito (vedi «Sicurezza e sessioni»); l'ordine dei filtri va conosciuto |
+| **JJWT 0.13.0** | Libreria per creare e verificare i JWT, cioè token firmati con dentro l'id dell'utente e la scadenza | `security/JwtTools.java`; `jjwt-impl` solo a runtime | Perché JJWT e non un'altra libreria: scelta di partenza del progetto. Manca di proposito `jjwt-jackson`: è scritto per Jackson 2 e se lo porterebbe dietro accanto al Jackson 3 di Spring Boot (commento in `pom.xml`) | Una classe in più da mantenere, `security/JwtJson.java`, che dà a JJWT il JSON di Jackson 3 con un mapper privato |
+| **BCrypt, costo 12** | Funzione che trasforma la password in un hash lento apposta | `security/SecurityConfig.java` (`BCryptPasswordEncoder(12)`) per registrazione, login e cambio password | Se qualcuno copia il database non legge le password, e provarle una a una costa tempo. Perché proprio 12: scelta di partenza del progetto | Ogni login e ogni registrazione costano CPU: da qui il limite di frequenza. BCrypt legge al massimo 72 byte, e il server rifiuta le password più lunghe |
+| **JPA e Hibernate 7.4.5** (Spring Data JPA 4.1.1) | JPA è lo standard Java per far corrispondere classi e tabelle; Hibernate è la sua implementazione | `entities/` (le classi) e `repositories/` (le query); `ddl-auto=validate` e `open-in-view=false` in `application.properties` | Nessun SQL a mano per le operazioni normali. Con `validate` Hibernate non crea né cambia tabelle (le migrazioni sono di Flyway): controlla che le entità combacino con lo schema e, se qualcosa non torna, il server non parte. Perché `open-in-view=false`: scelta di partenza del progetto | Con `open-in-view=false` la lettura di una relazione fuori dalla transazione dà errore invece di funzionare per caso. I blocchi JSONB per Hibernate sono stringhe (`@JdbcTypeCode(SqlTypes.JSON)`) e li confronta `services/JsonSupport.java` |
+| **Flyway 12.4.0** | Strumento che applica al database le modifiche di schema scritte come file SQL numerati | `src/main/resources/db/migration` (da V1 a V11), `spring.flyway.*` in `application.properties` | Lo schema è nel repository, versionato, e si applica da solo all'avvio: nessuno esegue SQL a mano su un ambiente | Una migrazione già applicata non si modifica (il checksum lo impedisce): un errore si corregge con una migrazione nuova |
+| **PostgreSQL con JSONB** (driver 42.7.13; PostgreSQL 18.4 sul database di prova in locale, `postgres:18` in CI) | Database relazionale. JSONB è il tipo che conserva un JSON in forma binaria e permette di interrogarlo | Tutte le tabelle. Squadre, gironi, partite, tabellone e video di una tappa, e lo snapshot dell'archivio, sono colonne JSONB (`entities/Tappa.java`, `entities/ArchivioTappa.java`) | Transazioni e vincoli (chiavi esterne, `UNIQUE`, `CHECK`) per i dati. JSONB perché una tappa è un blocco unico per il motore del torneo, e il server non ne interroga i campi interni | PostgreSQL riscrive il JSONB con spazi e chiavi in un altro ordine: i blocchi si confrontano come JSON e non come testo. Le classifiche di stagione non sono in SQL: le calcola il frontend. Il database gratuito di Render scade dopo 30 giorni |
+| **Jackson 3.1.5** (pacchetto `tools.jackson`) | Libreria che trasforma oggetti Java in JSON e viceversa | Tutte le richieste e le risposte; `services/JsonSupport.java` e `security/JwtJson.java` | È il JSON di Spring Boot 4 | Le sole annotazioni (`jackson-annotations` 2.21) restano nel vecchio pacchetto `com.fasterxml`: i nomi non sono cambiati tutti insieme |
+| **RestClient** (Spring 7.0.9) | Client HTTP di Spring per chiamare altri servizi | `services/CoachAiService.java` (Groq), `services/LuoghiService.java` (Nominatim), `services/EmailSenderBrevo.java` (Brevo) | È già nel framework: nessuna dipendenza in più (commento in `pom.xml`). I timeout sono espliciti: Groq 5 secondi per connettersi e 60 per la risposta, Brevo 10, Nominatim 5 | La chiamata è bloccante; ogni richiesta gira su un thread virtuale, quindi una chiamata lenta non tiene occupato un thread di sistema |
+| **Bean Validation** (Hibernate Validator 9.1.3) | Regole sui campi scritte come annotazioni (`@Size`, `@NotBlank`) | `dto/` (record di richiesta) e `validation/IndirizzoWeb.java` | Il tetto di ogni campo è scritto una volta sola, nel DTO, e un test lo confronta con la lunghezza vera della colonna | Una regola nuova non vale se l'endpoint non valida il corpo: lo garantisce un test (vedi «Test e qualità») |
+| **Lombok 1.18.46** | Libreria che genera getter e setter alla compilazione | `entities/` (`@Getter`, `@Setter`); il processore è in `pom.xml` | Meno codice ripetitivo nelle entità. Perché Lombok e non scrivere o generare i metodi: scelta di partenza del progetto | Un processore di annotazioni in più da conoscere (`maven-compiler-plugin` in `pom.xml`) |
+| **Maven Wrapper** (`mvnw`, Maven 3.10.0) | Script che scarica e lancia la versione giusta di Maven | Ogni comando di questo README (`./mvnw ...`) e il `Dockerfile` | Maven non va installato e tutti usano la stessa versione | Alla prima esecuzione scarica Maven: serve la rete |
+| **JUnit 6.0.3, Mockito 5.23.0, MockMvc e AssertJ 3.27.7** | JUnit esegue i test; Mockito crea oggetti finti; MockMvc prova i controller senza un server vero; AssertJ rende leggibili le verifiche | `src/test/java`; arrivano con gli starter di test di Spring Boot (`spring-boot-starter-webmvc-test`, `spring-boot-starter-security-test`) | Sono la dotazione di Spring Boot, già provata insieme. Mockito è caricato come agente dichiarato (`maven-dependency-plugin` e `argLine` in `pom.xml`): su Java 25 il caricamento dinamico dà un avviso e nelle versioni future sarà vietato | Un pezzo di configurazione in più in `pom.xml` |
+| **Failsafe 3.5.6 e il profilo `-Pintegrazione`** | Plugin di Maven che esegue le classi `*IT`, i test di integrazione | `pom.xml` (profilo `integrazione`); la CI lo lancia a ogni push | `./mvnw test` non ha bisogno di un database; i test con il database vero partono solo a richiesta | Senza il profilo i test `*IT` non girano: `./mvnw verify` da solo esegue solo quelli unitari |
+| **PostgreSQL vero nei test, niente Testcontainers** | I test di integrazione parlano con un PostgreSQL vero, non con uno finto né con uno avviato da un container | `src/test/java/com/hoop3x3/backend/TestDiIntegrazione.java` (variabili `TEST_DB_*`); in CI un servizio `postgres:18` | È lo stesso database della produzione. Testcontainers avrebbe chiesto Docker, che sul computer di sviluppo non c'era | Serve un database di prova a portata, e i test cancellano i dati: lo script `svuota.sql` si rifiuta di girare se il nome non contiene «test» |
+| **Docker, in due fasi** | Un container: l'immagine contiene il programma e tutto ciò che gli serve per girare | `Dockerfile`: la prima fase compila il jar con il Maven Wrapper, la seconda tiene solo il JRE 25 e il jar, con un utente senza privilegi | Render non ha un runtime Java nativo; l'immagine finale è più piccola e senza sorgenti | La CI costruisce l'immagine a ogni pull request (job `docker` in `.github/workflows/ci.yml`) per accorgersi subito se il `Dockerfile` non combacia più col repository |
+| **Render, regione Francoforte** | Servizio di hosting | Il Blueprint `render.yaml` sta nel repository del frontend e crea il sito statico, il container di questo backend e il database | Un solo file descrive i tre servizi, e c'è un piano gratuito. La regione `frankfurt` è europea; il motivo della regione non è scritto altrove | Il backend gratuito si spegne dopo 15 minuti senza richieste e la prima dopo la pausa aspetta il riavvio (anche più di un minuto); le porte SMTP sono chiuse (vedi Brevo) |
+| **Groq con il modello `openai/gpt-oss-120b`** | Servizio che esegue modelli linguistici (LLM) con un'API compatibile con quella di OpenAI | `services/CoachAiService.java`: il Coach AI passa dal server, che custodisce la chiave | Il modello supporta il tool calling, cioè la chiamata di funzioni, che il Coach usa; `llama-3.3-70b-versatile` è stato dismesso (commento in `application.properties`). La chiave è gratuita | Modello e limiti li decide il fornitore; senza chiave il Coach è spento e il resto dell'app funziona |
+| **Brevo** | Servizio che manda email con un'API HTTP | `services/EmailSenderBrevo.java`: il link del recupero password e la conferma del cambio email | Sul piano gratuito di Render le porte SMTP (25, 465, 587) sono bloccate e l'invio con Gmail SMTP falliva; l'API HTTP usa la porta 443. Il piano gratuito dà 300 email al giorno | Oltre le 300 al giorno Brevo rifiuta gli invii; per un'app più grande basta un'altra implementazione di `EmailSender` |
+| **Nominatim (OpenStreetMap)** | Servizio che trasforma il nome di un luogo in coordinate | `services/LuoghiService.java`, per `GET /api/luoghi` | È gratuito e senza chiave. Lo chiama il server, non il browser, così la politica d'uso è rispettata da un punto solo | Al massimo una richiesta al secondo in tutto il server, con una cache di 500 ricerche; dati © OpenStreetMap contributors (licenza ODbL) |
+| **Spring Boot Actuator** | Parte di Spring Boot che espone i controlli di salute | `/actuator/health` (con il database) e `/actuator/health/liveness` (solo il processo); gli altri percorsi non sono esposti | Render deve sapere se il backend è vivo, e il frontend all'avvio se il database risponde | Le due sonde servono a cose diverse (vedi «Esecuzione e deploy») |
+| **GitHub Actions e Dependabot** | Actions esegue la CI sul repository; Dependabot propone gli aggiornamenti delle dipendenze | `.github/workflows/ci.yml` (job `backend` con PostgreSQL 18 e job `docker`) e `.github/dependabot.yml` | La CI prova tutto a ogni push su `main` e a ogni pull request; il repository è pubblico. Dependabot apre ogni settimana poche pull request per Maven, azioni e immagini Docker | Il token del workflow è in sola lettura, quindi la CI non pubblica nulla |
+
+### Le scelte del server
+
+Le colonne sono: la scelta, il perché, l'alternativa scartata o il limite, e il punto del codice.
+
+#### Sicurezza e sessioni
+
+| Scelta | Perché | Alternativa scartata o limite | Dove |
+|---|---|---|---|
+| Il JWT porta l'id dell'utente | Cambiare nome o email non invalida i token già emessi; il client aggiorna solo la copia dell'utente che tiene nel browser | Con l'email come identificativo ogni cambio di email farebbe uscire l'utente | `security/JwtTools.java`, `services/ProfiloService.java` |
+| JWT di 30 minuti più un refresh token in un cookie httpOnly | Il JWT è breve perché il client lo rinnova con il refresh token; chi torna dopo giorni non rifà il login e il logout revoca il refresh token; il JavaScript della pagina non legge il cookie. I 30 giorni del cookie sono una scelta di partenza del progetto | Il logout revoca solo il refresh token del browser da cui parte, un JWT già emesso vale fino alla scadenza e non c'è il rilevamento del riuso (vedi «Sessioni e refresh token») | `services/RefreshTokenService.java`, `security/AuthCookies.java` |
+| Il refresh token ruotato a ogni uso e salvato solo come SHA-256 | Chi legge il database non può usare i token; un token vale per un solo rinnovo | Se la risposta del rinnovo si perde, si torna al login; un periodo di grazia lo eviterebbe | `services/RefreshTokenService.java`, migrazione V1 |
+| CSRF spento | L'API non ha sessione: le richieste autenticate usano il Bearer, che il browser non manda da solo. L'unico cookie è `SameSite=Lax` e lo leggono solo `refresh` e `logout` | Con frontend e backend su siti diversi il cookie dovrebbe essere `SameSite=None` e servirebbe un header obbligatorio (vedi «Sessioni e refresh token») | `security/SecurityConfig.java` |
+| Limiti di frequenza in memoria, a finestra fissa | Login e registrazione costano un BCrypt: senza limite le password si proverebbero a ripetizione e gli account nascerebbero a migliaia. Il Coach è una chiamata alla chiave Groq del server, e ogni link di recupero può far partire un'email. Una richiesta respinta non costa niente. Un numero per chiave, nessun database, nessuna pulizia voce per voce | I contatori si azzerano al riavvio e, con più istanze, ognuna conta per sé (oggi l'istanza è una); a cavallo di due finestre si può fare fino al doppio; non ferma un attacco da molti indirizzi | `security/LimiteRichiesteFilter.java`, `security/LimiteRichieste.java` |
+| L'indirizzo del visitatore è `getRemoteAddr()`, mai `X-Forwarded-For` letto a mano | L'intestazione la scrive chi manda la richiesta: un valore diverso a ogni richiesta eviterebbe il limite. Dietro un proxy si imposta `server.forward-headers-strategy=native` | Senza quella impostazione, dietro un proxy tutti condividono un contatore (vedi «Limiti di frequenza») | `security/LimiteRichiesteFilter.java`, `LimiteRichiesteProxyIT` |
+| Richieste oltre 2 MB respinte con 413 prima di Spring MVC | Senza tetto Jackson leggerebbe in memoria qualsiasi corpo, e login e registrazione sono pubblici. Il filtro dei form di Spring è spento perché leggerebbe senza tetto i corpi di `PUT`, `PATCH` e `DELETE` | Ogni blocco JSON di una tappa ha in più un tetto di 1 MB | `security/LimiteDimensioneFilter.java`, `application.properties` |
+| La password attuale per cambiare password o email e per eliminare l'account | Un JWT rubato da solo non basta. Se è sbagliata la risposta è 400 e non 401, perché un 401 farebbe tentare al client il rinnovo e poi uscire | I tentativi a raffica li ferma il limite per utente | `services/ProfiloService.java` |
+| Recupero password: la risposta è sempre la stessa | Non dice quali email hanno un account. L'email parte su un altro thread, così nemmeno i tempi lo dicono. Il token è casuale (32 byte), in tabella c'è il suo SHA-256, vale 30 minuti e una volta sola | Al massimo 3 link ogni 15 minuti per account; resta la differenza di qualche query, pochi millisecondi | `services/RecuperoPasswordService.java`, migrazione V9 |
+| Gli strumenti del Coach sono una lista chiusa e il messaggio `system` può essere solo il primo | Con un altro `type` Groq attiverebbe i suoi strumenti integrati (`browser_search`, `code_interpreter`), pagati con la chiave del server; un secondo `system` è un client che prova a riscrivere le istruzioni | Da 1 a 60 messaggi, 100.000 caratteri e 20 strumenti al massimo; uno strumento nuovo va aggiunto sia nel frontend sia qui | `services/CoachAiService.java` |
+| La regola del contesto del Coach la aggiunge il server | Il backend accetta un `system` qualsiasi, e una regola scritta solo nel client si aggirerebbe con una richiesta a mano. Il rifiuto è un marcatore testuale (`FUORI_CONTESTO`), che funziona con qualunque fornitore | Non è un confine di sicurezza: un prompt ostile può aggirarla, e il rifiuto conta nella quota dell'utente (vedi «La regola del contesto») | `services/AmbitoCoach.java` |
+| Gli indirizzi web scritti dagli utenti sono validati | Il frontend li mette in `src` e `href`: `javascript:`, `data:` e gli altri schemi non devono entrare nel database. È la stessa regola di `safeUrl` nel frontend | Solo `http://`, `https://` o un percorso del sito, al massimo 2048 caratteri | `validation/IndirizzoWeb.java` |
+| Nei log mai password, token o chiavi | I valori scelti da chi manda la richiesta passano da `LogSupport.perLog`: nessun valore può chiudere una riga e inventarne un'altra. Le email del recupero e del profilo sono mascherate | Limite noto: il login fallito e la registrazione scrivono l'email intera (vedi «Log») | `services/LogSupport.java` |
+
+#### Dati e migrazioni
+
+| Scelta | Perché | Alternativa scartata o limite | Dove |
+|---|---|---|---|
+| La `versione` di tappe e schede e il 409 | Salvare una tappa la sostituisce per intero: due dispositivi aperti sulla stessa tappa si sovrascrivevano in silenzio. Ora il client rimanda la versione letta e, se non è più quella del database, il salvataggio è rifiutato. I blocchi si confrontano come JSON: rimandare la tappa com'è non fa salire la versione | Senza `versione` la `PUT` di una tappa risponde 400; il client deve mandare le `PUT` una alla volta (vedi «Tappe e modifiche da più dispositivi») | `entities/Tappa.java`, `services/LegaService.java`, migrazioni V4 e V5 |
+| `@DynamicUpdate` su `Lega` | L'`UPDATE` contiene solo le colonne cambiate: senza, Hibernate riscriverebbe anche il nome letto a inizio richiesta, e una rinomina confermata nel frattempo da un altro dispositivo tornerebbe com'era | — | `entities/Lega.java` |
+| La copia pubblica dell'archivio la costruisce il server | Nessuno può pubblicare risultati inventati: `PUT /api/archivio/{tappaId}` non ha corpo e copia la tappa che il server ha salvato | `GET /api/archivio/tappe` porta gli snapshot interi, decine di KB per tappa: con centinaia di pubblicazioni servirà una paginazione | `services/ArchivioService.java` |
+| Eliminare la tappa elimina la sua pubblicazione, con una chiave esterna `ON DELETE CASCADE` (migrazione V2) | Lo fa il database: nessun codice dei servizi deve ricordarsene. Il vincolo è `NOT VALID` perché una migrazione non deve cancellare dati né fallire su un database che ha già pubblicazioni orfane | Le pubblicazioni orfane già presenti restano finché non si ripuliscono a mano (query in «Archivio circuito») | `src/main/resources/db/migration/V2__archivio_legato_alle_tappe.sql` |
+| L'elenco dell'archivio legge colonne e non il JSONB (migrazione V6) | L'elenco è pubblico e senza cache: prima decomprimeva ogni snapshot, anche di centinaia di KB, per leggerne quattro campi. Ora `nome`, `luogo`, `data` e `numero_squadre` sono colonne scritte alla pubblicazione | Le colonne vanno tenute allineate alla pubblicazione (le scrive `ArchivioService.pubblica`) | `src/main/resources/db/migration/V6__elenco_archivio.sql` |
+| Il campetto sopravvive al suo autore: `ON DELETE SET NULL` (migrazione V8) | Un campetto è un dato del territorio e resta anche quando chi l'ha inserito viene eliminato | Senza autore lo modifica solo un ADMIN | `src/main/resources/db/migration/V8__campetti.sql` |
+| Anche le schede dell'anagrafe restano senza autore (migrazione V11) | Sono dati del circuito su persone terze e stanno nei roster delle squadre degli altri: la cascata della V1 toglieva il giocatore anche dalle squadre altrui. Quando fu scritta, la V8 dichiarava il campetto «a differenza dell'anagrafe»: la V11 ha reso uguali le due regole | Senza autore le modifica solo un ADMIN | `src/main/resources/db/migration/V11__anagrafe_senza_autore.sql` |
+| L'id della tappa lo genera il client | Lo store del frontend resta sincrono e le rotte funzionano subito | Gli id sono pubblici e li sceglie il client: il server rifiuta (409) una tappa con l'id di una pubblicazione di un altro utente | `entities/Tappa.java`, `services/LegaService.java` |
+| Le date sono in UTC | Le colonne sono `TIMESTAMP` senza fuso e il server le scrive e le rilegge sempre in UTC: il `ts` dell'API non dipende dal fuso della macchina | I database scritti prima da un server con un altro fuso hanno le date spostate di una o due ore | `support/Tempo.java` |
+| La ricerca dei campetti per raggio usa un riquadro più la formula di Haversine, senza PostGIS | Il database restituisce un riquadro di coordinate (con l'indice su `lat, lng`) e la distanza vera si calcola in Java; la risposta è al massimo di 200 campetti. Perché non PostGIS: scelta di partenza del progetto; così non serve nessuna estensione del database | Il costo cresce con il numero di campetti dentro il riquadro | `services/CampettoService.java`, `repositories/CampettoRepository.java` |
+
+#### Account, email e dati di prova
+
+| Scelta | Perché | Alternativa scartata o limite | Dove |
+|---|---|---|---|
+| L'account si elimina con una `POST` | Un corpo su una `DELETE` non è garantito attraverso i proxy | — | `controllers/ProfiloController.java` |
+| L'email cambia solo dal link mandato al nuovo indirizzo | Un errore di battitura non lascia l'account con un indirizzo che nessuno legge, e senza recupero password. L'email nuova sta nel token, non in `utenti`: fino alla conferma il login vale con quella di prima | Il link vale 30 minuti e una volta sola; al massimo 3 link ogni 15 minuti | `services/ProfiloService.java`, migrazione V10 |
+| L'ADMIN nasce da `ADMIN_EMAIL` e non si gestisce dall'app | Il `DataSeeder` lo riconosce dall'email: con un'email cambiata dall'app ne nascerebbe un altro, e i dati di prova intestati a lui resterebbero senza proprietario | L'ADMIN non cambia email e non si elimina dall'app (403) | `runners/DataSeeder.java` |
+| I seed lasciano un segno nella tabella `seed_eseguiti` | I dati di un seed possono sparire senza che il seed debba ripartire: eliminando la lega demo spariscono tappe e archivio, ma giocatori e squadre restano, e senza il segno al riavvio verrebbero inseriti una seconda volta. Il segno è il nome dell'operazione, non dei dati | Per rifare un seed si cancellano il segno e la lega demo (vedi «Dati di prova») | `entities/SeedEseguito.java`, migrazione V3 |
+| Le persone dei dati di prova sono di fantasia | Il file sta nel jar anche con `SEED_DEMO=false`, quindi non deve contenere persone reali. Un test confronta le impronte SHA-256 dei valori originali, così i dati veri non tornano in chiaro nel repository | Restano reali le squadre, le tappe e i risultati del circuito | `DatiDiProvaTest` e `src/test/resources/dati-di-prova-originali.sha256` |
+
+#### Test e qualità
+
+| Scelta | Perché | Alternativa scartata o limite | Dove |
+|---|---|---|---|
+| Test unitari senza database e test di integrazione a parte | `./mvnw test` gira senza database. I test `*IT` provano ciò che i simulati non possono: migrazioni, JSONB, concorrenza, numero di query | Servono un database di prova e il profilo `-Pintegrazione` | `pom.xml`, vedi «Test» |
+| Mai servizi veri nei test | Nessun test manda email vere o chiama Groq o Nominatim: ci sono dei finti locali | I finti vanno aggiornati se cambia il formato del servizio vero | `BrevoFinto`, `GroqFinto`, `NominatimFinto`, `EmailFinto` in `src/test/java` |
+| I test di guardia | Un controllo automatico impedisce di dimenticare una regola quando si aggiunge qualcosa (elenco sotto la tabella) | Ognuno controlla solo ciò che dice: non sostituisce la lettura del codice | `src/test/java/com/hoop3x3/backend` |
+
+I test di guardia sono cinque, più uno per questo README:
+
+1. **Ogni endpoint sta in una lista di accessi** (`AccessoEndpointIT`): un endpoint nuovo senza una regola su chi può chiamarlo fa cadere i test di integrazione.
+2. **Ogni corpo di richiesta viene validato** (`AccessoEndpointIT` e `ValidazioneWebTest`): un endpoint con un corpo che non passa dalla validazione fa cadere i test.
+3. **Ogni tetto di lunghezza entra nella sua colonna** (`CampiDiTestoTest` e `LimitiColonneIT`): se un `@Size` supera la colonna del database, il test cade.
+4. **Ogni tabella è in `svuota.sql`** (`MigrazioniIT`): una tabella nuova deve comparire nello script che svuota il database di prova.
+5. **Nei dati di prova non rientrano i dati veri** (`DatiDiProvaTest`): confronta le impronte SHA-256 dei valori originali.
+6. **Il README non marcisce** (`ReadmeTest`): i file citati esistono, l'indice combacia con i titoli, l'elenco delle migrazioni arriva all'ultima.
+
+#### Esecuzione e deploy
+
+| Scelta | Perché | Alternativa scartata o limite | Dove |
+|---|---|---|---|
+| Thread virtuali (`spring.threads.virtual.enabled=true`) | Ogni richiesta gira su un thread virtuale: una chiamata lenta, per esempio verso Groq o Brevo, non tiene occupato un thread di sistema | Si disattivano togliendo la riga | `src/main/resources/application.properties` |
+| Due sonde di salute | `/actuator/health/liveness` dice solo se il processo è vivo ed è quella che Render usa per riavviare; `/actuator/health` comprende il database e lo aspetta il frontend. Con il database dentro, un database giù o lento a svegliarsi faceva riavviare un backend sano, e ogni avvio a freddo dura minuti | — | `security/SecurityConfig.java`, `SaluteIT` |
+| Heap al 60% della RAM e uscita su `OutOfMemoryError` | Metaspace, thread e buffer stanno fuori dall'heap: con il 75% il processo superava i 512 MB del piano gratuito e Render lo uccideva senza una riga nei log. Un `OutOfMemoryError` da solo non ferma la JVM, che resterebbe viva senza rispondere | Circa 300 MB di heap | `Dockerfile` |
+| `/api/*` sulla stessa origine del frontend, con una rewrite di Render | Il cookie di refresh funziona con `SameSite=Lax` e senza configurazioni per origini diverse | Dietro la rewrite l'indirizzo del visitatore va verificato (vedi «Limiti di frequenza») | `render.yaml` (repository del frontend) |
+| Si pubblica prima il frontend e poi questo backend | Il frontend nuovo è compatibile con il backend precedente; con il JWT a 30 minuti, un frontend senza il rinnovo farebbe uscire gli utenti dopo mezz'ora | Un cambiamento a cavallo dei due repository è due pull request | vedi «Sessioni e refresh token» |
+| Due repository, un servizio ciascuno | Sito statico e container sono due servizi diversi su Render, con due pipeline. Perché due repository e non uno: scelta di partenza del progetto | I cambiamenti che toccano entrambi si uniscono in coppia | repository `Hoops-3x3` e `hoop3x3-backend` |
+| Messaggi d'errore in italiano e fissi | Gli utenti sono italiani; i messaggi sono un contratto e non cambiano con la lingua del browser (`spring.web.locale=it`) | Nessuna traduzione | `application.properties` |
 
 ## Avvio
 

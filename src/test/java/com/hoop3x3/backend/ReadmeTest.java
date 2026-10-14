@@ -25,6 +25,7 @@ class ReadmeTest {
 
     private static final Path README = Path.of("README.md");
     private static final Path MIGRAZIONI = Path.of("src/main/resources/db/migration");
+    private static final Path CODICE = Path.of("src/main/java/com/hoop3x3/backend");
 
     /** Un testo tra apici inversi, per esempio `src/main/resources/application.properties` */
     private static final Pattern TRA_APICI = Pattern.compile("`([^`]+)`");
@@ -35,6 +36,9 @@ class ReadmeTest {
     /** Un file del repository citato con il suo percorso: sotto src/ o .github/ con un'estensione, oppure un file della radice */
     private static final Pattern PERCORSO_DI_FILE = Pattern.compile(
             "^((src/|\\.github/)\\S*\\.[A-Za-z0-9]+|Dockerfile|pom\\.xml|env\\.properties\\.example)$");
+    /** Un file Java citato relativo al pacchetto dell'applicazione, per esempio security/SecurityConfig.java */
+    private static final Pattern PERCORSO_JAVA = Pattern.compile(
+            "^(controllers|dto|entities|exceptions|repositories|runners|security|services|support|validation)/\\S+\\.java$");
     private static final Pattern NOME_MIGRAZIONE = Pattern.compile("^V(\\d+)__.+\\.sql$");
     private static final Pattern INTERVALLO_MIGRAZIONI = Pattern.compile("V(\\d+)\\s*[–-]\\s*V(\\d+)");
 
@@ -113,6 +117,9 @@ class ReadmeTest {
             while (m.find()) {
                 String testo = m.group(1);
                 if (PERCORSO_DI_FILE.matcher(testo).matches() && !Files.exists(Path.of(testo))) {
+                    mancanti.add(testo);
+                }
+                if (PERCORSO_JAVA.matcher(testo).matches() && !Files.exists(CODICE.resolve(testo))) {
                     mancanti.add(testo);
                 }
             }
