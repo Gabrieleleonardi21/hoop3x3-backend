@@ -54,7 +54,7 @@ Questa sezione dice, per ogni tecnologia e per ogni scelta importante del server
 | **Jackson 3.1.5** (pacchetto `tools.jackson`) | Libreria che trasforma oggetti Java in JSON e viceversa | Tutte le richieste e le risposte; `services/JsonSupport.java` e `security/JwtJson.java` | È il JSON di Spring Boot 4 | Le sole annotazioni (`jackson-annotations` 2.21) restano nel vecchio pacchetto `com.fasterxml`: i nomi non sono cambiati tutti insieme |
 | **RestClient** (Spring 7.0.9) | Client HTTP di Spring per chiamare altri servizi | `services/CoachAiService.java` (Groq), `services/LuoghiService.java` (Nominatim), `services/EmailSenderBrevo.java` (Brevo) | È già nel framework: nessuna dipendenza in più (commento in `pom.xml`). I timeout sono espliciti: Groq 5 secondi per connettersi e 60 per la risposta, Brevo 10, Nominatim 5 | La chiamata è bloccante; ogni richiesta gira su un thread virtuale, quindi una chiamata lenta non tiene occupato un thread di sistema |
 | **Bean Validation** (Hibernate Validator 9.1.3) | Regole sui campi scritte come annotazioni (`@Size`, `@NotBlank`) | `dto/` (record di richiesta) e `validation/IndirizzoWeb.java` | Il tetto di ogni campo è scritto una volta sola, nel DTO, e un test lo confronta con la lunghezza vera della colonna | Una regola nuova non vale se l'endpoint non valida il corpo: lo garantisce un test (vedi «Test e qualità») |
-| **Lombok 1.18.46** | Libreria che genera getter e setter alla compilazione | `entities/` (`@Getter`, `@Setter`); il processore è in `pom.xml` | Meno codice ripetitivo nelle entità. Perché Lombok e non scrivere o generare i metodi: scelta di partenza del progetto | Un processore di annotazioni in più da conoscere (`maven-compiler-plugin` in `pom.xml`) |
+| **Lombok 1.18.46** | Libreria che genera getter e setter alla compilazione | `entities/` (`@Getter`, `@Setter`); il processore è in `pom.xml` | Meno codice ripetitivo nelle entità. Perché Lombok e non scrivere o generare i metodi: scelta di partenza del progetto | Un processore di annotazioni in più da conoscere (`maven-compiler-plugin` in `pom.xml`); su Java 25 la compilazione stampa un avviso di Lombok su `sun.misc.Unsafe` (verificato il 14 ottobre 2026) |
 | **Maven Wrapper** (`mvnw`, Maven 3.10.0) | Script che scarica e lancia la versione giusta di Maven | Ogni comando di questo README (`./mvnw ...`) e il `Dockerfile` | Maven non va installato e tutti usano la stessa versione | Alla prima esecuzione scarica Maven: serve la rete |
 | **JUnit 6.0.3, Mockito 5.23.0, MockMvc e AssertJ 3.27.7** | JUnit esegue i test; Mockito crea oggetti finti; MockMvc prova i controller senza un server vero; AssertJ rende leggibili le verifiche | `src/test/java`; arrivano con gli starter di test di Spring Boot (`spring-boot-starter-webmvc-test`, `spring-boot-starter-security-test`) | Sono la dotazione di Spring Boot, già provata insieme. Mockito è caricato come agente dichiarato (`maven-dependency-plugin` e `argLine` in `pom.xml`): su Java 25 il caricamento dinamico dà un avviso e nelle versioni future sarà vietato | Un pezzo di configurazione in più in `pom.xml` |
 | **Failsafe 3.5.6 e il profilo `-Pintegrazione`** | Plugin di Maven che esegue le classi `*IT`, i test di integrazione | `pom.xml` (profilo `integrazione`); la CI lo lancia a ogni push | `./mvnw test` non ha bisogno di un database; i test con il database vero partono solo a richiesta | Senza il profilo i test `*IT` non girano: `./mvnw verify` da solo esegue solo quelli unitari |
@@ -255,6 +255,15 @@ Il database di prova si crea una volta, vuoto: all'avvio dei test lo schema lo c
 Il profilo «test» (`src/test/resources/application-test.properties`) alza i limiti di frequenza (vedi «Limiti di frequenza»): gli IT fanno più accessi insieme dallo stesso indirizzo e con i valori di produzione verrebbero respinti con 429.
 
 La CI (`.github/workflows/ci.yml`) fa lo stesso a ogni push su `main` e a ogni pull request: un PostgreSQL 18 come servizio, il database `hoop3x3_test` e `./mvnw -B verify -Pintegrazione` con le tre variabili `TEST_DB_*`.
+
+### Numeri
+
+Misurati il 14 ottobre 2026 (Java 25.0.3, PostgreSQL 18.4 per il database di prova):
+
+- 856 test unitari e web in 48 classi (`./mvnw test`), compresi i 5 di `ReadmeTest`;
+- 294 test di integrazione in 26 classi (`./mvnw verify -Pintegrazione`);
+- 41 endpoint dell'applicazione, più 2 dell'actuator;
+- 11 migrazioni (da V1 a V11) e 12 tabelle, escluso lo storico di Flyway.
 
 ## Migrazioni del database
 
