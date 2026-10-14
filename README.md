@@ -227,7 +227,7 @@ Gli errori di Groq arrivano al client senza dettagli interni: 429 se Groq limita
 
 Come per il Coach, il fornitore ha 5 secondi per accettare la connessione e 60 per la risposta.
 
-**Che cosa va al fornitore e che cosa resta.** La foto va ai server del fornitore scelto (negli Stati Uniti) e contiene nomi di persone. Sul nostro server non si salva e non si logga: vive per la durata della richiesta, non finisce in un'eccezione né in un messaggio d'errore, e se un errore del fornitore la riportasse nel corpo, nel log tutto ciò che segue `base64,` resta fuori. Per ogni lettura riuscita c'è una riga INFO con l'id dell'utente, la dimensione in KB, la durata e i numeri della bozza (`Foglio letto: utente …, 412 KB, 5230 ms, 8 squadre, 16 partite, 2 dubbi`), mai i nomi letti. La chiave non viene mai scritta nei log.
+**Che cosa va al fornitore e che cosa resta.** La foto va ai server del fornitore scelto (negli Stati Uniti) e contiene nomi di persone. Sul nostro server non si salva e non si logga: vive per la durata della richiesta, non finisce in un'eccezione né in un messaggio d'errore, e se un errore del fornitore la riportasse nel corpo, nel log tutto ciò che segue `base64,` (Groq) o `"data":"` (Anthropic) resta fuori. Per ogni lettura riuscita c'è una riga INFO con l'id dell'utente, la dimensione in KB, la durata e i numeri della bozza (`Foglio letto: utente …, 412 KB, 5230 ms, 8 squadre, 16 partite, 2 dubbi`), mai i nomi letti. La chiave non viene mai scritta nei log.
 
 **Errori** (i testi sono un contratto con il frontend, in `FoglioService` e `LettoreFoglio`):
 

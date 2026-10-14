@@ -180,6 +180,18 @@ class LettoreFoglioAnthropicTest {
         assertThat(unicaRigaDiLog()).contains(String.valueOf(stato)).contains(CORPO_DI_ERRORE);
     }
 
+    // Se un errore riportasse la richiesta, l'immagine di Anthropic sta in "data":"<base64>" (senza «base64,»): anche lì si
+    // toglie tutto ciò che segue, con o senza spazi intorno ai due punti
+    @ParameterizedTest
+    @ValueSource(strings = {"\"data\":\"", "\"data\": \"", "\"data\" : \""})
+    void unErroreCheRiportaLImmagine_neiLogNonLaScrive(String campo) {
+        anthropic.rispondi(400, "{\"error\":{\"message\":\"immagine non valida\",\"source\":{\"type\":\"base64\","
+                + campo + IMMAGINE.base64() + "\"}}}");
+
+        assertFallisceCon(HttpStatus.BAD_GATEWAY);
+        assertThat(unicaRigaDiLog()).contains("immagine non valida").contains(campo).doesNotContain(IMMAGINE.base64());
+    }
+
     @Test
     void anthropicNonRaggiungibile_risponde502() {
         anthropic.close();

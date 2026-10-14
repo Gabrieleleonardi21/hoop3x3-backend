@@ -18,6 +18,8 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.hoop3x3.backend.services.LettoreFoglio.FORNITORE_NON_DISPONIBILE;
 import static com.hoop3x3.backend.services.LettoreFoglio.FORNITORE_NON_RAGGIUNGIBILE;
@@ -31,7 +33,11 @@ import static com.hoop3x3.backend.services.LogSupport.tronca;
  */
 final class ChiamataFornitore {
 
-    private static final String BASE64 = "base64,";
+    /**
+     * Dove comincerebbe l'immagine se un errore riportasse la richiesta: dopo «base64,» nel data URL di Groq, dopo "data":"
+     * nel blocco image di Anthropic (con o senza spazi intorno ai due punti)
+     */
+    private static final Pattern INIZIO_IMMAGINE = Pattern.compile("base64,|\"data\"\\s*:\\s*\"");
 
     private final String fornitore;
     private final Logger log;
@@ -135,11 +141,14 @@ final class ChiamataFornitore {
 
     /**
      * Un corpo del fornitore pronto per i log: al massimo 500 caratteri e su una riga. Il fornitore non rimanda l'immagine, ma
-     * se un errore la riportasse tutto ciò che segue «base64,» resterebbe fuori
+     * se un errore la riportasse tutto ciò che segue il suo inizio (INIZIO_IMMAGINE) resterebbe fuori
      */
     private static String corpoPerLog(String corpo) {
         String testo = corpo;
-        if (testo != null && testo.contains(BASE64)) testo = testo.substring(0, testo.indexOf(BASE64) + BASE64.length()) + "…";
+        if (testo != null) {
+            Matcher immagine = INIZIO_IMMAGINE.matcher(testo);
+            if (immagine.find()) testo = testo.substring(0, immagine.end()) + "…";
+        }
         return LogSupport.perLog(tronca(testo));
     }
 }
