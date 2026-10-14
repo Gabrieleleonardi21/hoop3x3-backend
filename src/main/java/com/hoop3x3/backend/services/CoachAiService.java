@@ -54,11 +54,12 @@ public class CoachAiService {
      * Gli strumenti che il Coach può chiedere al modello: i nomi di COACH_TOOLS in Hoops-3x3/src/coach/toolDefs.ts (frontend),
      * uno per funzione di toolHandlers.ts. Un tool con un altro nome, o di un altro tipo, non passa: con `type` diverso da
      * «function» Groq attiva i suoi strumenti integrati (browser_search, code_interpreter), pagati con la chiave del server.
-     * Uno strumento nuovo nel frontend va aggiunto anche qui
+     * Uno strumento nuovo nel frontend va aggiunto anche qui (correggi_squadra: nomi e giocatori di una squadra della tappa,
+     * per sistemare una bozza letta da una foto)
      */
     static final Set<String> TOOL_AMMESSI = Set.of("crea_lega", "crea_tappa", "annulla_risultato", "aggiorna_squadra",
             "registra_squadra", "registra_giocatore", "sorteggia_gironi", "genera_fasi_dirette", "registra_risultato",
-            "concludi_tappa");
+            "concludi_tappa", "correggi_squadra");
 
     // Chiave, modello e reasoning effort da groq.* (GroqProperties)
     private final String apiKey;

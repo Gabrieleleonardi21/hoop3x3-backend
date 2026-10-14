@@ -254,7 +254,7 @@ class CoachAiServiceTest {
     void gliStrumentiAmmessiSonoQuelliDelFrontend() {
         assertThat(CoachAiService.TOOL_AMMESSI).containsExactlyInAnyOrder("crea_lega", "crea_tappa", "annulla_risultato",
                 "aggiorna_squadra", "registra_squadra", "registra_giocatore", "sorteggia_gironi", "genera_fasi_dirette",
-                "registra_risultato", "concludi_tappa");
+                "registra_risultato", "concludi_tappa", "correggi_squadra");
     }
 
     /* ── Il ruolo system: solo il primo messaggio, che scrive il Coach dell'app ── */
