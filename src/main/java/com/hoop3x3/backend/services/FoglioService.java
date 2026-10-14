@@ -206,9 +206,13 @@ public class FoglioService {
         return null;
     }
 
-    /** I testi di un elenco, ripuliti, al massimo `quanti`: ciò che non è un testo o è vuoto sparisce */
+    /**
+     * I testi di un elenco, ripuliti, al massimo `quanti`: ciò che non è un testo o è vuoto sparisce. Un nodo che non è un
+     * elenco dà un elenco vuoto: i valori di un oggetto non passano per nomi
+     */
     private static List<String> testi(JsonNode elenco, int lunghezza, int quanti) {
         List<String> testi = new ArrayList<>();
+        if (!elenco.isArray()) return testi;
         for (JsonNode voce : elenco) {
             if (testi.size() >= quanti) break;
             String testo = testo(voce, lunghezza);

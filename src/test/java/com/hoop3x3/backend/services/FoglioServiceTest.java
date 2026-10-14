@@ -316,6 +316,15 @@ class FoglioServiceTest {
         assertThat(bozza.dubbi()).hasSize(50).startsWith("Dubbio 0").endsWith("Dubbio 49");
     }
 
+    // Un oggetto non è un elenco di nomi: i suoi valori non diventano giocatori
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"primo\":\"Mario\",\"secondo\":\"Luca\"}", "\"Mario, Luca\"", "null", "3"})
+    void giocatoriCheNonSonoUnElenco_diventanoUnElencoVuoto(String giocatori) {
+        BozzaFoglioDTO bozza = letta("{\"squadre\":[{\"nome\":\"Alfa\",\"giocatori\":" + giocatori + "}],\"partite\":[],\"dubbi\":[]}");
+
+        assertThat(bozza.squadre()).containsExactly(new SquadraLetta("Alfa", List.of()));
+    }
+
     @Test
     void testiVuotiNegliElenchi_spariscono() {
         BozzaFoglioDTO bozza = letta("""
