@@ -63,13 +63,16 @@ public final class AmbitoCoach {
 
     /**
      * La risposta da dare al client: se il modello ha risposto con il marcatore, una copia con la frase fissa e senza
-     * `tool_calls` (un rifiuto non deve far partire strumenti); altrimenti la risposta stessa. Si guarda solo `content` perché
-     * gpt-oss può scrivere il marcatore nel `reasoning` e poi rispondere lo stesso
+     * `tool_calls` (un rifiuto non deve far partire strumenti) e con `finish_reason` «stop», come una risposta di solo testo nel
+     * formato OpenAI; altrimenti la risposta stessa. Si guarda solo `content` perché gpt-oss può scrivere il marcatore nel
+     * `reasoning` e poi rispondere lo stesso
      */
     public static JsonNode filtra(JsonNode risposta) {
         if (!fuoriContesto(risposta.path("choices").path(0).path("message").path("content"))) return risposta;
         JsonNode copia = risposta.deepCopy();
-        ObjectNode messaggio = (ObjectNode) copia.path("choices").path(0).path("message");
+        ObjectNode scelta = (ObjectNode) copia.path("choices").path(0);
+        scelta.put("finish_reason", "stop");
+        ObjectNode messaggio = (ObjectNode) scelta.path("message");
         messaggio.put("content", RISPOSTA_FUORI_CONTESTO);
         messaggio.remove("tool_calls");
         return copia;

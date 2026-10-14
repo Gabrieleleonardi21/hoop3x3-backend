@@ -95,16 +95,18 @@ class AmbitoCoachTest {
         assertThat(filtrata.at("/choices/0/message/content").asString()).isEqualTo(RISPOSTA_FUORI_CONTESTO);
     }
 
+    // Senza tool_calls la risposta finisce con «stop», come nel formato OpenAI: «tool_calls» direbbe al client di cercarli
     @Test
-    void conIlMarcatore_iToolCallsSpariscono() {
+    void conIlMarcatore_iToolCallsSpariscono_eLaRispostaFinisceConStop() {
         JsonNode originale = mapper.readTree("""
-                {"choices":[{"message":{"role":"assistant","content":"FUORI_CONTESTO",
+                {"choices":[{"finish_reason":"tool_calls","message":{"role":"assistant","content":"FUORI_CONTESTO",
                  "tool_calls":[{"id":"c1","type":"function","function":{"name":"crea_lega","arguments":"{}"}}]}}]}""");
 
         JsonNode filtrata = AmbitoCoach.filtra(originale);
 
         assertThat(filtrata.at("/choices/0/message/content").asString()).isEqualTo(RISPOSTA_FUORI_CONTESTO);
         assertThat(filtrata.at("/choices/0/message").has("tool_calls")).isFalse();
+        assertThat(filtrata.at("/choices/0/finish_reason").asString()).isEqualTo("stop");
         // La risposta ricevuta resta com'era: si modifica una copia
         assertThat(originale.at("/choices/0/message").has("tool_calls")).isTrue();
     }

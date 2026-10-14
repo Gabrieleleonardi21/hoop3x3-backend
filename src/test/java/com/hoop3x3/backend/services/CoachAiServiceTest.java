@@ -399,6 +399,7 @@ class CoachAiServiceTest {
 
         assertThat(risposta.at("/choices/0/message/content").asString()).isEqualTo(AmbitoCoach.RISPOSTA_FUORI_CONTESTO);
         assertThat(risposta.at("/choices/0/message").has("tool_calls")).isFalse();
+        assertThat(risposta.at("/choices/0/finish_reason").asString()).isEqualTo("stop");
         // Una riga INFO per contare i rifiuti, senza la domanda né la risposta
         assertThat(logCatturato.list).singleElement().satisfies(riga -> {
             assertThat(riga.getLevel()).isEqualTo(Level.INFO);
