@@ -20,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * I test di integrazione non chiamano mai Groq né Anthropic, anche se nel terminale sono esportate AI_LETTORE_FOGLIO,
- * GROQ_API_KEY o ANTHROPIC_API_KEY. Le variabili d'ambiente prevalgono sui file del profilo di test; le proprietà di
+ * COACH_FORNITORE, GROQ_API_KEY o ANTHROPIC_API_KEY. Le variabili d'ambiente prevalgono sui file del profilo di test; le proprietà di
  * TestDiIntegrazione prevalgono su di loro. Qui le variabili esportate si simulano con le proprietà di sistema, che stanno
  * sopra le variabili d'ambiente e sotto le proprietà del test: se TestDiIntegrazione non le spegnesse, la lettura sarebbe
  * accesa con Groq.
@@ -32,9 +32,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @TestPropertySource(properties = "prova.fornitori-esportati=true")
 class FornitoriSpentiIT {
 
-    /** Le variabili come le vede Spring da una shell con le chiavi esportate (AI_LETTORE_FOGLIO=groq...) */
+    /** Le variabili come le vede Spring da una shell con le chiavi esportate (AI_LETTORE_FOGLIO=groq, COACH_FORNITORE=anthropic...) */
     private static final Map<String, String> ESPORTATE = Map.of(
             "ai.lettore-foglio", "groq",
+            "coach.fornitore", "anthropic",
             "groq.api.key", "gsk_esportata_nel_terminale",
             "anthropic.api.key", "sk-ant-esportata-nel-terminale");
 

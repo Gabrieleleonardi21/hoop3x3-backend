@@ -21,8 +21,8 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 // Il database lo scelgono solo le variabili TEST_DB_*: le proprietà del test prevalgono anche su
 // SPRING_DATASOURCE_* esportate nel terminale, che porterebbero i test su un database non di prova.
-// Per lo stesso motivo il Coach e la lettura dei fogli restano spenti anche con AI_LETTORE_FOGLIO, GROQ_API_KEY o
-// ANTHROPIC_API_KEY esportate: le variabili d'ambiente prevalgono su application-test.properties, queste proprietà no, e
+// Per lo stesso motivo il Coach e la lettura dei fogli restano spenti anche con AI_LETTORE_FOGLIO, COACH_FORNITORE, GROQ_API_KEY o
+// ANTHROPIC_API_KEY esportate (con le due chiavi vuote il fornitore scelto non conta): le variabili d'ambiente prevalgono su application-test.properties, queste proprietà no, e
 // nessun test chiama Groq o Anthropic per davvero (FornitoriSpentiIT)
 @SpringBootTest(properties = {
         "spring.datasource.url=${TEST_DB_URL:" + TestDiIntegrazione.URL_PREDEFINITO + "}",
