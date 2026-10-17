@@ -7,6 +7,7 @@ import com.hoop3x3.backend.security.CorsProperties;
 import com.hoop3x3.backend.services.AiProperties;
 import com.hoop3x3.backend.services.AnthropicProperties;
 import com.hoop3x3.backend.services.AppProperties;
+import com.hoop3x3.backend.services.CoachProperties;
 import com.hoop3x3.backend.services.GroqProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
@@ -43,6 +44,8 @@ class ProprietaTest {
         assertThat(groq.model()).isEqualTo("openai/gpt-oss-120b");
         assertThat(groq.reasoningEffort()).isEqualTo("low");
         assertThat(groq.modelloVisione()).isEqualTo("qwen/qwen3.8-27b");
+        // Il Coach parla con Groq come prima, finché non si sceglie anthropic
+        assertThat(leggi(nessuna, "coach", CoachProperties.class).fornitore()).isEqualTo("groq");
         // Lettura dei fogli spenta: nessun fornitore scelto, nessuna chiave Anthropic
         assertThat(leggi(nessuna, "ai", AiProperties.class).lettoreFoglio()).isEmpty();
         AnthropicProperties anthropic = leggi(nessuna, "anthropic", AnthropicProperties.class);
@@ -100,6 +103,11 @@ class ProprietaTest {
         AnthropicProperties anthropic = leggi(valori, "anthropic", AnthropicProperties.class);
         assertThat(anthropic.api().key()).isEqualTo("chiave-anthropic-di-prova");
         assertThat(anthropic.model()).isEqualTo("claude-di-prova");
+    }
+
+    @Test
+    void ilFornitoreDelCoachSiLeggeDaCoachFornitore() {
+        assertThat(leggi(Map.of("coach.fornitore", "anthropic"), "coach", CoachProperties.class).fornitore()).isEqualTo("anthropic");
     }
 
     // Il toString() automatico di un record scrive tutti i campi: password e chiave non devono finire nei log
