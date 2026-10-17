@@ -84,8 +84,10 @@ class CoachAiServiceTest {
     }
 
     private CoachAiService nuovoServizio(Duration timeoutRisposta, String chiave, String reasoningEffort) {
-        GroqProperties proprieta = new GroqProperties(new GroqProperties.Api(chiave), "modello-di-test", reasoningEffort);
-        return new CoachAiService(mapper, proprieta, groq.url(), Duration.ofSeconds(5), timeoutRisposta);
+        GroqProperties proprieta = new GroqProperties(new GroqProperties.Api(chiave), "modello-di-test", reasoningEffort, "visione-di-test");
+        // Con groq la chiave Anthropic non conta: ne ha una apposta, per provare che non si usa
+        AnthropicProperties anthropic = new AnthropicProperties(new AnthropicProperties.Api("sk-ant-da-non-usare"), "claude-di-test");
+        return new CoachAiService(mapper, "groq", proprieta, anthropic, groq.url(), Duration.ofSeconds(5), timeoutRisposta);
     }
 
     private CoachChatRequestDTO richiesta(String messages, String tools) {
@@ -254,7 +256,7 @@ class CoachAiServiceTest {
     void gliStrumentiAmmessiSonoQuelliDelFrontend() {
         assertThat(CoachAiService.TOOL_AMMESSI).containsExactlyInAnyOrder("crea_lega", "crea_tappa", "annulla_risultato",
                 "aggiorna_squadra", "registra_squadra", "registra_giocatore", "sorteggia_gironi", "genera_fasi_dirette",
-                "registra_risultato", "concludi_tappa");
+                "registra_risultato", "concludi_tappa", "correggi_squadra");
     }
 
     /* ── Il ruolo system: solo il primo messaggio, che scrive il Coach dell'app ── */
@@ -327,6 +329,7 @@ class CoachAiServiceTest {
         assertThat(risposta.at("/choices/0/message/content").asString()).isEqualTo("Ciao!");
         assertThat(groq.richieste()).singleElement().satisfies(r -> {
             assertThat(r.autorizzazione()).isEqualTo("Bearer " + CHIAVE);
+            assertThat(r.intestazione("x-api-key")).as("con groq la chiave Anthropic non parte").isNull();
             JsonNode inviato = mapper.readTree(r.corpo());
             // Modello e limite di token li fissa il server: il browser manda solo messages e tools
             assertThat(inviato.path("model").asString()).isEqualTo("modello-di-test");

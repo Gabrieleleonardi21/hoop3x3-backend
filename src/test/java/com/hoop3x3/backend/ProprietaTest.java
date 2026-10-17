@@ -1,9 +1,13 @@
 package com.hoop3x3.backend;
 
+import com.hoop3x3.backend.dto.FoglioRequestDTO;
 import com.hoop3x3.backend.runners.SeedProperties;
 import com.hoop3x3.backend.security.AuthProperties;
 import com.hoop3x3.backend.security.CorsProperties;
+import com.hoop3x3.backend.services.AiProperties;
+import com.hoop3x3.backend.services.AnthropicProperties;
 import com.hoop3x3.backend.services.AppProperties;
+import com.hoop3x3.backend.services.CoachProperties;
 import com.hoop3x3.backend.services.GroqProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.context.properties.bind.Binder;
@@ -39,6 +43,14 @@ class ProprietaTest {
         assertThat(groq.api().key()).isEmpty();
         assertThat(groq.model()).isEqualTo("openai/gpt-oss-120b");
         assertThat(groq.reasoningEffort()).isEqualTo("low");
+        assertThat(groq.modelloVisione()).isEqualTo("qwen/qwen3.8-27b");
+        // Il Coach parla con Groq come prima, finché non si sceglie anthropic
+        assertThat(leggi(nessuna, "coach", CoachProperties.class).fornitore()).isEqualTo("groq");
+        // Lettura dei fogli spenta: nessun fornitore scelto, nessuna chiave Anthropic
+        assertThat(leggi(nessuna, "ai", AiProperties.class).lettoreFoglio()).isEmpty();
+        AnthropicProperties anthropic = leggi(nessuna, "anthropic", AnthropicProperties.class);
+        assertThat(anthropic.api().key()).isEmpty();
+        assertThat(anthropic.model()).isEqualTo("claude-haiku-5-5");
         // Il link del recupero password porta al frontend di sviluppo
         AppProperties app = leggi(nessuna, "app", AppProperties.class);
         assertThat(app.frontendUrl()).isEqualTo("http://localhost:5173");
@@ -81,14 +93,36 @@ class ProprietaTest {
         assertThat(groq.reasoningEffort()).as("vuoto: il campo non si manda a Groq").isEmpty();
     }
 
+    // Lettura dei fogli: fornitore, modello con immagini di Groq, chiave e modello Anthropic (Map.of si ferma a dieci coppie)
+    @Test
+    void leChiaviDellaLetturaDeiFogliSonoQuelleDiApplicationProperties() {
+        Map<String, String> valori = Map.of("groq.modello-visione", "visione-di-prova", "ai.lettore-foglio", "anthropic",
+                "anthropic.api.key", "chiave-anthropic-di-prova", "anthropic.model", "claude-di-prova");
+        assertThat(leggi(valori, "groq", GroqProperties.class).modelloVisione()).isEqualTo("visione-di-prova");
+        assertThat(leggi(valori, "ai", AiProperties.class).lettoreFoglio()).isEqualTo("anthropic");
+        AnthropicProperties anthropic = leggi(valori, "anthropic", AnthropicProperties.class);
+        assertThat(anthropic.api().key()).isEqualTo("chiave-anthropic-di-prova");
+        assertThat(anthropic.model()).isEqualTo("claude-di-prova");
+    }
+
+    @Test
+    void ilFornitoreDelCoachSiLeggeDaCoachFornitore() {
+        assertThat(leggi(Map.of("coach.fornitore", "anthropic"), "coach", CoachProperties.class).fornitore()).isEqualTo("anthropic");
+    }
+
     // Il toString() automatico di un record scrive tutti i campi: password e chiave non devono finire nei log
     @Test
     void passwordEChiaveNonCompaionoNelToString() {
         assertThat(new SeedProperties(true, false, new SeedProperties.Admin("a@prova.it", "Segreta-di-prova-1")).toString())
                 .doesNotContain("Segreta-di-prova-1");
-        assertThat(new GroqProperties(new GroqProperties.Api("chiave-di-prova"), "m", "low").toString())
+        assertThat(new GroqProperties(new GroqProperties.Api("chiave-di-prova"), "m", "low", "v").toString())
                 .doesNotContain("chiave-di-prova");
+        assertThat(new AnthropicProperties(new AnthropicProperties.Api("chiave-anthropic-di-prova"), "m").toString())
+                .doesNotContain("chiave-anthropic-di-prova");
         assertThat(new AppProperties("http://localhost:5173", new AppProperties.Brevo("xkeysib-di-prova"),
                 new AppProperties.Mail("hoop3x3@gmail.com")).toString()).doesNotContain("xkeysib-di-prova");
+        // La foto di un foglio: un log di debug con il DTO non deve portare l'immagine, solo quanti caratteri ha
+        assertThat(new FoglioRequestDTO("data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ").toString())
+                .doesNotContain("/9j/4AAQSkZJRgABAQ").isEqualTo("FoglioRequestDTO[immagine=41 caratteri]");
     }
 }

@@ -11,13 +11,17 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
  * @param reasoningEffort quanto il modello ragiona prima di rispondere (GROQ_REASONING_EFFORT): «low» di base, per i modelli
  *                        gpt-oss. Vuoto = il campo non si manda a Groq, per un modello che non lo accetta (risponderebbe 400
  *                        a ogni richiesta)
+ * @param modelloVisione  il modello con immagini che legge le foto dei fogli (GROQ_MODELLO_VISIONE), quando
+ *                        ai.lettore-foglio è «groq». Il modello del Coach legge solo testo
  */
 @ConfigurationProperties(prefix = "groq")
 public record GroqProperties(
         @DefaultValue Api api,
         // openai/gpt-oss-120b: gratuito su Groq, supporta il tool calling (llama-3.3-70b è stato dismesso)
         @DefaultValue("openai/gpt-oss-120b") String model,
-        @DefaultValue("low") String reasoningEffort
+        @DefaultValue("low") String reasoningEffort,
+        // I modelli con immagini di Groq sono cambiati tre volte nel 2026: il nome sta in una proprietà, non nel codice
+        @DefaultValue("qwen/qwen3.8-27b") String modelloVisione
 ) {
     /** La chiave dell'API: vuota se non configurata */
     public record Api(@DefaultValue("") String key) {

@@ -28,6 +28,16 @@ public final class LogSupport {
     }
 
     /**
+     * Il corpo della risposta di un fornitore (Groq, Anthropic) per i log: al massimo 500 caratteri, con «…» se ne aveva di più.
+     * Si tronca prima di passare da perLog, così una sequenza di escape non resta tagliata a metà
+     */
+    public static String tronca(String s) {
+        if (s == null) return "";
+        if (s.length() <= 500) return s;
+        return s.substring(0, 500) + "…";
+    }
+
+    /**
      * L'email per il log del recupero password: le prime due lettere e il dominio (mario@x.it diventa ma***@x.it). Basta a
      * capire di chi si parla senza scrivere l'indirizzo intero; passa comunque da perLog, perché la sceglie chi chiede il link
      */

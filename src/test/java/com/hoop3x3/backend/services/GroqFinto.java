@@ -1,5 +1,6 @@
 package com.hoop3x3.backend.services;
 
+import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
@@ -18,10 +19,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  * che registra le richieste ricevute e risponde come gli si ordina. Il servizio usa il suo vero client HTTP,
  * ma i test non escono dal computer e non servono chiavi vere.
  */
-final class GroqFinto implements AutoCloseable {
+class GroqFinto implements AutoCloseable {
 
-    /** Ciò che è arrivato al server: i test controllano la chiave e il corpo inoltrati */
-    record Richiesta(String autorizzazione, String corpo) {}
+    /** Ciò che è arrivato al server: i test controllano la chiave e il corpo inoltrati, e le altre intestazioni (Anthropic) */
+    record Richiesta(String autorizzazione, String corpo, Headers intestazioni) {
+        String intestazione(String nome) {
+            return intestazioni.getFirst(nome);
+        }
+    }
 
     private final HttpServer server;
     private final ExecutorService esecutore = Executors.newVirtualThreadPerTaskExecutor();
@@ -34,7 +39,8 @@ final class GroqFinto implements AutoCloseable {
         server.setExecutor(esecutore);
         server.createContext("/", scambio -> {
             String corpo = new String(scambio.getRequestBody().readAllBytes(), UTF_8);
-            richieste.add(new Richiesta(scambio.getRequestHeaders().getFirst("Authorization"), corpo));
+            Headers intestazioni = scambio.getRequestHeaders();
+            richieste.add(new Richiesta(intestazioni.getFirst("Authorization"), corpo, intestazioni));
             comportamento.handle(scambio);
         });
         rispondi(200, "{\"choices\":[]}");

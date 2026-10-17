@@ -40,6 +40,7 @@ import com.hoop3x3.backend.services.AnagrafeService;
 import com.hoop3x3.backend.services.ArchivioService;
 import com.hoop3x3.backend.services.CampettoService;
 import com.hoop3x3.backend.services.CoachAiService;
+import com.hoop3x3.backend.services.FoglioService;
 import com.hoop3x3.backend.services.LegaService;
 import com.hoop3x3.backend.services.ProfiloService;
 import com.hoop3x3.backend.services.RecuperoPasswordService;
@@ -120,6 +121,7 @@ class ValidazioneWebTest {
     @MockitoBean ArchivioService archivioService;
     @MockitoBean CampettoService campettoService;
     @MockitoBean CoachAiService coachAiService;
+    @MockitoBean FoglioService foglioService;
     @MockitoBean RecuperoPasswordService recuperoPasswordService;
     @MockitoBean ProfiloService profiloService;
     @MockitoBean RefreshTokenService refreshTokenService;
@@ -225,8 +227,8 @@ class ValidazioneWebTest {
     private void rifiutataConMessaggio(HttpMethod metodo, String url, Object corpo, Matcher<String> messaggio) throws Exception {
         corpoStandard(invia(metodo, url, corpo).andExpect(status().isBadRequest()))
                 .andExpect(jsonPath("$.message", messaggio));
-        verifyNoInteractions(legaService, anagrafeService, archivioService, campettoService, coachAiService, authenticationManager,
-                refreshTokenService, utenteRepository, recuperoPasswordService, profiloService);
+        verifyNoInteractions(legaService, anagrafeService, archivioService, campettoService, coachAiService, foglioService,
+                authenticationManager, refreshTokenService, utenteRepository, recuperoPasswordService, profiloService);
     }
 
     /** Il corpo d'errore è solo {message, timestamp}, con il timestamp nel formato ISO di ExceptionsHandler (LocalDateTime) */
@@ -308,7 +310,8 @@ class ValidazioneWebTest {
                 arguments(POST, "/api/auth/me/email", Map.of(), List.of("nuovaEmail", "password")),
                 arguments(POST, "/api/auth/email/conferma", Map.of(), List.of("token")),
                 arguments(POST, "/api/auth/me/elimina", Map.of(), List.of("password")),
-                arguments(POST, "/api/coach/chat", Map.of(), List.of("messages")));
+                arguments(POST, "/api/coach/chat", Map.of(), List.of("messages")),
+                arguments(POST, "/api/coach/foglio", Map.of(), List.of("immagine")));
     }
 
     // Un corpo senza i campi obbligatori: il messaggio li nomina tutti. Il nome si cerca per intero: «cognome:» non deve far

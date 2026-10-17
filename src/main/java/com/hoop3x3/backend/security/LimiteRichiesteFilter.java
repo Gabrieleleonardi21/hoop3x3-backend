@@ -38,6 +38,8 @@ import static org.springframework.security.web.servlet.util.matcher.PathPatternR
  *   <li><b>Coach AI</b> (POST /api/coach/chat), per utente e in due finestre, il minuto e il giorno UTC: ogni richiesta è una
  *       chiamata alla chiave Groq del server, e la registrazione è libera, quindi qualsiasi account potrebbe usarla come proxy
  *       senza fine (BE-2). Respinta qui, non arriva a Groq.</li>
+ *   <li><b>Foto dei fogli</b> (POST /api/coach/foglio), per utente e in due finestre come il Coach, con contatori loro: ogni
+ *       foto è una chiamata a un modello con immagini, più cara di un messaggio. La chat non consuma le foto e viceversa.</li>
  *   <li><b>Profilo con la password attuale</b> (POST /api/auth/me/password, /api/auth/me/email e /api/auth/me/elimina), per
  *       utente e con un contatore solo per i tre: ognuno verifica la password con un BCrypt, e chi ha rubato un JWT potrebbe
  *       provare password a raffica. Il limite è quello del login (limite.auth-al-minuto). Il cambio del nome non si conta.</li>
@@ -72,6 +74,8 @@ public class LimiteRichiesteFilter extends OncePerRequestFilter {
     private static final RequestMatcher RECUPERO = pathPattern(HttpMethod.POST, "/api/auth/password/dimenticata");
     // Solo la chat chiama Groq: lo stato del Coach (GET /api/coach/status) legge una proprietà e non consuma la quota
     private static final RequestMatcher COACH = pathPattern(HttpMethod.POST, "/api/coach/chat");
+    // La lettura di una foto chiama il fornitore dei fogli (Groq o Anthropic): contatori suoi, non quelli della chat
+    private static final RequestMatcher FOGLIO = pathPattern(HttpMethod.POST, "/api/coach/foglio");
     // Gli endpoint del profilo che verificano la password attuale: un contatore solo, così chi la cerca non ne ha tre
     private static final RequestMatcher PROFILO_CON_PASSWORD = new OrRequestMatcher(
             pathPattern(HttpMethod.POST, "/api/auth/me/password"),
@@ -90,6 +94,8 @@ public class LimiteRichiesteFilter extends OncePerRequestFilter {
     private final LimiteRichieste recupero;
     private final LimiteRichieste coachAlMinuto;
     private final LimiteRichieste coachAlGiorno;
+    private final LimiteRichieste foglioAlMinuto;
+    private final LimiteRichieste foglioAlGiorno;
     private final LimiteRichieste profilo;
 
     public LimiteRichiesteFilter(LimiteRichiesteProperties limiti, Clock orologio,
@@ -101,6 +107,8 @@ public class LimiteRichiesteFilter extends OncePerRequestFilter {
         this.recupero = new LimiteRichieste(limiti.authAlMinuto(), MINUTO, orologio);
         this.coachAlMinuto = new LimiteRichieste(limiti.coachAlMinuto(), MINUTO, orologio);
         this.coachAlGiorno = new LimiteRichieste(limiti.coachAlGiorno(), GIORNO, orologio);
+        this.foglioAlMinuto = new LimiteRichieste(limiti.foglioAlMinuto(), MINUTO, orologio);
+        this.foglioAlGiorno = new LimiteRichieste(limiti.foglioAlGiorno(), GIORNO, orologio);
         this.profilo = new LimiteRichieste(limiti.authAlMinuto(), MINUTO, orologio);
     }
 
@@ -129,6 +137,8 @@ public class LimiteRichiesteFilter extends OncePerRequestFilter {
             conta(recupero, request.getRemoteAddr(), INDIRIZZO, "Troppe richieste di recupero password");
         } else if (COACH.matches(request)) {
             controllaIlCoach();
+        } else if (FOGLIO.matches(request)) {
+            controllaIlFoglio();
         } else if (PROFILO_CON_PASSWORD.matches(request)) {
             String id = idDellUtente();
             if (id != null) conta(profilo, id, UTENTE, "Troppi tentativi con la password");
@@ -141,6 +151,14 @@ public class LimiteRichiesteFilter extends OncePerRequestFilter {
         // Prima il minuto, poi il giorno: la quota giornaliera conta le richieste che passano il minuto, non quelle respinte
         conta(coachAlMinuto, id, UTENTE, "Troppe richieste al Coach AI");
         conta(coachAlGiorno, id, UTENTE, "Quota giornaliera del Coach AI esaurita");
+    }
+
+    private void controllaIlFoglio() {
+        String id = idDellUtente();
+        if (id == null) return;
+        // Come per il Coach: prima il minuto, poi il giorno, che conta solo le foto passate dal minuto
+        conta(foglioAlMinuto, id, UTENTE, "Troppe foto in poco tempo");
+        conta(foglioAlGiorno, id, UTENTE, "Quota giornaliera di lettura dei fogli esaurita");
     }
 
     /**
