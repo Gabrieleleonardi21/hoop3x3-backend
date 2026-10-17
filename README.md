@@ -17,6 +17,7 @@ Servono Java 25 e un PostgreSQL (la CI usa la 18). Maven non va installato: c'è
 - [Migrazioni del database](#migrazioni-del-database)
 - [Endpoint](#endpoint)
 - [Coach AI](#coach-ai)
+- [Lettura dei fogli (foto)](#lettura-dei-fogli-foto)
 - [Tappe e modifiche da più dispositivi](#tappe-e-modifiche-da-più-dispositivi)
 - [Archivio circuito](#archivio-circuito)
 - [Anagrafe del circuito](#anagrafe-del-circuito)
@@ -362,7 +363,7 @@ Proxy verso [Groq](https://console.groq.com/) o Anthropic (`POST /api/coach/chat
 La richiesta è controllata prima di arrivare a Groq, altrimenti 400 con un messaggio in italiano:
 
 - `messages` da 1 a 60 messaggi, per al massimo 100.000 caratteri. Il primo può avere il ruolo `system` (le istruzioni al modello, che scrive il Coach dell'app); tutti gli altri solo `user`, `assistant` o `tool`: un secondo `system`, o uno in mezzo alla conversazione, è un client che prova a riscrivere le istruzioni. Il `content` del `system` deve essere testo (una stringa, come lo manda il frontend): il formato a parti, `null` o un numero danno 400, perché la regola del contesto deve stare nello stesso messaggio (vedi «La regola del contesto»).
-- `tools` al massimo 20 strumenti (50.000 caratteri), e ognuno deve essere una funzione del Coach: `"type": "function"` e `function.name` tra i nomi di `COACH_TOOLS` in `src/coach/toolDefs.ts` del frontend (`crea_lega`, `crea_tappa`, `annulla_risultato`, `aggiorna_squadra`, `registra_squadra`, `registra_giocatore`, `sorteggia_gironi`, `genera_fasi_dirette`, `registra_risultato`, `concludi_tappa`, `correggi_squadra`, che sistema nomi e giocatori di una squadra della tappa, per esempio dopo una bozza letta da una foto; la copia sta in `CoachAiService.TOOL_AMMESSI`, e uno strumento nuovo va aggiunto da entrambe le parti). Con un altro `type` Groq attiverebbe i suoi strumenti integrati (`browser_search`, `code_interpreter`), pagati con la chiave del server.
+- `tools` al massimo 20 strumenti (50.000 caratteri), e ognuno deve essere una funzione del Coach: `"type": "function"` e `function.name` tra i nomi di `COACH_TOOLS` nel frontend, in `Hoops-3x3/src/coach/toolDefs.ts` (`crea_lega`, `crea_tappa`, `annulla_risultato`, `aggiorna_squadra`, `registra_squadra`, `registra_giocatore`, `sorteggia_gironi`, `genera_fasi_dirette`, `registra_risultato`, `concludi_tappa`, `correggi_squadra`, che sistema nomi e giocatori di una squadra della tappa, per esempio dopo una bozza letta da una foto; la copia sta in `CoachAiService.TOOL_AMMESSI`, e uno strumento nuovo va aggiunto da entrambe le parti). Con un altro `type` Groq attiverebbe i suoi strumenti integrati (`browser_search`, `code_interpreter`), pagati con la chiave del server.
 
 Modello e limite di token (1200) li fissa il server. Il fornitore ha 5 secondi per accettare la connessione e 60 per mandare l'intera risposta.
 
