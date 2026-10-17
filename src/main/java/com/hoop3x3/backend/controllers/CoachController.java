@@ -13,7 +13,7 @@ import tools.jackson.databind.JsonNode;
 
 import java.util.Map;
 
-/** Coach AI: proxy autenticato verso Groq (la chiave non lascia mai il server) e lettura delle foto dei fogli di tappa. */
+/** Coach AI: proxy autenticato verso Groq o Anthropic (la chiave non lascia mai il server) e lettura delle foto dei fogli di tappa. */
 @RestController
 @RequestMapping("/api/coach")
 public class CoachController {
@@ -27,7 +27,7 @@ public class CoachController {
     }
 
     /**
-     * Dice se il server ha una chiave Groq configurata (available) e se la lettura dei fogli è accesa (foglio). Il frontend
+     * Dice se il Coach ha la chiave del suo fornitore (available) e se la lettura dei fogli è accesa (foglio). Il frontend
      * oggi non lo chiama: mostra sempre il Coach e scopre che è spento dal 503. Serve a chi controlla la configurazione di un
      * ambiente (curl, monitoraggio, la verifica dopo il deploy)
      */
