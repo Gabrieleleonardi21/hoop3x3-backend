@@ -266,10 +266,10 @@ La CI (`.github/workflows/ci.yml`) fa lo stesso a ogni push su `main` e a ogni p
 
 ### Numeri
 
-Misurati il 19 ottobre 2026 con Java 25.0.3; i test di integrazione il 14 ottobre, con PostgreSQL 18.4 per il database di prova:
+Misurati il 19 ottobre 2026 con Java 25.0.3, e con PostgreSQL 18.4 per il database di prova:
 
 - 997 test unitari e web in 54 classi (`./mvnw test`), compresi i 5 di `ReadmeTest`;
-- 294 test di integrazione in 26 classi (`./mvnw verify -Pintegrazione`);
+- 298 test di integrazione (`./mvnw verify -Pintegrazione`);
 - 42 endpoint dell'applicazione, più 2 dell'actuator;
 - 11 migrazioni (da V1 a V11) e 12 tabelle, escluso lo storico di Flyway.
 
@@ -364,9 +364,11 @@ Proxy verso [Groq](https://console.groq.com/) o Anthropic (`POST /api/coach/chat
 La richiesta è controllata prima di arrivare a Groq, altrimenti 400 con un messaggio in italiano:
 
 - `messages` da 1 a 60 messaggi, per al massimo 100.000 caratteri. Il primo può avere il ruolo `system` (le istruzioni al modello, che scrive il Coach dell'app); tutti gli altri solo `user`, `assistant` o `tool`: un secondo `system`, o uno in mezzo alla conversazione, è un client che prova a riscrivere le istruzioni. Il `content` del `system` deve essere testo (una stringa, come lo manda il frontend): il formato a parti, `null` o un numero danno 400, perché la regola del contesto deve stare nello stesso messaggio (vedi «La regola del contesto»).
-- `tools` al massimo 20 strumenti (50.000 caratteri), e ognuno deve essere una funzione del Coach: `"type": "function"` e `function.name` tra i nomi di `COACH_TOOLS` nel frontend, in `Hoops-3x3/src/coach/toolDefs.ts` (`crea_lega`, `crea_tappa`, `annulla_risultato`, `aggiorna_squadra`, `registra_squadra`, `registra_giocatore`, `sorteggia_gironi`, `genera_fasi_dirette`, `registra_risultato`, `concludi_tappa`, `correggi_squadra`, che sistema nomi e giocatori di una squadra della tappa, per esempio dopo una bozza letta da una foto; la copia sta in `CoachAiService.TOOL_AMMESSI`, e uno strumento nuovo va aggiunto da entrambe le parti). Con un altro `type` Groq attiverebbe i suoi strumenti integrati (`browser_search`, `code_interpreter`), pagati con la chiave del server.
+- `tools` al massimo 20 strumenti (50.000 caratteri), e ognuno deve essere una funzione del Coach: `"type": "function"` e `function.name` tra i nomi di `COACH_TOOLS` nel frontend, in `Hoops-3x3/src/coach/toolDefs.ts` (`crea_lega`, `crea_tappa`, `annulla_risultato`, `aggiorna_squadra`, `registra_squadra`, `registra_giocatore`, `sorteggia_gironi`, `genera_fasi_dirette`, `registra_risultato`, `concludi_tappa`, `correggi_squadra`, che sistema nomi e giocatori di una squadra della tappa, per esempio dopo una bozza letta da una foto, `crea_tappa_simulata`, `simula_risultati` e `registra_risultati`, che creano o completano una tappa di prova e registrano più risultati insieme; la copia sta in `CoachAiService.TOOL_AMMESSI`, e uno strumento nuovo va aggiunto da entrambe le parti). Con un altro `type` Groq attiverebbe i suoi strumenti integrati (`browser_search`, `code_interpreter`), pagati con la chiave del server.
 
-Modello e limite di token (1200) li fissa il server. Il fornitore ha 5 secondi per accettare la connessione e 60 per mandare l'intera risposta.
+Modello e limite di token (2000) li fissa il server. Il fornitore ha 5 secondi per accettare la connessione e 60 per mandare l'intera risposta.
+
+Il tetto dei token è lo stesso per i due fornitori ed è una sola costante, `MAX_TOKENS` in `CoachAiService`, che arriva a `CoachAnthropic` come parametro. Era 1200, e bastava per una chiamata sola; ma con gpt-oss il tetto comprende anche il ragionamento del modello, e `registra_risultati` con 15 righe porta da solo 500-750 token di argomenti, quindi 1200 non bastano. Il tetto è un massimo: si paga solo quello che il modello usa davvero.
 
 **Con Anthropic** (`COACH_FORNITORE=anthropic`, la chiave `ANTHROPIC_API_KEY` e il modello `ANTHROPIC_MODEL`, di base `claude-haiku-5-5`: gli stessi della lettura dei fogli) i controlli, i limiti e la regola del contesto sono gli stessi; `services/CoachAnthropic` traduce la richiesta per la Messages API (`POST https://api.anthropic.com/v1/messages`, `x-api-key`, `anthropic-version: 2023-06-01`) e riporta la risposta nel formato OpenAI:
 
