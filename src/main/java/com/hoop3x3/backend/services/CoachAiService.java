@@ -46,8 +46,11 @@ public class CoachAiService {
     private static final String ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
     private static final String GROQ = "groq";
     private static final String ANTHROPIC = "anthropic";
-    /** Token della risposta, per i due fornitori: con gpt-oss comprendono il ragionamento */
-    private static final int MAX_TOKENS = 1200;
+    /**
+     * Token della risposta, per i due fornitori. 2000 perché con gpt-oss il tetto comprende il ragionamento e
+     * `registra_risultati` può portare decine di righe di argomenti; 1200 bastava per una chiamata sola
+     */
+    private static final int MAX_TOKENS = 2000;
     private static final Duration TIMEOUT_CONNESSIONE = Duration.ofSeconds(5);
     private static final Duration TIMEOUT_RISPOSTA = Duration.ofSeconds(60);
     /* Limiti della richiesta: bastano largamente al Coach dell'app e impediscono l'uso come proxy generico */

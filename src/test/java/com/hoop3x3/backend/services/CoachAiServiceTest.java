@@ -334,7 +334,7 @@ class CoachAiServiceTest {
             JsonNode inviato = mapper.readTree(r.corpo());
             // Modello e limite di token li fissa il server: il browser manda solo messages e tools
             assertThat(inviato.path("model").asString()).isEqualTo("modello-di-test");
-            assertThat(inviato.path("max_tokens").asInt()).isEqualTo(1200);
+            assertThat(inviato.path("max_tokens").asInt()).isEqualTo(2000);
             assertThat(inviato.path("reasoning_effort").asString()).isEqualTo("low");
             assertThat(inviato.path("tool_choice").asString()).isEqualTo("auto");
             // In testa il system con la regola del contesto, poi i messaggi del client così come sono arrivati

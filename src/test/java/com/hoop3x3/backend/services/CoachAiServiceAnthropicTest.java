@@ -115,7 +115,7 @@ class CoachAiServiceAnthropicTest {
         assertThat(r.autorizzazione()).as("la chiave Groq non parte verso Anthropic").isNull();
         JsonNode corpo = inviato();
         assertThat(corpo.path("model").asString()).isEqualTo("claude-di-test");
-        assertThat(corpo.path("max_tokens").asInt()).isEqualTo(1200);
+        assertThat(corpo.path("max_tokens").asInt()).isEqualTo(2000);
         // Il frontend non conserva i blocchi di pensiero, che andrebbero rimandati con i risultati degli strumenti
         assertThat(corpo.at("/thinking/type").asString()).isEqualTo("disabled");
         assertThat(corpo.has("reasoning_effort")).as("campo di Groq").isFalse();
