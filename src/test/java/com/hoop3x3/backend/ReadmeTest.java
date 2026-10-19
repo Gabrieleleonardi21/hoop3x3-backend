@@ -196,7 +196,8 @@ class ReadmeTest {
         // I codici dei piani di lavoro (BE-11, TR-4, T2.7...) si scrivono a parole: nei commenti del codice restano, qui no
         assertThat(testo).doesNotContainPattern("\\b(BE|TR|FE)-\\d+\\b");
         assertThat(testo).doesNotContainPattern("\\bT\\d+\\.\\d+\\b");
-        // Il README parla del prodotto e del codice, non di chi o con che cosa è stato scritto
-        assertThat(testo).doesNotContainPattern("(?i)\\b(claude|anthropic|gizmo|chatgpt|copilot|codex)\\b");
+        // Il README parla del prodotto e del codice, non di chi o con che cosa è stato scritto. I nomi dei fornitori di IA
+        // (Anthropic, Groq) sono fatti del prodotto e si scrivono: restano vietati gli strumenti di sviluppo
+        assertThat(testo).doesNotContainPattern("(?i)\\b(gizmo|chatgpt|copilot|codex)\\b|\\bclaude code\\b");
     }
 }
