@@ -147,8 +147,8 @@ class DatiDiProvaTest {
         }
     }
 
-    // Il campo «squadra» di un giocatore è il nome della squadra del cui roster fa parte: il frontend le abbina per nome
-    // (per esempio per il logo), quindi un nome scritto in un altro modo nell'anagrafe e nelle squadre le separerebbe
+    // Il campo «squadra» di un giocatore è il nome della squadra del cui roster fa parte: il frontend abbina i giocatori per
+    // regId, e il campo resta per chi legge, quindi deve dire lo stesso nome che ha la squadra nel roster
     @Test
     void ilCampoSquadraDiOgniGiocatoreELNomeDellaSquadraDelSuoRoster() {
         Map<String, String> squadraPerGiocatore = new HashMap<>();
