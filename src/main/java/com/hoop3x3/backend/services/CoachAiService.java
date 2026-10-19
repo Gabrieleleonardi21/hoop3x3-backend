@@ -64,11 +64,12 @@ public class CoachAiService {
      * uno per funzione di toolHandlers.ts. Un tool con un altro nome, o di un altro tipo, non passa: con `type` diverso da
      * «function» Groq attiva i suoi strumenti integrati (browser_search, code_interpreter), pagati con la chiave del server.
      * Uno strumento nuovo nel frontend va aggiunto anche qui (correggi_squadra: nomi e giocatori di una squadra della tappa,
-     * per sistemare una bozza letta da una foto)
+     * per sistemare una bozza letta da una foto; crea_tappa_simulata, simula_risultati e registra_risultati: la tappa di prova
+     * e i risultati, inventati o dettati, che il frontend esegue nel browser)
      */
     static final Set<String> TOOL_AMMESSI = Set.of("crea_lega", "crea_tappa", "annulla_risultato", "aggiorna_squadra",
             "registra_squadra", "registra_giocatore", "sorteggia_gironi", "genera_fasi_dirette", "registra_risultato",
-            "concludi_tappa", "correggi_squadra");
+            "concludi_tappa", "correggi_squadra", "crea_tappa_simulata", "simula_risultati", "registra_risultati");
 
     /** «groq», «anthropic», o vuoto se coach.fornitore non è nessuno dei due (Coach spento) */
     private final String fornitore;
