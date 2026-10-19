@@ -266,10 +266,10 @@ La CI (`.github/workflows/ci.yml`) fa lo stesso a ogni push su `main` e a ogni p
 
 ### Numeri
 
-Misurati il 19 ottobre 2026 con Java 25.0.3; i test di integrazione il 14 ottobre, con PostgreSQL 18.4 per il database di prova:
+Misurati il 19 ottobre 2026 con Java 25.0.3, e con PostgreSQL 18.4 per il database di prova:
 
 - 997 test unitari e web in 54 classi (`./mvnw test`), compresi i 5 di `ReadmeTest`;
-- 294 test di integrazione in 26 classi (`./mvnw verify -Pintegrazione`);
+- 298 test di integrazione (`./mvnw verify -Pintegrazione`);
 - 42 endpoint dell'applicazione, più 2 dell'actuator;
 - 11 migrazioni (da V1 a V11) e 12 tabelle, escluso lo storico di Flyway.
 
