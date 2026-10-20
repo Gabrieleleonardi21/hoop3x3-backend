@@ -29,6 +29,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -285,6 +286,32 @@ class DemoSeederIT {
         }
         assertThat(letti).as("giocatori letti nelle tappe in archivio").isEqualTo(128);
         assertThat(squadre.findAll()).allSatisfy(s -> assertThat(s.getReferente()).contains(" "));
+    }
+
+    // Ogni giocatore delle squadre delle tappe in archivio porta il regId della sua scheda in anagrafe: il frontend (fase 11a) lo
+    // riconosce per id e non deve ripiegare sul nome. Nessuno senza regId, nessun regId che non esiste nell'anagrafe
+    @Test
+    void iGiocatoriDelleTappeInArchivioHannoIlRegIdDellaLoroScheda() throws Exception {
+        accendiIlSeed();
+
+        seeder.run();
+
+        Map<String, String> idPerNome = giocatori.findAll().stream()
+                .collect(Collectors.toMap(g -> g.getNome() + " " + g.getCognome(), g -> g.getId().toString()));
+        Set<String> idInAnagrafe = Set.copyOf(idPerNome.values());
+        int letti = 0;
+        for (VoceArchivioDTO voce : archivioService.tutte()) {
+            for (JsonNode squadra : archivioService.una(voce.tappaId()).tappa().squadre()) {
+                for (JsonNode giocatore : squadra.path("giocatori")) {
+                    String regId = giocatore.path("regId").asString();
+                    assertThat(regId).as("regId di %s", giocatore.path("nome").asString())
+                            .isEqualTo(idPerNome.get(giocatore.path("nome").asString()));
+                    assertThat(idInAnagrafe).contains(regId);
+                    letti++;
+                }
+            }
+        }
+        assertThat(letti).as("giocatori con regId nelle tappe in archivio").isEqualTo(128);
     }
 
     // Il seed è una transazione sola: se si ferma a metà il database resta com'era e il prossimo avvio riprova da capo, senza

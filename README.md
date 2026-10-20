@@ -269,7 +269,7 @@ La CI (`.github/workflows/ci.yml`) fa lo stesso a ogni push su `main` e a ogni p
 Misurati il 19 ottobre 2026 con Java 25.0.3, e con PostgreSQL 18.4 per il database di prova:
 
 - 997 test unitari e web in 54 classi (`./mvnw test`), compresi i 5 di `ReadmeTest`;
-- 298 test di integrazione (`./mvnw verify -Pintegrazione`);
+- 299 test di integrazione (`./mvnw verify -Pintegrazione`);
 - 42 endpoint dell'applicazione, più 2 dell'actuator;
 - 11 migrazioni (da V1 a V11) e 12 tabelle, escluso lo storico di Flyway.
 
@@ -859,7 +859,7 @@ src/test/         # test unitari e *IT (vedi «Test»); resources/svuota.sql svu
 Le squadre, le tappe e i risultati sono quelli del circuito, ma **le persone sono di fantasia**:
 
 - sono inventati nome, cognome, soprannome, data di nascita, altezza, peso, città e note dei 32 giocatori e il referente delle 8 squadre;
-- la nazionalità è rimescolata (i giocatori italiani restano italiani, gli stranieri sono stati spostati su altri giocatori), in modo coerente in tutto il file (anagrafe, squadre delle tappe, referenti; le statistiche richiamano i giocatori per id);
+- la nazionalità è rimescolata (i giocatori italiani restano italiani, gli stranieri sono stati spostati su altri giocatori), in modo coerente in tutto il file (anagrafe, squadre delle tappe, referenti); i giocatori delle squadre delle tappe portano il `regId` della loro scheda, e le statistiche li richiamano per id;
 - restano quelli del circuito le squadre, le tappe e i risultati, e di ogni giocatore il ruolo, la squadra e il numero: senza nome, data, misure, città e note non dicono più chi è.
 
 Il file sta nel jar anche con `SEED_DEMO=false`, quindi non deve contenere dati di persone reali: `DatiDiProvaTest` controlla che i nomi siano gli stessi ovunque compaiano e che nessun valore originale (cognomi, altezza, peso, città, nazionalità straniere) rientri nel file, confrontando le impronte SHA-256 di `src/test/resources/dati-di-prova-originali.sha256`, così i dati veri non tornano in chiaro nel repository.
@@ -895,7 +895,7 @@ Per rifare il seed su un database che l'ha già eseguito si cancellano il segno 
 DELETE FROM seed_eseguiti WHERE nome = 'demo';
 ```
 
-**Un database già seminato conserva i nomi di prima.** Il segno `demo` non dipende dai dati, quindi con i nomi di fantasia il seed non ricarica niente: giocatori, squadre, tappe e archivio già presenti restano com'erano, con le persone dei vecchi dati. Vanno ripuliti a mano, oppure il database va ricreato. A mano, con `SEED_DEMO=true` e l'admin configurato:
+**Un database già seminato conserva i nomi di prima.** Il segno `demo` non dipende dai dati, quindi con i nomi di fantasia il seed non ricarica niente: giocatori, squadre, tappe e archivio già presenti restano com'erano, con le persone dei vecchi dati. Vanno ripuliti a mano, oppure il database va ricreato. Anche i giocatori delle tappe demo portano il `regId` della loro scheda solo con un seed fatto da questa versione: su un database seminato prima, le statistiche li attribuiscono per nome. A mano, con `SEED_DEMO=true` e l'admin configurato:
 
 1. **controlla prima di cancellare qualsiasi cosa** che nessun giocatore demo stia nel roster di una squadra di un altro utente (`admin@esempio.it` è l'email dell'admin). Questa query deve restituire **0 righe**:
 

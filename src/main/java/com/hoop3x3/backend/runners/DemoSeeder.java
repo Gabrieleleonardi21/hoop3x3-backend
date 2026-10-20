@@ -148,7 +148,7 @@ public class DemoSeeder implements CommandLineRunner {
 
         Map<String, AnagrafeGiocatore> giocatoriPerId = creaGiocatori(admin, dati.path("giocatori"));
         Map<String, AnagrafeSquadra> squadrePerId = creaSquadre(admin, dati.path("squadre"), giocatoriPerId);
-        Lega lega = creaLega(admin, dati, squadrePerId);
+        Lega lega = creaLega(admin, dati, squadrePerId, giocatoriPerId);
         pubblicaInArchivio(admin, lega);
         // Per ultimo: se qualcosa va storto la transazione annulla anche il segno, e il prossimo avvio riprova da capo
         seedEseguiti.save(new SeedEseguito(SEGNO));
@@ -262,7 +262,8 @@ public class DemoSeeder implements CommandLineRunner {
         return perId;
     }
 
-    private Lega creaLega(Utente admin, JsonNode dati, Map<String, AnagrafeSquadra> squadrePerId) {
+    private Lega creaLega(Utente admin, JsonNode dati, Map<String, AnagrafeSquadra> squadrePerId,
+                          Map<String, AnagrafeGiocatore> giocatoriPerId) {
         Lega lega = new Lega(testo(dati, "lega"), admin);
         int posizione = 0;
         for (JsonNode n : dati.path("tappe")) {
@@ -276,7 +277,7 @@ public class DemoSeeder implements CommandLineRunner {
             t.setNGironi(n.path("nGironi").asInt(1));
             t.setConclusa(n.path("conclusa").asBoolean(false));
             t.setRegole(regole(n.path("regole")));
-            t.setSquadre(collegaAnagrafe(n.path("squadre"), squadrePerId));
+            t.setSquadre(collegaAnagrafe(n.path("squadre"), squadrePerId, giocatoriPerId));
             t.setGironi(arrayONull(n.path("gironi")));
             t.setPartite(n.path("partite").toString());
             t.setBracket(arrayONull(n.path("bracket")));
@@ -298,14 +299,20 @@ public class DemoSeeder implements CommandLineRunner {
     }
 
     /**
-     * Aggiunge a ogni squadra iscritta il regId della scheda in anagrafe: così il frontend
-     * la tratta come collegata (logo, rank e sito arrivano dall'anagrafe). L'id corto della
-     * squadra dentro la tappa resta com'è: è locale alla tappa e lo usano partite e bracket.
+     * Aggiunge a ogni squadra iscritta il regId della scheda in anagrafe, e a ogni suo giocatore il regId della scheda del
+     * giocatore. Così il frontend tratta la squadra come collegata (logo, rank e sito arrivano dall'anagrafe) e riconosce i
+     * giocatori per id, senza ripiegare sul nome (fase 11a). Gli id corti di squadre e giocatori dentro la tappa restano come
+     * sono: sono locali alla tappa e li usano partite e bracket.
      */
-    private String collegaAnagrafe(JsonNode squadreTappa, Map<String, AnagrafeSquadra> squadrePerId) {
+    private String collegaAnagrafe(JsonNode squadreTappa, Map<String, AnagrafeSquadra> squadrePerId,
+                                   Map<String, AnagrafeGiocatore> giocatoriPerId) {
         for (JsonNode n : squadreTappa) {
             AnagrafeSquadra reg = squadrePerId.get(testo(n, "id"));
             if (reg != null && n instanceof ObjectNode obj) obj.put("regId", reg.getId().toString());
+            for (JsonNode g : n.path("giocatori")) {
+                AnagrafeGiocatore regG = giocatoriPerId.get(testo(g, "id"));
+                if (regG != null && g instanceof ObjectNode obj) obj.put("regId", regG.getId().toString());
+            }
         }
         return squadreTappa.toString();
     }
