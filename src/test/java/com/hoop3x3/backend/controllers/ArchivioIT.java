@@ -373,6 +373,20 @@ class ArchivioIT {
                         roma.id(), millis(ieri), legaDiMario, mario.getId())));
     }
 
+    // Una pubblicazione di prima della V2 rimasta senza tappa resta nell'elenco con legaId null (il left join non la nasconde)
+    // e con l'autore: l'elenco non deve fallire per una riga orfana
+    @Test
+    void elencoConUnaPubblicazioneOrfana_laVoceRestaConLegaIdNull() throws Exception {
+        UUID orfana = UUID.randomUUID();
+        pubblicazioneOrfana(orfana, luigi);
+
+        assertThat(elenco()).singleElement().satisfies(voce -> {
+            assertThat(voce.at("/tappaId").asString()).isEqualTo(orfana.toString());
+            assertThat(voce.at("/legaId").isNull()).isTrue();
+            assertThat(voce.at("/autoreId").asString()).isEqualTo(luigi.getId().toString());
+        });
+    }
+
     // L'elenco legge le colonne scritte alla pubblicazione (V6), non il contenuto JSONB: cambiato il contenuto in SQL, la voce
     // resta quella della pubblicazione, e non c'è più niente da decomprimere a ogni richiesta. Le pubblicazioni di prima della
     // V6, anche con contenuti strani, le ha riempite la migrazione: lo prova MigrazioniIT
