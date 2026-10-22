@@ -19,6 +19,8 @@ public interface ArchivioTappaRepository extends JpaRepository<ArchivioTappa, UU
         int getNumeroSquadre();
         String getLega();
         String getAutore();
+        UUID getAutoreId();
+        UUID getLegaId();
         LocalDateTime getPubblicatoIl();
     }
 
@@ -26,12 +28,16 @@ public interface ArchivioTappaRepository extends JpaRepository<ArchivioTappa, UU
      * L'elenco dell'archivio, dalla pubblicazione più recente, in una sola query sulle colonne della tabella (nome, luogo,
      * data e numero di squadre le scrive la pubblicazione, migrazione V6): il contenuto JSONB, cioè la tappa intera, non si
      * legge né si decomprime, e le pubblicazioni non si caricano come entity.
+     * <p>
+     * `t.lega.id` legge la colonna `lega_id` di `tappe` senza unire `leghe`; `a.autore.id` non aggiunge query (`utenti` è già
+     * unita per il nome). Il `left join` lascia `legaId` null alle pubblicazioni di prima della V2 rimaste senza tappa: un
+     * `join` interno le farebbe sparire dall'elenco.
      */
     @Query("""
             select a.tappaId as tappaId, a.nome as nome, a.luogo as luogo, a.data as data,
-                   a.numeroSquadre as numeroSquadre, a.legaNome as lega, a.autore.nome as autore,
-                   a.pubblicatoIl as pubblicatoIl
-            from ArchivioTappa a
+                   a.numeroSquadre as numeroSquadre, a.legaNome as lega, a.autore.nome as autore, a.autore.id as autoreId,
+                   t.lega.id as legaId, a.pubblicatoIl as pubblicatoIl
+            from ArchivioTappa a left join Tappa t on t.id = a.tappaId
             order by a.pubblicatoIl desc
             """)
     List<VoceElenco> elenco();

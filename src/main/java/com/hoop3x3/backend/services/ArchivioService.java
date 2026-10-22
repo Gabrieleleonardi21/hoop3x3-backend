@@ -42,7 +42,8 @@ public class ArchivioService {
     public List<VoceArchivioDTO> tutte() {
         return repo.elenco().stream()
                 .map(v -> new VoceArchivioDTO(v.getTappaId(), v.getNome(), v.getLuogo(), v.getData(),
-                        v.getNumeroSquadre(), v.getLega(), v.getAutore(), Tempo.inMillisecondi(v.getPubblicatoIl())))
+                        v.getNumeroSquadre(), v.getLega(), v.getAutore(), Tempo.inMillisecondi(v.getPubblicatoIl()),
+                        v.getLegaId(), v.getAutoreId()))
                 .toList();
     }
 
