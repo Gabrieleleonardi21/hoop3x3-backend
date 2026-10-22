@@ -266,10 +266,10 @@ La CI (`.github/workflows/ci.yml`) fa lo stesso a ogni push su `main` e a ogni p
 
 ### Numeri
 
-Misurati il 19 ottobre 2026 con Java 25.0.3, e con PostgreSQL 18.4 per il database di prova:
+Misurati il 22 ottobre 2026 con Java 25.0.3, e con PostgreSQL 18.4 per il database di prova:
 
 - 997 test unitari e web in 54 classi (`./mvnw test`), compresi i 5 di `ReadmeTest`;
-- 299 test di integrazione (`./mvnw verify -Pintegrazione`);
+- 300 test di integrazione in 27 classi (`./mvnw verify -Pintegrazione`);
 - 42 endpoint dell'applicazione, più 2 dell'actuator;
 - 11 migrazioni (da V1 a V11) e 12 tabelle, escluso lo storico di Flyway.
 
@@ -341,7 +341,7 @@ L'elenco degli endpoint di questo README non lo controlla nessun test (`ReadmeTe
 | `POST` | `/api/anagrafe/squadre` | Autenticato | 201 |
 | `PUT` | `/api/anagrafe/squadre/{id}` | Autore della scheda o ADMIN (solo ADMIN se l'autore è stato eliminato) | 200; 409 come per i giocatori |
 | `DELETE` | `/api/anagrafe/squadre/{id}` | Autore della scheda o ADMIN (come la PUT) | 204 |
-| `GET` | `/api/archivio` | Pubblico | 200 l'elenco sintetico (`VoceArchivioDTO`) |
+| `GET` | `/api/archivio` | Pubblico | 200 l'elenco sintetico (`VoceArchivioDTO`), con gli id di lega e autore |
 | `GET` | `/api/archivio/tappe` | Pubblico | 200 tutte le pubblicazioni per intero (`CopiaPubblicaDTO[]`), dalla più vecchia; `[]` se l'archivio è vuoto |
 | `GET` | `/api/archivio/{tappaId}` | Pubblico | 200 la copia pubblica per intero (`CopiaPubblicaDTO`); 404 se non è in archivio |
 | `PUT` | `/api/archivio/{tappaId}` | Proprietario della lega della tappa o ADMIN (e, se la pubblicazione esiste già, il suo autore o ADMIN) | 200 la copia pubblica; senza corpo; 409 se la tappa non è conclusa |
@@ -364,7 +364,7 @@ Proxy verso [Groq](https://console.groq.com/) o Anthropic (`POST /api/coach/chat
 La richiesta è controllata prima di arrivare a Groq, altrimenti 400 con un messaggio in italiano:
 
 - `messages` da 1 a 60 messaggi, per al massimo 100.000 caratteri. Il primo può avere il ruolo `system` (le istruzioni al modello, che scrive il Coach dell'app); tutti gli altri solo `user`, `assistant` o `tool`: un secondo `system`, o uno in mezzo alla conversazione, è un client che prova a riscrivere le istruzioni. Il `content` del `system` deve essere testo (una stringa, come lo manda il frontend): il formato a parti, `null` o un numero danno 400, perché la regola del contesto deve stare nello stesso messaggio (vedi «La regola del contesto»).
-- `tools` al massimo 20 strumenti (50.000 caratteri), e ognuno deve essere una funzione del Coach: `"type": "function"` e `function.name` tra i nomi di `COACH_TOOLS` nel frontend, in `Hoops-3x3/src/coach/toolDefs.ts` (`crea_lega`, `crea_tappa`, `annulla_risultato`, `aggiorna_squadra`, `registra_squadra`, `registra_giocatore`, `sorteggia_gironi`, `genera_fasi_dirette`, `registra_risultato`, `concludi_tappa`, `correggi_squadra`, che sistema nomi e giocatori di una squadra della tappa, per esempio dopo una bozza letta da una foto, `crea_tappa_simulata`, `simula_risultati` e `registra_risultati`, che creano o completano una tappa di prova e registrano più risultati insieme; la copia sta in `CoachAiService.TOOL_AMMESSI`, e uno strumento nuovo va aggiunto da entrambe le parti). Con un altro `type` Groq attiverebbe i suoi strumenti integrati (`browser_search`, `code_interpreter`), pagati con la chiave del server.
+- `tools` al massimo 20 strumenti (50.000 caratteri), e ognuno deve essere una funzione del Coach: `"type": "function"` e `function.name` tra i **14** nomi di `COACH_TOOLS` nel frontend, in `Hoops-3x3/src/coach/toolDefs.ts` (`crea_lega`, `crea_tappa`, `annulla_risultato`, `aggiorna_squadra`, `registra_squadra`, `registra_giocatore`, `sorteggia_gironi`, `genera_fasi_dirette`, `registra_risultato`, `concludi_tappa`, `correggi_squadra`, che sistema nomi e giocatori di una squadra della tappa, per esempio dopo una bozza letta da una foto, `crea_tappa_simulata`, `simula_risultati` e `registra_risultati`, che creano o completano una tappa di prova e registrano più risultati insieme; la copia sta in `CoachAiService.TOOL_AMMESSI`, e uno strumento nuovo va aggiunto da entrambe le parti). Con un altro `type` Groq attiverebbe i suoi strumenti integrati (`browser_search`, `code_interpreter`), pagati con la chiave del server.
 
 Modello e limite di token (2000) li fissa il server. Il fornitore ha 5 secondi per accettare la connessione e 60 per mandare l'intera risposta.
 
@@ -464,8 +464,9 @@ Salvare una tappa (`PUT /api/tappe/{id}`) sostituisce la tappa intera, partite c
 
 Le tappe concluse si pubblicano nell'archivio del circuito. Leggerlo è pubblico, senza account; pubblicare e ritirare chiedono il login.
 
-- `GET /api/archivio` — l'elenco, dalla pubblicazione più recente, in forma sintetica (`VoceArchivioDTO`): ogni voce è `{tappaId, nome, luogo, data, nSquadre, lega, autore, ts}`, cioè ciò che serve a mostrare l'elenco e ad aprire la tappa (`nSquadre` è il numero delle squadre iscritte, `autore` il nome visualizzato, `ts` i millisecondi della pubblicazione). Non contiene la tappa né l'id dell'autore: la tappa si legge con il dettaglio.
-  - `nome`, `luogo`, `data` e `nSquadre` sono colonne di `archivio_tappe` scritte alla pubblicazione (migrazione V6): l'elenco è una sola query su di loro e non legge né decomprime il contenuto JSONB delle tappe, che prima veniva interrogato a ogni richiesta.
+- `GET /api/archivio` — l'elenco, dalla pubblicazione più recente, in forma sintetica (`VoceArchivioDTO`): ogni voce è `{tappaId, nome, luogo, data, nSquadre, lega, autore, ts, legaId, autoreId}`, cioè ciò che serve a mostrare l'elenco, ad aprire la tappa e a raggrupparla per lega (`nSquadre` è il numero delle squadre iscritte, `autore` il nome visualizzato, `ts` i millisecondi della pubblicazione). `legaId` è l'id della lega della tappa, letto da `tappe.lega_id` con un `left join`; `autoreId` è l'id dell'autore della pubblicazione, lo stesso del dettaglio. Non contiene la tappa: quella si legge con il dettaglio.
+  - `nome`, `luogo`, `data` e `nSquadre` sono colonne di `archivio_tappe` scritte alla pubblicazione (migrazione V6): l'elenco è una sola query su di loro, con il `left join` su `tappe` per `legaId` e l'autore già unito per il nome, e non legge né decomprime il contenuto JSONB delle tappe, che prima veniva interrogato a ogni richiesta.
+  - `legaId` è `null` solo per una pubblicazione orfana (di prima della V2, rimasta senza tappa, vedi sotto): la voce c'è lo stesso e l'elenco non fallisce.
   - Le pubblicazioni fatte prima della V6 le ha riempite la migrazione dal contenuto; quelle del vecchio endpoint avevano la tappa scelta dal client e possono avere forme strane: `nome`, `luogo` e `data` mancanti sono stringhe vuote (un nome più lungo di 120 caratteri è troncato), e un elenco di squadre che non è un array conta 0.
 - `GET /api/archivio/{tappaId}` — la tappa per intero (`CopiaPubblicaDTO`), `{tappa, lega, autore, autoreId, ts}`; 404 se non è in archivio.
 - `GET /api/archivio/tappe` — tutte le pubblicazioni per intero, ognuna lo stesso oggetto del dettaglio (`{tappa, lega, autore, autoreId, ts}`, tabellini compresi), dalla pubblicazione più vecchia alla più recente (a parità di data, per id); `[]` se l'archivio è vuoto. Serve alle statistiche dei giocatori del frontend: le calcola nel browser sommando i tabellini delle tappe pubblicate (la regola resta una sola, `statGiocatori` del frontend), così le vede chiunque, anche senza account o senza leghe sue (`GET /api/leghe` dà a ciascuno solo le proprie). Una sola query, con l'autore letto insieme (lo prova `LettureEfficientiIT`). **Limite noto:** porta gli snapshot interi, decine di KB per tappa: va bene per le decine di tappe di un circuito, con centinaia di pubblicazioni servirà una paginazione o l'aggregazione lato server.

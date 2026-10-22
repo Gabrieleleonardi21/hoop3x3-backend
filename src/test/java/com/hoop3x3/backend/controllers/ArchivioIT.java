@@ -348,14 +348,14 @@ class ArchivioIT {
     /* ── Elenco: una voce sintetica per pubblicazione, estratta dal JSONB ── */
 
     // L'elenco mostra di ogni tappa nome, luogo, data, numero di squadre, lega e autore: la voce ha questi campi più l'id per
-    // aprirla e ts per l'ordine. Niente contenuto della tappa (lo dà GET /api/archivio/{tappaId}) e niente id dell'autore
+    // aprirla, ts per l'ordine e gli id di lega e autore (legaId, autoreId) con cui il frontend raggruppa e mostra «Ritira»
     @Test
     void elencoHaUnaVoceSinteticaPerOgniPubblicazione_laPiuRecenteDavanti() throws Exception {
         assertThat(elenco().size()).as("voci dell'archivio vuoto").isZero();
         TappaDTO roma = tappaDto(UUID.randomUUID(), "Tappa di Roma", "Roma", "2026-06-14", SQUADRE, true);
         TappaDTO milano = tappaDto(UUID.randomUUID(), "Finale di Milano", "Milano", "2026-07-05", TRE_SQUADRE, true);
-        lega(mario, "Circuito 2026", roma);
-        lega(luigi, "Altro circuito", milano);
+        UUID legaDiMario = lega(mario, "Circuito 2026", roma);
+        UUID legaDiLuigi = lega(luigi, "Altro circuito", milano);
         pubblica(roma.id(), mario).andExpect(status().isOk());
         pubblica(milano.id(), luigi).andExpect(status().isOk());
         // Date certe: Roma è di ieri, Milano di adesso
@@ -366,10 +366,25 @@ class ArchivioIT {
 
         assertThat(elenco()).isEqualTo(mapper.readTree("""
                 [{"tappaId": "%s", "nome": "Finale di Milano", "luogo": "Milano", "data": "2026-07-05", "nSquadre": 3,
-                  "lega": "Altro circuito", "autore": "Luigi", "ts": %d},
+                  "lega": "Altro circuito", "autore": "Luigi", "ts": %d, "legaId": "%s", "autoreId": "%s"},
                  {"tappaId": "%s", "nome": "Tappa di Roma", "luogo": "Roma", "data": "2026-06-14", "nSquadre": 2,
-                  "lega": "Circuito 2026", "autore": "Mario", "ts": %d}]"""
-                .formatted(milano.id(), millis(adesso), roma.id(), millis(ieri))));
+                  "lega": "Circuito 2026", "autore": "Mario", "ts": %d, "legaId": "%s", "autoreId": "%s"}]"""
+                .formatted(milano.id(), millis(adesso), legaDiLuigi, luigi.getId(),
+                        roma.id(), millis(ieri), legaDiMario, mario.getId())));
+    }
+
+    // Una pubblicazione di prima della V2 rimasta senza tappa resta nell'elenco con legaId null (il left join non la nasconde)
+    // e con l'autore: l'elenco non deve fallire per una riga orfana
+    @Test
+    void elencoConUnaPubblicazioneOrfana_laVoceRestaConLegaIdNull() throws Exception {
+        UUID orfana = UUID.randomUUID();
+        pubblicazioneOrfana(orfana, luigi);
+
+        assertThat(elenco()).singleElement().satisfies(voce -> {
+            assertThat(voce.at("/tappaId").asString()).isEqualTo(orfana.toString());
+            assertThat(voce.at("/legaId").isNull()).isTrue();
+            assertThat(voce.at("/autoreId").asString()).isEqualTo(luigi.getId().toString());
+        });
     }
 
     // L'elenco legge le colonne scritte alla pubblicazione (V6), non il contenuto JSONB: cambiato il contenuto in SQL, la voce
